@@ -111,10 +111,11 @@ as outras prontas.
   módulos/tokens já foram aplicados por `_retain` no build anterior, e um vaivém
   pequeno→grande→pequeno não deve reanalisar arquivos inalterados.
 - Retenção medida (workspace de arquivos pequenos importando `std.lists`): 50 arquivos →
-  **4,1 MB** (pico 10,1 MB); 500 → **33,8 MB** (pico 43,1 MB); rebuild depois de editar:
-  **55 ms** e **160 ms** respectivamente (contra ~2,45 s e ~24,5 s do build frio, que
-  analisa todos os arquivos). `std/` sozinho (30 arquivos grandes) retém **19,7 MB**.
-  Números reproduzíveis com `uv run python bench/lsp_workspace.py --memory`.
+  **4,1 MB** (pico 5,9 MB); 500 → **33,6 MB** (pico 36,4 MB); rebuild depois de editar:
+  **14 ms** e **136 ms** respectivamente (contra **0,40 s** e **3,75 s** do build frio,
+  que analisa todos os arquivos; ver a Emenda #249/#250). `std/` sozinho (30 arquivos
+  grandes) retém **19,8 MB**. Números reproduzíveis com
+  `uv run python bench/lsp_workspace.py --memory`.
 
 ## Consequências
 
@@ -124,8 +125,10 @@ as outras prontas.
   deixam de derrubar o servidor; o rename fora do root é recusado com mensagem.
 - Edição externa (fora do root, manifest ou lock) invalida de verdade.
 - Depois de uma tecla, references custa **1 análise** em vez da workspace inteira:
-  bench de ~50 arquivos, `references_after_change` **82,8 ms** (com o fixture realista,
-  que agora importa `std`; era 86 ms com módulos sem imports).
+  bench de ~50 arquivos, `references_after_change` **42,5 ms** (com o fixture realista,
+  que importa `std`; era 86 ms com módulos sem imports).
+- O build frio caiu 6–7×: **0,40 s** para 50 arquivos e **3,75 s** para 500
+  (`bench/lsp.py`: `references_cold` **321 ms**, `workspace_build` **325 ms**).
 - `workspace_scan` e `workspace_build` ficam medidos separadamente no bench. A baseline do
 `bench/lsp.py` **não é comparável** à anterior: o fixture passou a importar `std.lists`
 (o `references_cold` antigo de ~92 ms era o mesmo build com módulos sem imports); por
@@ -133,13 +136,16 @@ isso `references_cold` e `workspace_build` só se comparam a partir desta baseli
 
 ### Negativas / custos
 
-- O custo **frio** continua O(arquivos × closure): ~49 ms/arquivo com `std` importado
-  (2,45 s para 50 arquivos; 24,5 s para 500). É o preço do `check` por arquivo, não do I/O;
-  sair disso exige o loader publicar a AST reescrita por módulo (follow-up).
+- O custo **frio** ainda é O(arquivos × closure): ~7,5 ms/arquivo com `std` importado
+  (0,40 s para 50 arquivos; 3,75 s para 500). O residual é a reescrita do closure no
+  loader (~3,9 ms/arquivo), não mais o checker/índice; sair disso exige o loader publicar
+  a AST reescrita por módulo (gatilho de revisita).
 - Workspaces acima de 2048 arquivos não retêm análise por arquivo; nesse tamanho a
-  primeira consulta já custa dezenas de segundos.
-- Um arquivo com erro de sintaxe no workspace ainda aborta references/rename inteiros
-  (comportamento anterior a este ADR; candidato a follow-up).
+  primeira consulta custa segundos (3,75 s para 500) e o rebuild depois de editar paga o
+  build inteiro.
+- Arquivos que não parseiam são pulados (antes abortavam o workspace inteiro): usos neles
+  ficam de fora do resultado, e o fallback legado recusa só quando o alvo é o arquivo
+  inválido (#250).
 
 ### Neutras
 
@@ -187,11 +193,59 @@ Testes que policiam a decisão:
   `test_workspace_above_the_budget_is_not_retained`,
   `test_workspace_above_the_budget_keeps_the_previous_cache`,
   `test_workspace_cache_clear_keeps_file_analyses` e
-  `test_workspace_failure_is_not_memoized`.
+  `test_workspace_skips_unparseable_files`.
+- `test_workspace_build_does_not_run_the_checker` (o tooling não roda o checker, #249).
+- `test_top_level_declarations_cover_renamable_declarations` (a varredura cobre os mesmos
+  nomes renamáveis).
+- `test_lsp_references_and_rename_survive_unparseable_workspace_file`,
+  `test_workspace_rename_skips_unparseable_siblings` e
+  `test_workspace_rename_refuses_when_the_target_does_not_parse` (#250, caminho semântico e
+  legado).
+- `test_workspace_module_error_is_not_memoized` e
+  `test_load_modules_nao_vaza_last_statements_no_erro`.
 
 Revisitar quando: o loader expuser a AST reescrita por módulo (custo frio), o parse
 incremental (#113) mudar o custo por arquivo, ou o workspace típico passar de 2048
 arquivos (orçamento).
+
+## Emenda 2026-11-26 — #249 (custo frio) e #250 (arquivo inválido)
+
+O custo frio estava no caminho errado: `Loxia.check` (resolver + checker) e `SymbolIndex`
+sobre a AST mesclada **por arquivo**, mais um `Path.resolve()` **por token** em
+`_partition`. Medido em `_analyze_file` para um arquivo importando `std.lists`: 47,9 ms,
+dos quais ~23 ms eram só `resolve()` por token.
+
+- `Loxia.load_modules` (novo, tooling) faz apenas parse + reescrita de imports, sem
+  resolver/checker; `_build_workspace` reusa **uma** engine no build inteiro.
+- `_partition` usa os caminhos já resolvidos de `module_map` (sem `resolve()` por token) e
+  as declarações top-level saem de uma varredura sintática
+  (`_top_level_declarations`), não de `SymbolIndex` — rename/references não usam tipos.
+- Um arquivo que não parseia é **pulado** em vez de abortar o workspace (#250). Usos nele
+  ficam de fora; o fallback legado `_workspace_rename` recusa só quando o alvo é o próprio
+  arquivo inválido.
+- Erro de **módulo** (import que não resolve) também pula o arquivo, mas marca o workspace
+  como `complete=False`: a causa pode estar fora de `files` (dependência que ainda não
+  existe), então ele **não é memoizado** — consertar o insumo aparece na request seguinte.
+  Sintaxe quebrada é memoizável porque o texto está em `files` (corrigir muda o fingerprint).
+- Bindings de `match` não são declaração de topo e ficam fora da varredura (o `SymbolIndex`
+  os adiciona com `container=None` por detalhe de implementação); `declarations` só é
+  consultado para nomes mangled (`$`), então não há regressão.
+
+Resultado (`bench/lsp_workspace.py --memory`, mesma máquina):
+
+| | antes | depois da emenda |
+| --- | ---: | ---: |
+| build frio, 50 arquivos | 2,45 s | **0,40 s** |
+| build frio, 500 arquivos | 24,5 s | **3,75 s** |
+| rebuild após editar, 50 / 500 | 55 / 160 ms | **14 / 136 ms** |
+| retido, 50 / 500 | 4,1 / 33,8 MB | **4,1 / 33,6 MB** |
+| `std/` (30 arquivos) | 1,47 s | **0,90 s** |
+
+`bench/lsp.py` (fixture realista): `references_cold` 2314 → **321 ms**,
+`workspace_build` 2331 → **325 ms**, `references_after_change` 82,8 → **42,5 ms**.
+O residual é a reescrita do closure por arquivo no loader (~3,9 ms/arquivo): a AST
+reescrita por módulo continua sendo o caminho para O(tokens totais) e é o gatilho de
+revisita abaixo.
 
 ## Referências
 

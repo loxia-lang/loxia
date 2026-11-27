@@ -1498,7 +1498,11 @@ class Server:
             parser = Parser(Scanner(text, reporter).scan_tokens(), reporter=reporter)
             statements = parser.parse()
             if reporter.had_error or statements is None:
-                return f"Can't rename across files: parse error in {path.name}."
+                # Um arquivo quebrado no workspace não invalida o rename no alvo; só
+                # os usos nele ficam de fora (#250).
+                if document.path is not None and path.resolve() == document.path.resolve():
+                    return f"Can't rename across files: parse error in {path.name}."
+                continue
             index = SymbolIndex(
                 statements,
                 source=text,

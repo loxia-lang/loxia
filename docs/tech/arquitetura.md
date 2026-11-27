@@ -203,12 +203,11 @@ startup, didOpen, hover, definition, references (frio/quente), highlight, rename
 documentSymbol, didChange, didChange num arquivo de ~650 linhas e uma rajada de 5 didChange,
 com baseline [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de
 **1,5×**. Mediana de 2026-11-26, pós-[ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)
-(workspace de ~50 arquivos, cada um importando `std.lists`): startup ~90 ms, didOpen
-~34 ms, references cross-file **~2,3 s** na primeira consulta (é o custo de analisar o
-workspace inteiro: `workspace_build`), **~83 ms** após uma edição, ~1,7 ms no cache quente
-e ~2,9 ms para um símbolo de `std`; `workspace_scan` ~0,4 ms; didChange ~10 ms, didChange
-em ~650 linhas ~45 ms e rajada de 5 didChange ~10 ms; as requisições locais ficam abaixo de
-2 ms. O fixture antigo (módulos sem imports) escondia o closure e foi trocado: por isso
+(workspace de ~50 arquivos, cada um importando `std.lists`): startup ~94 ms, didOpen
+~35 ms, references cross-file **~0,32 s** na primeira consulta (`workspace_build`),
+**~43 ms** após uma edição, ~1,8 ms no cache quente e ~2,9 ms para um símbolo de `std`;
+`workspace_scan` ~0,4 ms; didChange ~10 ms, didChange em ~650 linhas ~48 ms e rajada de
+5 didChange ~11 ms; as requisições locais ficam abaixo de 2 ms. O fixture antigo (módulos sem imports) escondia o closure e foi trocado: por isso
 `references_cold` e `workspace_build` só são comparáveis a partir desta baseline. O orçamento é **≤12 ms** no workspace
 do bench e **~0,06 ms/linha** (163 linhas ~20 ms, 323 ~30 ms); acima de ~1000 linhas fica
 **fora** até o parse incremental (#113).
@@ -230,11 +229,16 @@ arquivo descarta o workspace e refaz só a análise dele. `references`/`rename` 
 símbolo de `std`/`[modules].paths` (antes o token era atribuído a um arquivo inexistente no
 root e a coleta estourava) e o rename recusa editar fora do root. Orçamento: uma workspace
 por vez, ≤2048 arquivos, ≤512 módulos e ≤200k tokens em contribuições de módulo; acima disso o workspace
-é servido sem retenção por arquivo. Medido com `bench/lsp_workspace.py`: rebuild depois
-de editar em ~50 arquivos **55 ms** (era 2,45 s) e em 500 **160 ms** (era 24,5 s),
-retendo 4,1 MB e 33,8 MB (pico 10,1/43,1 MB); descoberta quente de 555 arquivos 8,2 ms,
-fingerprint 0,7 ms e 5.000 arquivos 49,2 ms. O custo frio continua
-O(arquivos * closure) (~49 ms/arquivo com `std` importado). Os custos internos (descoberta,
+é servido sem retenção por arquivo. Medido com `bench/lsp_workspace.py` (emenda #249):
+build frio **0,40 s** em 50 arquivos (era 2,45 s) e **3,75 s** em 500 (era 24,5 s);
+rebuild depois de editar **14 ms** e **136 ms**; retido 4,1 MB e 33,6 MB (pico
+5,9/36,4 MB). A análise é loader-only (`Loxia.load_modules`, uma engine por build) e as
+declarações saem de uma varredura sintática, não do `SymbolIndex`; um arquivo com erro de
+sintaxe ou de módulo é pulado em vez de abortar o workspace (#250), e o erro de módulo não é
+memoizado (a causa pode estar fora do root). Descoberta quente de 555
+arquivos 8,4 ms, fingerprint 0,7 ms e 5.000 arquivos 51,6 ms. O custo frio residual é
+O(arquivos * closure) (~7,5 ms/arquivo com `std` importado, dominado pela reescrita do
+closure no loader). Os custos internos (descoberta,
 build frio, rebuild e retenção) saem de `bench/lsp_workspace.py`, que gera os workspaces
 sintéticos em processo e reproduz a tabela do ADR-0151. O `SourceIndex` é construído na
 primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam a caminhada

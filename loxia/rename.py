@@ -30,14 +30,28 @@ from pathlib import Path
 
 from loxia.engine import Loxia
 from loxia.source_symbols import imports_of, parse_source
-from loxia.symbols import SymbolIndex
 from loxia_core.diagnostics.source import display_path
-from loxia_core.frontend.stmt import Import, Stmt
+from loxia_core.frontend.destructuring import pattern_names
+from loxia_core.frontend.stmt import (
+    Block,
+    Class,
+    Destructure,
+    EnumDecl,
+    ForIn,
+    Function,
+    If,
+    Import,
+    Interface,
+    Stmt,
+    Try,
+    TypeAlias,
+    Var,
+    While,
+)
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import ClassTy
 from loxia_core.loader.module_cache import ModuleCache
 
-_TOP_LEVEL = {"function", "class", "enum", "interface", "type", "variable"}
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 DEFAULT_MAX_FILES = 2048
@@ -118,6 +132,14 @@ class _Parsed:
     modules: tuple[tuple[ModuleKey, _Contribution], ...]
 
 
+@dataclass(frozen=True)
+class _Skip:
+    """Arquivo fora da análise: sintaxe quebrada (memoizável) ou erro de módulo."""
+
+    path: Path
+    module_error: bool
+
+
 @dataclass
 class _ModuleEntry:
     contribution: _Contribution
@@ -147,6 +169,9 @@ class _Workspace:
     # Insumos de resolução fora de `files` (manifest, lock, módulos externos),
     # com o digest do texto: editar um deles invalida o workspace.
     closure: tuple[tuple[Path, bytes], ...]
+    # `False` quando algum arquivo foi pulado por erro de módulo: a causa pode estar
+    # fora de `files`, então o workspace não pode ser memoizado.
+    complete: bool
 
 
 @dataclass
@@ -170,7 +195,7 @@ class WorkspaceCache:
     max_modules: int = DEFAULT_MAX_MODULES
     max_module_tokens: int = DEFAULT_MAX_MODULE_TOKENS
     _fingerprint: tuple[str, tuple[tuple[str, bytes], ...]] | None = None
-    _workspace: _Workspace | str | None = None
+    _workspace: _Workspace | None = None
     _entries: OrderedDict[Path, _Entry] = field(default_factory=OrderedDict)
     _modules: OrderedDict[ModuleKey, _ModuleEntry] = field(default_factory=OrderedDict)
     _module_tokens: int = 0
@@ -181,18 +206,19 @@ class WorkspaceCache:
         files: dict[Path, str],
         module_cache: ModuleCache | None = None,
         load_text: TextLoader | None = None,
-    ) -> _Workspace | str:
+    ) -> _Workspace:
         loader = load_text or _read_text
         fingerprint = (
             str(root),
             tuple((str(path), _digest(text)) for path, text in sorted(files.items())),
         )
         workspace = self._workspace
-        if workspace is not None and self._fingerprint == fingerprint:
-            if isinstance(workspace, str):
-                return workspace
-            if _closure_unchanged(workspace.closure, files, loader):
-                return workspace
+        if (
+            workspace is not None
+            and self._fingerprint == fingerprint
+            and _closure_unchanged(workspace.closure, files, loader)
+        ):
+            return workspace
         if len(files) > self.max_files:
             # Workspace grande demais para reter análise por arquivo: a memoização
             # do workspace continua (uma entrada), mas o rebuild depois de editar
@@ -210,11 +236,11 @@ class WorkspaceCache:
                 cache=self,
                 load_text=loader,
             )
-            if not isinstance(built, str):
+            if built.complete:
                 self._retain({path.resolve() for path in files})
-        if isinstance(built, str):
-            # Falha não vira memo: um módulo externo consertado precisa aparecer na
-            # próxima request, e o fingerprint não cobre a falha (não há closure).
+        if not built.complete:
+            # Erro de módulo pode vir de insumo fora de `files`: não memoriza, senão
+            # consertar a dependência não apareceria na próxima request.
             self._fingerprint = None
             self._workspace = None
             return built
@@ -329,8 +355,6 @@ def semantic_target(
     load_text: TextLoader | None = None,
 ) -> Target | None:
     workspace = _workspace(root, files, cache, module_cache, load_text)
-    if isinstance(workspace, str):
-        return None
     return _target(workspace, target_path, token)
 
 
@@ -346,8 +370,6 @@ def semantic_rename(
     load_text: TextLoader | None = None,
 ) -> dict[str, object] | str | None:
     workspace = _workspace(root, files, cache, module_cache, load_text)
-    if isinstance(workspace, str):
-        return workspace
     target = _target(workspace, target_path, token)
     if target is None:
         return None
@@ -368,8 +390,6 @@ def semantic_references(
 ) -> References | None:
     """Ocorrências semânticas do alvo, na mesma resolução do rename cross-file."""
     workspace = _workspace(root, files, cache, module_cache, load_text)
-    if isinstance(workspace, str):
-        return None
     target = _target(workspace, target_path, token)
     if target is None:
         return None
@@ -396,7 +416,7 @@ def _workspace(
     cache: WorkspaceCache | None = None,
     module_cache: ModuleCache | None = None,
     load_text: TextLoader | None = None,
-) -> _Workspace | str:
+) -> _Workspace:
     if cache is not None:
         return cache.get(root, files, module_cache, load_text)
     return _build_workspace(root, files, module_cache, load_text=load_text)
@@ -409,7 +429,7 @@ def _build_workspace(
     *,
     cache: WorkspaceCache | None = None,
     load_text: TextLoader | None = None,
-) -> _Workspace | str:
+) -> _Workspace:
     loader = load_text or _read_text
     # Tokens de módulo são atribuídos ao caminho real; `files` guarda o texto tanto
     # pelo caminho do chamador quanto pelo resolvido (a busca por offset usa o real).
@@ -418,12 +438,15 @@ def _build_workspace(
         texts[path] = text
         texts[path.resolve()] = text
     analyses: dict[Path, _Analysis] = {}
+    module_error = False
     positions: dict[tuple[Path, int], set[str]] = {}
     tokens_by_lexeme: dict[str, set[tuple[Path, int]]] = {}
     declarations: dict[str, tuple[Path, Token]] = {}
     # O texto do workspace pode vir de buffers não salvos: o loader precisa ver o
     # mesmo texto que o `files` para os offsets do módulo importado baterem.
     overrides = {path.resolve(): text for path, text in files.items()}
+
+    lox: Loxia | None = None
 
     def file_text(path: Path) -> str | None:
         text = texts.get(path)
@@ -456,9 +479,14 @@ def _build_workspace(
                     if module is not None:
                         merge_module(module_key, module.contribution)
         else:
-            parsed = _analyze_file(root, path, text, overrides, module_cache)
-            if isinstance(parsed, str):
-                return parsed
+            if lox is None:
+                lox = Loxia(error_format="json", color="never", max_errors=0)
+            parsed = _analyze_file(root, path, text, overrides, module_cache, lox=lox)
+            if isinstance(parsed, _Skip):
+                # Um arquivo que não parseia não pode derrubar o workspace: o que
+                # der para analisar é analisado e os usos nele ficam de fora (#250).
+                module_error = module_error or parsed.module_error
+                continue
             # O texto do closure externo entra no workspace antes dos offsets: os
             # tokens do módulo apontam para o caminho real, não para o root.
             for input_path in parsed.analysis.input_paths:
@@ -481,6 +509,7 @@ def _build_workspace(
         tokens_by_lexeme,
         declarations,
         closure,
+        not module_error,
     )
 
 
@@ -519,22 +548,24 @@ def _analyze_file(
     text: str,
     overrides: dict[Path, str],
     module_cache: ModuleCache | None,
-) -> _Parsed | str:
+    *,
+    lox: Loxia | None = None,
+) -> _Parsed | _Skip:
     original = parse_source(text)
     if original is None:
-        return f"Can't rename across files: parse error in {path.name}."
-    lox = Loxia(error_format="json", color="never", max_errors=0)
+        # Sintaxe quebrada: o texto está em `files`, então corrigir muda o
+        # fingerprint e o workspace pode ser memoizado.
+        return _Skip(path, module_error=False)
+    if lox is None:
+        lox = Loxia(error_format="json", color="never", max_errors=0)
     lox.use_file(display_path(str(path)), module_root=root)
-    lox.check(text, emit=False, module_overrides=overrides, module_cache=module_cache)
-    merged = lox.last_statements
+    # Loader-only: o resolver/checker sobre o closure não muda offsets e dominava o
+    # custo frio do workspace; rename/references não precisam de tipos (#249).
+    merged = lox.load_modules(text, module_overrides=overrides, module_cache=module_cache)
     if merged is None:
-        return f"Can't rename across files: parse error in {path.name}."
-    index = SymbolIndex(
-        merged,
-        source=text,
-        checker=lox.last_checker,
-        resolver=lox.last_resolver,
-    )
+        # Erro de módulo: a causa pode ser um insumo fora de `files` (dependência que
+        # ainda não existe), então o workspace não pode ser memorizado.
+        return _Skip(path, module_error=True)
     module_map = {display_path(str(path)): path.resolve()}
     module_map.update({name: real.resolve() for name, real in lox.module_files.items()})
     analysis = _Analysis(
@@ -544,10 +575,10 @@ def _analyze_file(
         module_map,
         tuple(sorted(lox.watched_files)),
     )
-    return _partition(root, analysis, merged, index)
+    return _partition(root, analysis, merged)
 
 
-def _partition(root: Path, analysis: _Analysis, merged: list[Stmt], index: SymbolIndex) -> _Parsed:
+def _partition(root: Path, analysis: _Analysis, merged: list[Stmt]) -> _Parsed:
     """Separa o que é do próprio arquivo do que é de cada módulo importado.
 
     A AST mesclada repete os tokens do closure em todo arquivo que o importa. A
@@ -566,22 +597,20 @@ def _partition(root: Path, analysis: _Analysis, merged: list[Stmt], index: Symbo
             return None, entry_path
         mapped = analysis.module_map.get(display)
         if mapped is not None:
-            return (mapped.resolve(), display), mapped
+            # `module_map` já guarda caminhos resolvidos: resolver de novo por token
+            # era o custo dominante do build frio (#249).
+            return (mapped, display), mapped
         # Display desconhecido: resolve pelo fallback do token, nunca assume que é a
         # entrada — isso aplicaria o offset de outro arquivo ao texto da entrada.
         return None, _token_file(token, root, analysis.path)
 
-    for symbol in index.symbols:
-        if symbol.container is not None or symbol.kind not in _TOP_LEVEL:
-            continue
-        display = symbol.token.file or entry_display
-        key, token_path = bucket(display, symbol.token)
+    for name, token in _top_level_declarations(merged):
+        display = token.file or entry_display
+        key, token_path = bucket(display, token)
         if key is None:
-            own_declarations.setdefault(symbol.name, (token_path, symbol.token))
+            own_declarations.setdefault(name, (token_path, token))
         else:
-            module_declarations.setdefault(key, {}).setdefault(
-                symbol.name, (token_path, symbol.token)
-            )
+            module_declarations.setdefault(key, {}).setdefault(name, (token_path, token))
     for statement in merged:
         for item in _tokens(statement):
             display = item.file or entry_display
@@ -600,6 +629,49 @@ def _partition(root: Path, analysis: _Analysis, merged: list[Stmt], index: Symbo
         for key, items in module_tokens.items()
     )
     return _Parsed(analysis, own, modules)
+
+
+def _top_level_declarations(statements: list[Stmt]) -> list[tuple[str, Token]]:
+    """Declarações top-level (container None), sem construir `SymbolIndex`.
+
+    Espelha a caminhada do `SymbolIndex` para os kinds renamáveis: declarações em
+    blocos/if/while/try de topo e variáveis de destructuring/for também contam.
+    Rename/references não usam tipos, então o índice completo era custo puro (#249).
+    """
+    found: list[tuple[str, Token]] = []
+
+    def visit(statement: Stmt) -> None:
+        if isinstance(statement, (Function, Class, Interface, EnumDecl, TypeAlias, Var)):
+            found.append((statement.name.lexeme, statement.name))
+        elif isinstance(statement, Destructure):
+            for name in pattern_names(statement.pattern):
+                found.append((name.lexeme, name))
+        elif isinstance(statement, Block):
+            for inner in statement.statements:
+                visit(inner)
+        elif isinstance(statement, ForIn):
+            found.append((statement.name.lexeme, statement.name))
+            visit(statement.body)
+        elif isinstance(statement, If):
+            visit(statement.then_branch)
+            if statement.else_branch is not None:
+                visit(statement.else_branch)
+        elif isinstance(statement, While):
+            visit(statement.body)
+        elif isinstance(statement, Try):
+            for inner in statement.body:
+                visit(inner)
+            for clause in statement.handlers:
+                found.append((clause.binding.lexeme, clause.binding))
+                for inner in clause.body:
+                    visit(inner)
+            if statement.finally_body is not None:
+                for inner in statement.finally_body:
+                    visit(inner)
+
+    for statement in statements:
+        visit(statement)
+    return found
 
 
 def _target(workspace: _Workspace, target_path: Path, token: Token) -> Target | None:

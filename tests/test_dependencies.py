@@ -690,3 +690,19 @@ def test_watched_files_incluem_manifest_lock_e_modulos(tmp_path: Path) -> None:
     # checkout trocado deixaria a análise (e o cache) apontando para o antigo.
     watched = {path.name for path in lox.watched_files}
     assert {"loxia.toml", "loxia.lock", "base.lx"} <= watched
+
+
+def test_load_modules_nao_vaza_last_statements_no_erro(tmp_path: Path) -> None:
+    from loxia.engine import Loxia
+
+    good = "val ok = 1\n"
+    bad = "import nao_existe\n\nval y = 1\n"
+    lox = Loxia(error_format="json", color="never", max_errors=0)
+    lox.use_file("main.lx", module_root=tmp_path)
+
+    assert lox.load_modules(good) is not None
+    assert lox.load_modules(bad) is None
+
+    # O caminho loader-only não passa pelo checker: erro não pode deixar a árvore
+    # anterior disponível em `last_statements`.
+    assert lox.last_statements is None
