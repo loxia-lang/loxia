@@ -269,7 +269,3 @@ def builder(block: Any) -> Any:
 
 def append_block(function: Any, name: str) -> Any:
     return function.append_basic_block(name)
-
-
-def block_of(function: Any, name: str = "entry") -> Any:
-    return function.append_basic_block(name)

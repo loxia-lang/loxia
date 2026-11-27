@@ -1,6 +1,8 @@
 # ADR-0153 — IR de controle: modelo, invariantes e ciclo de vida
 
-- **Status:** accepted (implemented, [#245](https://github.com/loxia-lang/loxia/issues/245))
+- **Status:** accepted (implemented, [#245](https://github.com/loxia-lang/loxia/issues/245);
+  boundary completed by [#271](https://github.com/loxia-lang/loxia/pull/271) and
+  [#272](https://github.com/loxia-lang/loxia/issues/272))
 - **Data:** 2026-11-27
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0065](0065-hir-lite-controle.md) (gatilho da HIR-lite),
@@ -417,6 +419,14 @@ Testes e critérios:
 escolher emissão textual e exigir mudança no emissor; o THIR começar a carregar controle
 (sinal de escopo errado); a migração não reduzir complexidade de forma justificável; ou o
 verificador virar fonte frequente de falso positivo.
+
+## Atualizações
+
+- **2026-11-27 — boundary completo:** [#271](https://github.com/loxia-lang/loxia/pull/271)
+  migrou os 68 `append_block` restantes para `ControlIR.new_block` e tornou o ratchet global;
+  [#272](https://github.com/loxia-lang/loxia/issues/272) endureceu o teste (varredura
+  recursiva por identificador, `append_basic_block`/`IRBuilder` e aliases) e removeu o
+  `llvm_ir.block_of` morto. O ratchet deixou de ser opcional (§7).
 
 ## Referências
 

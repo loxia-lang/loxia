@@ -3,12 +3,22 @@ sources:
   - loxia_core/backend/control_ir/**
   - loxia_core/backend/lower.py
   - loxia_core/backend/lower_base.py
-  - loxia_core/backend/lower_exceptions.py
-  - loxia_core/backend/lower_enums.py
+  - loxia_core/backend/lower_bytes.py
+  - loxia_core/backend/lower_calls.py
   - loxia_core/backend/lower_class_codegen.py
+  - loxia_core/backend/lower_containers.py
+  - loxia_core/backend/lower_enums.py
+  - loxia_core/backend/lower_exceptions.py
   - loxia_core/backend/lower_functions.py
+  - loxia_core/backend/lower_instances.py
+  - loxia_core/backend/lower_math.py
+  - loxia_core/backend/lower_optionals.py
+  - loxia_core/backend/lower_range.py
+  - loxia_core/backend/lower_strings.py
+  - loxia_core/backend/lower_variables.py
   - tests/test_control_ir.py
   - tests/test_control_ir_docs.py
+  - tests/test_control_ir_boundary.py
 ---
 
 # Control IR
@@ -53,8 +63,11 @@ Every assignment to `Lowerer.builder` is wrapped by `ControlIRBuilder`. Control 
 is forwarded to the `llvmlite` builder, so arithmetic, calls, loads and stores stay direct.
 `ControlIR.new_block` is used by every backend lowerer (exceptions, `match`, classes,
 optionals, containers, calls, ranges, strings, bytes, math and `lower.py`), so blocks are
-registered at creation instead of only when first observed. `tests/test_control_ir_boundary.py`
-enforces that no backend module calls `llvm_ir.append_block`/`block_of` directly.
+registered at creation instead of only when first observed. `loxia_core/backend/control_ir/builder.py`
+is the only creator: no lowerer calls `llvm_ir.append_block`/`block_of`, directly or through
+an alias. `tests/test_control_ir_boundary.py` polices the known identifiers
+(`append_block`, `append_basic_block`, `block_of`, `IRBuilder`) recursively over
+`loxia_core/backend/`, excluding `control_ir/` and the `llvm_ir.py` boundary.
 
 ## Invariants
 
@@ -71,7 +84,7 @@ error (`ControlIRError`), never a user-facing `not supported by the backend yet`
 | C6 | A value does not cross a cleanup boundary outwards (definition depth ≤ use depth). | Reading a value after its region was unwound. |
 | C7 | Block labels and phi labels are unique; block order is the creation order, covered by the deterministic dump test. | Nondeterministic `.ll` / binary (I3). |
 
-C6 is an approximation: the depth is captured at block registration (entry), so a value
+C6 is an approximation: the depth is captured at block creation, so a value
 defined and used inside a block that spans a cleanup exit is not distinguished; the check
 catches values defined in a block inside a region and used in a block outside it.
 
