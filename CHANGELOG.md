@@ -5,6 +5,18 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-27
+
+Loxia 1.3.0 fecha o ciclo aberto depois da 1.2.0. O destaque de linguagem é o ponto de
+entrada `fn main() -> Result[T, String]` ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md)),
+que transforma o retorno em exit 0/70 nos dois motores. O runtime ganhou valores de função
+com assinatura em runtime (`is`/`as fn(...)`), campos `Any` no backend, `break`/`continue`,
+`match` com padrões literais, `Bytes` e o módulo nativo `regex`. O checker fechou as
+violações de I1/I4 no acesso dinâmico a `Any`; o LSP ficou várias vezes mais rápido no
+build frio do workspace e no recheck por edição. As entradas de **Mudado (quebra)** mudam
+programas existentes — inclusive o formatter 2.0 e o AST JSON v2 — e a próxima major
+continua sendo a 2.0.
+
 - **LSP: análise do workspace sem checker e arquivo inválido não bloqueia**
   ([#249](https://github.com/loxia-lang/loxia/issues/249),
   [#250](https://github.com/loxia-lang/loxia/issues/250), emenda ao

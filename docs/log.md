@@ -1316,3 +1316,18 @@ intervalo agora silenciaria páginas que não foram lidas.
 - `docs/adr/0107`/`0141` — emenda de decisão; ADRs não participam do relatório de frescor.
   `docs/spec/erros.md`, `docs/spec/lexico.md`, `docs/stdlib/*` e `docs/tech/*` continuam o
   backlog anterior a este PR, sem marcador.
+
+## 2026-11-27 — release 1.3.0
+
+Intervalo: `c125003`..`3082dfa`. Só bump de versão e documentação de release; nenhuma regra
+de linguagem, CLI ou stdlib mudou. As 32 candidatas anteriores continuam pendentes e **sem
+marcador** — fechar o intervalo agora silenciaria páginas que não foram lidas.
+
+- `README.md` — **updated**: release atual 1.3.0, tabela de empacotamento e exemplo de
+  `--version`.
+- `docs/roadmap.md` — **updated**: "Onde estamos" em 2026-11-27, 1.3.0 como release atual e o
+  estado de LSP/MCP.
+- `docs/i18n/en/changelog.md` — **updated**: seção 1.3.0 da página do site.
+- `docs/tech/docs-index.md` — **updated**: exemplo de `loxia_version` 1.3.0.
+- `docs/spec/garantias.md`, `docs/spec/erros.md` e `docs/stdlib/*` — **no-change** (gerado):
+  `make docs-sync` reescreveu os blocos sem diff; o bump não altera comportamento.

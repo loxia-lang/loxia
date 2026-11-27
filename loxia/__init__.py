@@ -5,4 +5,4 @@ O motor continua em `loxia_core/`; o CLI fica em `loxia.cli`, exposto por `main.
 `python -m loxia`.
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
