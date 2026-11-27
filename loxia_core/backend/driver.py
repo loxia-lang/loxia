@@ -20,6 +20,7 @@ from typing import Any, Literal
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower import BackendError, lower_program
 from loxia_core.bundle import bundle_dir
+from loxia_core.diagnostics.codes import Code
 from loxia_core.execution.limits import (
     DEFAULT_HEAP_BYTES,
     MAX_CALL_DEPTH,
@@ -334,13 +335,15 @@ def _sanitize_compiler_error(
 def _with_gc_hint(error: BackendError) -> BackendError:
     """Explica a dependência de build quando o erro é falta de `libgc`."""
     message = error.message
+    code = error.code
     if "gc.h" in message or "lgc" in message or "libgc" in message:
         message = (
             f"{message}\n"
             "The native backend requires libgc (bdw-gc). Install libgc-dev "
             "(Debian/Ubuntu), gc-devel (Fedora) or bdw-gc (macOS/Homebrew)."
         )
-    return BackendError(message, error.line)
+        code = Code.NATIVE_TOOLCHAIN
+    return BackendError(message, error.line, code=code)
 
 
 def _compiler() -> str:
@@ -349,7 +352,11 @@ def _compiler() -> str:
         if found is not None:
             return found
 
-    raise BackendError("no C compiler found (tried cc, clang and gcc).")
+    raise BackendError(
+        "no C compiler found (tried cc, clang and gcc). "
+        "Install a C compiler (build-essential, clang or gcc).",
+        code=Code.NATIVE_TOOLCHAIN,
+    )
 
 
 def _run(command: list[str]) -> None:

@@ -669,6 +669,21 @@ class Loxia:
             self.flush("check", exit_code=exit_code, always=True)
         return exit_code
 
+    def prepare(self, source: str) -> list[Stmt] | None:
+        """Primeiro estágio do build: parse + loader, sem resolver/checker.
+
+        O `run` AOT (#244) usa este estágio para conhecer o closure e calcular a
+        chave do cache antes de decidir entre executar o binário guardado ou
+        compilar. Não faz `flush`: quem chama decide o comando e o exit code.
+        """
+        self.last_resolver = None
+        self.last_checker = None
+        return self._parse(source)
+
+    def closure_texts(self) -> dict[str, str]:
+        """Fontes resolvidas pelo loader (entrada + módulos), por caminho exibido."""
+        return dict(self._sources.items())
+
     def build(
         self,
         source: str,
@@ -677,16 +692,37 @@ class Loxia:
         output: Path | None,
         stem: str,
         max_heap: int | None = None,
+        command: str = "build",
     ) -> bool:
-        statements = self._parse(source)
+        statements = self.prepare(source)
         if statements is None:
-            self.flush("build", exit_code=65, always=True)
+            self.flush(command, exit_code=65, always=True)
             return False
 
+        return self.compile_prepared(
+            statements,
+            emit=emit,
+            output=output,
+            stem=stem,
+            max_heap=max_heap,
+            command=command,
+        )
+
+    def compile_prepared(
+        self,
+        statements: list[Stmt],
+        *,
+        emit: str,
+        output: Path | None,
+        stem: str,
+        max_heap: int | None = None,
+        command: str = "build",
+    ) -> bool:
+        """Resolver + checker estrito + lowering; `statements` vem de `prepare`."""
         resolver = Resolver(self.interpreter, self.reporter)
         resolver.resolve(statements)
         if self.reporter.had_error:
-            self.flush("build", exit_code=65, always=True)
+            self.flush(command, exit_code=65, always=True)
             return False
 
         # Erro que o interpretador só levantaria em runtime é rebaixável: não bloqueia
@@ -701,7 +737,7 @@ class Loxia:
         )
         checker.check(statements)
         if self.reporter.had_fatal_error:
-            self.flush("build", exit_code=65, always=True)
+            self.flush(command, exit_code=65, always=True)
             return False
 
         # ADR-0131: sem cargo não há `staticlib` para linkar; falha antes do lowering.
@@ -713,12 +749,25 @@ class Loxia:
             for use in regex_uses:
                 self.reporter.error(use.token, TOOLCHAIN_MESSAGE, code=Code.TOOLCHAIN_MISSING)
             if regex_uses:
-                self.flush("build", exit_code=65, always=True)
+                self.flush(command, exit_code=65, always=True)
                 return False
 
         # Import tardio: `llvmlite` só é exigido quando o backend é usado.
-        from loxia_core.backend.driver import build as build_native
-        from loxia_core.backend.lower import BackendError
+        try:
+            from loxia_core.backend.driver import build as build_native
+            from loxia_core.backend.lower import BackendError
+        except ImportError as error:
+            # O `run` AOT (#244) transforma isso no caminho padrão: sem o extra
+            # `llvm` a recusa precisa ser acionável (E4004), não um traceback.
+            self.reporter.backend_error(
+                None,
+                "The native backend is unavailable: "
+                f"{error.name or 'llvmlite'} is not installed. Install the 'llvm' extra "
+                "(`uv sync --extra llvm`) or run with `--interpret`.",
+                code=Code.NATIVE_TOOLCHAIN,
+            )
+            self.flush(command, exit_code=65, always=True)
+            return False
 
         try:
             build_native(
@@ -741,10 +790,10 @@ class Loxia:
             )
         except BackendError as error:
             self.reporter.backend_error(error.line, error.message, code=error.code)
-            self.flush("build", exit_code=65, always=True)
+            self.flush(command, exit_code=65, always=True)
             return False
 
-        self.flush("build", exit_code=0, always=True)
+        self.flush(command, exit_code=0, always=True)
         return True
 
     def run_prompt(self) -> None:

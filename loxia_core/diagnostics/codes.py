@@ -91,6 +91,7 @@ class Code(StrEnum):
     BACKEND_UNSUPPORTED = "E4001"
     BACKEND_INTERNAL = "E4002"
     BACKEND_BUDGET = "E4003"
+    NATIVE_TOOLCHAIN = "E4004"
 
     # Runtime
     RUNTIME_ERROR = "R1000"
@@ -178,6 +179,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
+    Code.NATIVE_TOOLCHAIN: Phase.BACKEND,
     Code.RUNTIME_ERROR: Phase.RUNTIME,
     Code.RUNTIME_NOT_CALLABLE: Phase.RUNTIME,
     Code.DIVISION_BY_ZERO: Phase.RUNTIME,
@@ -262,6 +264,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",
+    Code.NATIVE_TOOLCHAIN: "native toolchain unavailable (llvmlite, libgc or cc)",
     Code.RUNTIME_ERROR: "generic runtime error",
     Code.RUNTIME_NOT_CALLABLE: "value is not callable",
     Code.DIVISION_BY_ZERO: "division or modulo by zero",
