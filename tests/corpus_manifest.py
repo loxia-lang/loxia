@@ -91,6 +91,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/try_return_cleanup.lx",
         "tests/cases/try_finally_scope.lx",
         "tests/cases/try_continue_cleanup.lx",
+        "tests/cases/try_handler_finally_capture.lx",
         "tests/cases/generics.lx",
         "tests/cases/interfaces.lx",
         "tests/cases/interface_decl.lx",

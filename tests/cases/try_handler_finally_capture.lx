@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Handler binding capturado por lambda + finally no caminho normal do handler.
+fn run() -> Int {
+  try {
+    raise Exception("boom")
+  } except Exception as e {
+    val show = fn() => print("caught=${e.message}")
+    show()
+  } finally {
+    print("finally")
+  }
+  return 7
+}
+
+print(run())
+
+# expect: caught=boom
+# expect: finally
+# expect: 7
