@@ -146,7 +146,7 @@ A implementação é **one-pass**: o modelo e o alvo são construídos juntos, s
 - `verify(ControlFunction)` roda no **modelo**, não no alvo. `dump(ControlFunction)` produz
   uma representação determinística (S-expression) para testes.
 - Construtos migrados não chamam `llvm_ir.append_block`/`builder.phi` diretamente; usam o
-  `ControlBuilder`. Construtos ainda não migrados mantêm o código atual até a sua fatia.
+  `ControlIRBuilder`. Construtos ainda não migrados mantêm o código atual até a sua fatia.
   Não se mistura os dois estilos dentro do mesmo construto.
 
 Essa separação é o que permite a F4 reimplementar o modelo em Loxia sem arrastar
@@ -289,7 +289,7 @@ Fatias, cada uma verde antes da próxima:
 
 1. **Modelo + builder + emitter + verifier + dump + testes** (sem migrar produção).
 2. **Exceções**: `_raise`, `_try`, `_emit_finally`, `_run_cleanups` e `_loop_transfer`
-   passam a usar o `ControlBuilder`. É a maior dor e a maior chance de simplificação.
+   passam a usar o `ControlIR.new_block` e o proxy de controle. É a maior dor e a maior chance de simplificação.
 3. **`match`**: `_match`/`_match_literal` usam o IR; o phi de resultado passa a ser do modelo.
 4. **Classes**: as partes de controle de `lower_class_codegen.py` (construtor, `super`,
    inicialização de campos) migram; se não reduzirem complexidade, justificar e deixar fora,
@@ -402,7 +402,7 @@ Testes e critérios:
       diagnósticos/diferencial.
 - [x] Testes da matriz de cleanup, incluindo `continue` dentro de `try/finally`.
 - [x] `lower_exceptions`, `lower_enums` e as partes de controle de `lower_class_codegen`
-      usando o `ControlBuilder`; sem `append_block`/`block_of` diretos nesses arquivos.
+      usando o `ControlIRBuilder`; sem `append_block`/`block_of` diretos nesses arquivos.
 - [x] Corpus diferencial verde; stdout/stderr/exit iguais ao `--interpret` (I1).
 - [x] `--emit=ll` inspecionado; `tests/test_backend.py` compara duas compilações (I3).
 - [x] I4 preservado: nenhum programa com `--check` limpo falha por tipo no lowering.
