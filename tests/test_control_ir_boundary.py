@@ -13,6 +13,15 @@ TARGETS = (
 )
 
 
+def test_poison_uses_the_control_ir() -> None:
+    text = (ROOT / "loxia_core/backend/lower.py").read_text(encoding="utf-8")
+    start = text.index("    def _poison(")
+    end = text.index("    def _panic_function", start)
+
+    assert "llvm_ir.append_block(" not in text[start:end]
+    assert "self._control.new_block(" in text[start:end]
+
+
 def test_migrated_lowerers_do_not_create_blocks_directly() -> None:
     for name in TARGETS:
         text = (ROOT / name).read_text(encoding="utf-8")
