@@ -1409,5 +1409,13 @@ Intervalo: o commit desta entrega (as fontes são as do F0; o marcador anterior 
   do pipeline.
 - `AGENTS.md` e `tests/AGENTS.md` — **updated**: `run` compila; golden/oráculo usam
   `--interpret`.
+- `docs/tech/mcp.md` — **no-change**: `cli_args`/`cli_commands` mudaram (flags do `run`,
+  `loxia cache`), mas as tools do MCP não expõem essas flags; `loxia_run` continua
+  `--stdin --json --sandbox`, que cai no interpretador. Contrato das tools intacto.
+- `docs/tech/python-coverage.md` — **no-change**: o CI mudou só no passo de dogfood do PR
+  title (`--interpret`), não nos comandos/pisos de cobertura que a página documenta.
+- `docs/tech/test-report.md` — **no-change**: `loxia test` sem `--native` passou a invocar o
+  oráculo com `--interpret`; o envelope `start`/`result`/`discover`/`end` e o schema v1 não
+  mudaram.
 
-<!-- triaged: e083e73 -->
+<!-- triaged: 4535fc0 -->
