@@ -18,8 +18,10 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
   função ([ADR-0150](adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md)) e o formatter 2.0.
   Foi também a leva mais pesada de entradas de quebra; a próxima major é a **2.0**.
 - **Motores**: o [ADR-0149](adr/0149-motores-primarios-thir-e-congelamento.md) mudou o eixo
-  do projeto — o nativo vira o produto e o `run` compila com cache. Hoje `run` ainda é
-  tree-walk e o nativo continua opt-in (`build --emit`); a F0 e a F1 estão abertas.
+  do projeto — o nativo vira o produto e o `run` compila com cache. A **F0** foi entregue
+  ([#244](https://github.com/loxia-lang/loxia/issues/244),
+  [ADR-0152](adr/0152-run-aot-aceitacao-flags-e-cache.md)): `run` compila, `--interpret` é o
+  oráculo, o cache tem limite e `loxia cache prune`. A F1 (IR de controle) está aberta.
 - **Editor/LSP**: as lacunas P1 e o [#46](https://github.com/loxia-lang/loxia/issues/46)
   estão fechados; o build frio do workspace deixou de rodar checker e o recheck por edição
   coalesce ([ADR-0143](adr/0143-lsp-didchange-coalescing-e-reuso.md),
@@ -51,9 +53,10 @@ issue.
 ## Agora (Now)
 
 1. **F0 — `run` AOT com cache** ([#244](https://github.com/loxia-lang/loxia/issues/244)):
-   `run prog.lx` compila com o backend e executa o binário; `--interpret` mantém o
-   tree-walk, o REPL segue interpretado e o cache não muda bytes. É o primeiro passo do
-   nativo-como-produto e o que passa a exercitar codegen todo dia.
+   **entregue em 2026-11-27** ([ADR-0152](adr/0152-run-aot-aceitacao-flags-e-cache.md)):
+   `run prog.lx` compila e executa o binário, `--interpret` mantém o tree-walk, o REPL segue
+   interpretado e o cache não muda bytes. A medição cold/warm vive no
+   [`plano-de-motores.md`](plano-de-motores.md).
 2. **F1 — IR de controle** ([#245](https://github.com/loxia-lang/loxia/issues/245)): blocos,
    terminadores, phi e pilha de cleanup internos ao backend, migrando exceções/`match`/
    classes e honrando o gatilho do [ADR-0065](adr/0065-hir-lite-controle.md) (o lowering de
@@ -80,7 +83,8 @@ issue.
   tutorial de 30 minutos e uma página "por que Loxia" ancorada nele.
 - **Corte da 2.0**: decidir escopo e janela da próxima major — ela já herda as quebras da
   1.3.0 (formatter 2.0, AST JSON v2, remoção do `for` C-style, objeto de classe fora do tipo
-  função) — e se a mudança do `run` padrão que a F0 traz entra nela.
+  função) e a **mudança do `run` padrão** (a F0 já a implementou; `--interpret` é a migração;
+  a entrada está em "Mudado (quebra)" no CHANGELOG).
 
 ## Depois (Later)
 

@@ -66,7 +66,7 @@ def test_indice_fora_da_faixa_e_runtime_error(tmp_path: Path) -> None:
         'var out = "no"\ntry {\n  print(Bytes.empty()[0])\n} except RuntimeError as error {\n'
         "  out = error.message\n}\nprint(out)\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "Bytes index 0 out of bounds for length 0.\n"
 
@@ -77,7 +77,7 @@ def test_slice_fora_da_faixa_e_runtime_error(tmp_path: Path) -> None:
         'var out = "no"\ntry {\n  print(Bytes.fromText("ab").slice(1, 3))\n'
         "} except RuntimeError as error {\n  out = error.message\n}\nprint(out)\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "Bytes.slice() index out of bounds.\n"
 
@@ -88,7 +88,7 @@ def test_from_list_valida_a_faixa(tmp_path: Path) -> None:
         'var out = "no"\ntry {\n  Bytes.fromList([256])\n} except RuntimeError as error {\n'
         "  out = error.message\n}\nprint(out)\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "Bytes.fromList() expects integers in 0..255.\n"
 
@@ -100,7 +100,7 @@ def test_concat_com_tipo_errado_vindo_de_any(tmp_path: Path) -> None:
         "try {\n  print(data.concat(any))\n} except RuntimeError as error {\n"
         "  out = error.message\n}\nprint(out)\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "Bytes.concat() expects Bytes.\n"
 
@@ -111,7 +111,7 @@ def test_bytes_nao_e_chave_de_map_em_runtime(tmp_path: Path) -> None:
         'val m: Map[Any, Int] = {}\nvar out = "no"\ntry {\n  m[Bytes.empty()] = 1\n'
         "} except RuntimeError as error {\n  out = error.message\n}\nprint(out)\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "Map keys must be strings, integers or booleans.\n"
 
@@ -122,7 +122,7 @@ def test_is_bytes_estreita_any(tmp_path: Path) -> None:
         'val any: Any = Bytes.fromText("a")\nif (any is Bytes) {\n  print(any.toHex())\n}\n',
     )
     assert _run(["--check", str(program)]).returncode == 0
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "61\n"
 
@@ -138,7 +138,7 @@ def test_bytes_error_nao_e_exception(tmp_path: Path) -> None:
         "  BytesError.InvalidUtf8(message) => message\n"
         "})\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "true\nfalse\ndetail\n"
 
@@ -171,6 +171,6 @@ def test_base64_canonico_rejeita_entradas_invalidas(tmp_path: Path, text: str) -
         "  }\n"
         "})\n",
     )
-    executed = _run([str(program)])
+    executed = _run(["--interpret", str(program)])
     assert executed.returncode == 0
     assert executed.stdout == "invalidBase64\n"

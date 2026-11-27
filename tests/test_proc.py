@@ -28,7 +28,7 @@ def _run_source(tmp_path: Path, source: str) -> subprocess.CompletedProcess[str]
     path = tmp_path / "caso.lx"
     path.write_text(source, encoding="utf-8")
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,

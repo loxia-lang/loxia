@@ -324,6 +324,7 @@ missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E
 | `E4001` | not supported by the backend yet |
 | `E4002` | backend internal error/verification/link |
 | `E4003` | generic instantiation budget exceeded |
+| `E4004` | native toolchain unavailable (llvmlite, libgc or cc) |
 
 ### Runtime
 
@@ -509,11 +510,22 @@ diagnostic suggests the explicit `as` cast. The `loxia test` pre-check always ru
 ([ADR-0142](../adr/0142-check-por-fases.md)). The expected type is also propagated into
 `match` arms, so generic enum constructors infer their arguments there.
 
-`loxia run` also checks, in gradual mode, **before executing**: a real type error blocks
-with exit 65, a missing annotation stays silent (`Any`), and an error the interpreter would
-raise anyway (`lowerable`, e.g. `1 + true`) is deferred and becomes the same `Rxxxx`/exit 70
-as before. There is no escape flag: `run` always checks. The REPL
-checks each snippet and only warns, so an interactive snippet never blocks.
+`loxia run` compiles with the backend by default ([ADR-0149](../adr/0149-motores-primarios-thir-e-congelamento.md),
+[ADR-0152](../adr/0152-run-aot-aceitacao-flags-e-cache.md)): the AOT path uses the **strict**
+check of `build`, so a missing annotation (`E3004`) is exit 65 with a hint pointing at
+`--interpret`; a real type error blocks the same way; an error the interpreter would raise
+anyway (`lowerable`, e.g. `1 + true`) is deferred and becomes the same `Rxxxx`/exit 70 in the
+binary. `run --interpret` keeps the gradual check: a missing annotation stays silent (`Any`),
+and the same deferral applies. There is no silent fallback between engines.
+
+`--json`, `--json-lines`, `--error-format` other than `human`, `--sandbox`, `--stdin` and
+`--color=always` execute on the tree-walk (they are interpreter output contracts, not binary
+ones); the `--help` of `run` says so. Without `llvmlite`/`libgc`/`cc` the AOT path refuses
+with `E4004` and an install hint, and `--interpret` still runs; a **cache hit does not consult
+the toolchain** (the stored binary is standalone), so that refusal applies to a cold build and
+to `--no-cache`. `run` does not print warnings in either engine (I1 compares stderr); `-Werror`
+therefore does not change `run` acceptance, only `check`/`build`. The REPL checks each
+snippet and only warns, so an interactive snippet never blocks.
 
 | Message | When |
 | --- | --- |

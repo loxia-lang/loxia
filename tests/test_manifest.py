@@ -13,7 +13,7 @@ ENTRYPOINT = ROOT / "main.py"
 
 def _run(script: Path, *flags: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), *flags, str(script)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", *flags, str(script)],
         cwd=cwd,
         capture_output=True,
         text=True,

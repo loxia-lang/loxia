@@ -36,6 +36,13 @@ The tree-walk is the **normative definition** of the language. Every program in 
 corpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**
 in both engines; if they diverge, the bug is in the backend.
 
+`loxia run` compiles by default ([ADR-0149](../adr/0149-motores-primarios-thir-e-congelamento.md),
+[ADR-0152](../adr/0152-run-aot-aceitacao-flags-e-cache.md)); the normative oracle is the engine
+behind `--interpret` (and the REPL), and that is the engine the golden suite, the official suite
+and the differential oracle invoke. The AOT path accepts a **subset** of what the oracle accepts
+(strict check: no missing annotations; declared backend gaps) and refuses the rest explicitly —
+never silently falls back.
+
 The corpus is the entire conformance corpus, **annotated and classified by level** in
 `tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),
 `PENDING` (the `--check` passes, the backend still refuses with **65** and the message
@@ -88,7 +95,7 @@ corpus. Two other layers are declared, and neither promises equivalence
 | --- | --- | --- | --- |
 | **core** | I1 + I3, in the corpus | interpreter and native | — |
 | **ambient** | outside I1/I3; fixed-input tests | wherever the host allows | denied by `--sandbox` when it is a host capability |
-| **native-only** | no equivalence promise; binary semantics only | `--emit=exe` | **the interpreter refuses at compile time** |
+| **native-only** | no equivalence promise; binary semantics only | `run` (AOT), `build --emit=exe` | **`--interpret` refuses at compile time** |
 
 The three labels are a **projection of two independent axes**: determinism (`ambient`) and
 engine support (`native_only`). A capability may be native-only and ambient at the same time
@@ -102,9 +109,10 @@ error[E3021]: `sqlite.createFunction` is not supported by the interpreter; build
 ```
 
 The refusal is a compilation error (exit 65), points at the call site and happens before any
-execution. `loxia check` is engine-agnostic and accepts every layer; `run`/REPL refuse
-native-only, and `build` only refuses the declared backend gap (`E4001`, I4). The layer of
-every public primitive is published by `loxia capabilities --json`.
+execution. `loxia check` is engine-agnostic and accepts every layer; `--interpret`/REPL
+refuse native-only, `run` (AOT) compiles them, and `build` only refuses the declared backend
+gap (`E4001`, I4). The layer of every public primitive is published by
+`loxia capabilities --json`.
 
 #### Stack budget ([ADR-0077](../adr/0077-limite-de-pilha.md))
 
@@ -265,9 +273,10 @@ and stdlib decisions. What is still aspirational is marked.
    inference already exists and parameters/return remain signed. Inferring a parameter without
    an annotation was postponed; see [ADR-0020](../adr/0020-assinaturas-explicitas.md).
    `--gradual` — and the `loxia test` pre-check — makes a missing annotation a warning with
-   `Any`, so unannotated programs are still checked for everything else. `run` checks
-   gradually and blocks a real type error before executing;
-   missing annotations stay silent there ([ADR-0142](../adr/0142-check-por-fases.md)).
+   `Any`, so unannotated programs are still checked for everything else. `run --interpret`
+   checks gradually and blocks a real type error before executing; missing annotations stay
+   silent there. `run` (AOT) uses the strict check, because the binary needs concrete types
+   ([ADR-0142](../adr/0142-check-por-fases.md), [ADR-0152](../adr/0152-run-aot-aceitacao-flags-e-cache.md)).
 5. **Fail early and clearly** — spans, caret and stack trace exist today
    ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
    [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
@@ -301,9 +310,15 @@ and stdlib decisions. What is still aspirational is marked.
   exist they will not be a public contract in the first version.
 - **Timing.** Nothing promises when a `nil`/object is freed, nor finalization order —
   precisely so as not to break I1.
-- **Native-only capabilities under `run`/REPL.** They are refused at compile time
+- **Native-only capabilities under `--interpret`/REPL.** They are refused at compile time
   (`E3021`); there is no interpreted fallback and no promise that the interpreter can run
   every program ([ADR-0128](../adr/0128-contrato-de-motores.md)).
+- **Interpreter-shaped flags on the binary.** `--json`/`--json-lines`/`--sandbox`/`--stdin`
+  and non-default diagnostic formats are interpreter contracts; `run` executes them on the
+  tree-walk until the binary grows equivalents
+  (issue [#261](https://github.com/loxia-lang/loxia/issues/261)).
+- **Backend availability in a minimal install.** Without `llvmlite`/`libgc`/`cc` the AOT path
+  refuses with `E4004` and an install hint; it does not degrade silently to the interpreter.
 - **Programs above the memory budget** in the binary (default hard cap of 512 MiB and
   I1 up to 64 MiB of live memory) and **above 10,000 Lox calls** (R1015 is the limit).
 

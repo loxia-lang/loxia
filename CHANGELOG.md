@@ -5,6 +5,59 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`run` compila com cache e `--interpret` mantém o tree-walk**
+  ([#244](https://github.com/loxia-lang/loxia/issues/244),
+  [ADR-0149](docs/adr/0149-motores-primarios-thir-e-congelamento.md),
+  [ADR-0152](docs/adr/0152-run-aot-aceitacao-flags-e-cache.md)): `loxia run prog.lx`
+  compila com o backend e executa o binário, com cache content-addressed por closure +
+  manifesto/lock + flags + identidade da toolchain. Binário de runtime e de programa são
+  reaproveitados por conteúdo; `--no-cache` força o build e `--max-heap` escolhe o teto do
+  binário. Medição (8 núcleos, N=15): hit P50 **~100 ms** (vs 94 ms do interpretado em
+  programa minúsculo) e **581 ms → 100 ms** no `bench/cases/loop_sum.lx`; primeira execução
+  da máquina ~1,27 s (compila as unidades de runtime uma vez).
+- **`loxia cache path` / `loxia cache prune`**: inspeciona a raiz do cache e remove os
+  binários mais antigos por `mtime` até o limite (`--max-size`, default 1 GiB ou
+  `LOX_BUILD_CACHE_MAX`), com `--dry-run` e `--json`; o limite também é aplicado depois de
+  cada build do `run` (melhor esforço, sem afetar o resultado).
+- **`E4004` (toolchain nativa indisponível)**: sem `llvmlite`/`libgc`/`cc`, o `run` AOT
+  recusa com exit 65, instrução de instalação e a alternativa `--interpret` — em vez de
+  traceback ou "internal lowering error".
+
+### Mudado (quebra)
+
+- **`loxia run` compila por padrão**: usa o check **estrito** do `build`, então programa sem
+  anotação (`E3004`) deixa de rodar e recebe uma dica apontando `--interpret`; o
+  interpretador (gradual) continua disponível em `run --interpret`, no REPL e como oráculo.
+  `--json`, `--json-lines`, `--error-format` diferente de `human`, `--sandbox`, `--stdin` e
+  `--color=always` também executam no tree-walk enquanto o binário não tiver esses contratos
+  ([#261](https://github.com/loxia-lang/loxia/issues/261)). Capacidade native-only passa a
+  rodar no `run` (o `--interpret` continua recusando com `E3021`). O `loxia test` sem
+  `--native` e o `make bench` continuam medindo o interpretador.
+
+### Corrigido
+
+- **`run` não imprime warnings e o stderr bate com o interpretador**: o caminho AOT roda o
+  resolver com `warn_unused=False` (antes o build check vazava `W1001` no stderr do `run`, e
+  `--interpret` era silencioso — violação do I1). `build` continua reportando os avisos e
+  `-Werror` vale para `check`/`build`, não muda a aceitação do `run`.
+- **`$CC` passa a ser respeitado pelo backend**: antes o driver sempre escolhia
+  `cc`/`clang`/`gcc`, embora a identidade do cache já considerasse `CC`; agora o compilador
+  configurado é usado e um `CC` inválido vira `E4004` acionável, não erro interno.
+- **Chave do cache cobre `CPATH`/`LIBRARY_PATH`**: eles mudam headers/bibliotecas que o `cc`
+  enxerga (outra `libgc`, por exemplo) e podem mudar o binário; com um hit a toolchain não é
+  consultada (o binário guardado é autossuficiente).
+- **Ctrl-C sai 130 nos dois motores, sem traceback**: o interpretador imprimia
+  `KeyboardInterrupt` do Python; o CLI agora trata a interrupção e o binário é encerrado com
+  130, como o `--timeout` já fazia com 124.
+- **Erro estático adiado em fronteira tipada vira panic site, não erro interno**: um valor
+  `<error>` (ex.: variável indefinida) chegando a retorno/argumento/atribuição de tipo
+  `String`/`Enum` estourava `E4002 internal lowering error` e o binário recusava um programa
+  que o interpretador executa. Agora a coerção devolve um zero do tipo esperado no bloco
+  inalcançável e o runtime produz o mesmo `Rxxxx`/exit 70 do tree-walk (regressão em
+  `tests/test_backend.py`, quatro casos).
+
 ## [1.3.0] - 2026-11-27
 
 Loxia 1.3.0 fecha o ciclo aberto depois da 1.2.0. O destaque de linguagem é o ponto de

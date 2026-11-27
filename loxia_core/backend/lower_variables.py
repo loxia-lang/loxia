@@ -6,6 +6,7 @@ from __future__ import annotations
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
 from loxia_core.backend.lower_model import (
+    _INT,
     BackendError,
     Binding,
     TypeDesc,
@@ -246,7 +247,7 @@ class VariableLowering(LoweringBase):
                 f"Undefined variable '{expr.name.lexeme}'.",
                 code=Code.UNDEFINED_VARIABLE,
             )
-            return self._zero(ValueType.INT)
+            return Value(ValueType.INT, llvm_ir.constant(_INT, 0), error=True)
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
         value = self._load_binding(binding)
@@ -277,7 +278,7 @@ class VariableLowering(LoweringBase):
                 code=Code.RUNTIME_IMMUTABLE,
             )
             return value
-        value = self._coerce(value, binding.desc, expr.name.line)
+        value = self._coerce(value, binding.desc, expr.name.line, source=expr.value)
         self._store_binding(binding, value)
 
         if binding.function is not None:

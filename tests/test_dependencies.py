@@ -37,7 +37,7 @@ def _cli(
 
 
 def _run(script: Path, *flags: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return _cli(*flags, str(script), cwd=cwd)
+    return _cli(*flags, "--interpret", str(script), cwd=cwd)
 
 
 def _project(tmp_path: Path) -> tuple[Path, Path]:

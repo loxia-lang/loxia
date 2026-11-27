@@ -54,7 +54,7 @@ def test_new_cria_template_minimo_e_roda(tmp_path: Path) -> None:
     assert package == {"name": "app", "version": "0.1.0"}
     assert tomllib.loads((project / "loxia.lock").read_text(encoding="utf-8"))["version"] == 1
 
-    run = _cli("run", str(project / "src" / "main.lx"), cwd=tmp_path)
+    run = _cli("run", "--interpret", str(project / "src" / "main.lx"), cwd=tmp_path)
     check = _cli("check", "--frozen", str(project / "src" / "main.lx"), cwd=tmp_path)
     lock = _cli("lock", "--check", cwd=project)
 

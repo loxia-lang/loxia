@@ -59,7 +59,7 @@ def test_fs_escrita_leitura_listagem(tmp_path: Path) -> None:
     checked = _run(["--check", str(path)])
     assert checked.returncode == 0, checked.stderr
 
-    result = _run([str(path)])
+    result = _run(["--interpret", str(path)])
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == (
@@ -89,7 +89,7 @@ def test_fs_append_cria_arquivo_ausente(tmp_path: Path) -> None:
 """,
     )
 
-    result = run_cli(str(path), cwd=tmp_path)
+    result = run_cli("--interpret", str(path), cwd=tmp_path)
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "ok\nx\n"
@@ -111,7 +111,7 @@ def test_io_stdin_e_write(tmp_path: Path) -> None:
     checked = _run(["--check", str(path)])
     assert checked.returncode == 0, checked.stderr
 
-    result = _run([str(path)], input="primeira\nresto\n")
+    result = _run(["--interpret", str(path)], input="primeira\nresto\n")
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "primeira\nresto\n\nnome? nil\nfim"
@@ -124,7 +124,7 @@ def test_io_write_err(tmp_path: Path) -> None:
         'import std.io as io\nio.write("saida")\nio.writeErr("erro")\n',
     )
 
-    result = _run([str(path)])
+    result = _run(["--interpret", str(path)])
 
     assert result.returncode == 0
     assert result.stdout == "saida"

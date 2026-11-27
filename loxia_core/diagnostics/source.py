@@ -112,5 +112,13 @@ class SourceMap:
     def get(self, path: str) -> SourceFile | None:
         return self._files.get(path)
 
+    def items(self) -> tuple[tuple[str, str], ...]:
+        """Pares `(caminho de exibição, texto)` na ordem em que entraram.
+
+        O cache nativo do `run` (#244) usa isto como closure da compilação: só os
+        arquivos que o loader realmente resolveu entram na chave.
+        """
+        return tuple((path, source.text) for path, source in self._files.items())
+
     def clear(self) -> None:
         self._files.clear()

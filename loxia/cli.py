@@ -56,10 +56,15 @@ def _main_legacy(argv: list[str]) -> None:
 
 def main() -> None:
     argv = sys.argv[1:]
-    if argv and argv[0] in COMMANDS:
-        _main_subcommand(argv[0], argv[1:])
-    else:
-        _main_legacy(argv)
+    try:
+        if argv and argv[0] in COMMANDS:
+            _main_subcommand(argv[0], argv[1:])
+        else:
+            _main_legacy(argv)
+    except KeyboardInterrupt:
+        # Ctrl-C é saída 130 nos dois motores (sem traceback do Python). O REPL
+        # trata o seu próprio `KeyboardInterrupt` e não chega aqui.
+        sys.exit(130)
 
 
 if __name__ == "__main__":

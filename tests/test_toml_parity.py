@@ -45,7 +45,7 @@ OUTSIDE_SUBSET = ("bad_date.toml", "bad_inf.toml")
 
 
 def _run(path: Path) -> Result:
-    return run_cli("run", str(MAIN), "--", str(path))
+    return run_cli("run", "--interpret", str(MAIN), "--", str(path))
 
 
 def _normalize(value: Any) -> Any:

@@ -64,6 +64,25 @@ Dependências que não podem ser ignoradas:
 - **F6 é o maior risco.** Se escorregar, o Nível 1 do self-host já está entregue e o Python
   só não foi totalmente aposentado.
 
+## Medição F0 (2026-11-27)
+
+`run` AOT com cache ([#244](https://github.com/loxia-lang/loxia/issues/244),
+[ADR-0152](adr/0152-run-aot-aceitacao-flags-e-cache.md)), 8 núcleos físicos, cache limpo,
+N=15 por cenário:
+
+| Caso | `--interpret` P50/P95 | cold (runtime frio) | cold (runtime quente, `--no-cache`) P50/P95 | hit P50/P95 |
+| --- | --- | --- | --- | --- |
+| `examples/fizzbuzz.lx` | 94/97 ms | 1,27 s | 167/169 ms | 100/101 ms |
+| `examples/fib.lx` | 96/97 ms | 1,27 s | 169/170 ms | 100/101 ms |
+| `bench/cases/loop_sum.lx` | 581/589 ms | 1,26 s | 164/166 ms | 100/101 ms |
+
+O hit paga ~5 ms sobre o interpretado em programa minúsculo (parse + chave + exec) e ganha
+~5,8× no `loop_sum`. A primeira execução da máquina paga ~1,1 s das unidades de runtime
+(cache por conteúdo, uma vez por versão/toolchain) — acima do gatilho de 1 s do ADR-0149;
+registrado como candidato a aquecer o runtime no primeiro `build`/install, não resolvido na
+F0. `make bench` continua medindo o interpretador (`--interpret`); `bench/run.py --native`
+mede o binário.
+
 ## Portões
 
 Um módulo congela quando **todos** valem. O portão é verificável; a data não.
@@ -160,7 +179,7 @@ Python. "Self-hosted" é o objetivo pessoal; o checker é a conta.
 
 | Fase | Issue | Estado |
 | --- | --- | --- |
-| F0 | [#244](https://github.com/loxia-lang/loxia/issues/244) `tooling: run compila com cache (AOT) e --interpret` | aberta |
+| F0 | [#244](https://github.com/loxia-lang/loxia/issues/244) `tooling: run compila com cache (AOT) e --interpret` | entregue (2026-11-27) |
 | F1 | [#245](https://github.com/loxia-lang/loxia/issues/245) `backend: IR de controle (blocos, phi, cleanup)` | aberta |
 | F2–F6 | — | a abrir no fim da fase anterior |
 

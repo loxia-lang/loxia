@@ -20,6 +20,7 @@ from typing import Any, Literal
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower import BackendError, lower_program
 from loxia_core.bundle import bundle_dir
+from loxia_core.diagnostics.codes import Code
 from loxia_core.execution.limits import (
     DEFAULT_HEAP_BYTES,
     MAX_CALL_DEPTH,
@@ -334,22 +335,36 @@ def _sanitize_compiler_error(
 def _with_gc_hint(error: BackendError) -> BackendError:
     """Explica a dependência de build quando o erro é falta de `libgc`."""
     message = error.message
+    code = error.code
     if "gc.h" in message or "lgc" in message or "libgc" in message:
+        # A falha de link nasce como `BACKEND_INTERNAL`; ao promover para
+        # `NATIVE_TOOLCHAIN` o prefixo "internal lowering error" deixa de valer.
+        message = message.removeprefix(BackendError.INTERNAL_PREFIX)
         message = (
             f"{message}\n"
             "The native backend requires libgc (bdw-gc). Install libgc-dev "
             "(Debian/Ubuntu), gc-devel (Fedora) or bdw-gc (macOS/Homebrew)."
         )
-    return BackendError(message, error.line)
+        code = Code.NATIVE_TOOLCHAIN
+    return BackendError(message, error.line, code=code)
 
 
 def _compiler() -> str:
+    configured = os.environ.get("CC")
+    if configured:
+        # `$CC` é contrato do toolchain C e entra na identidade do cache
+        # (`loxia/native_cache.py`); ignorá-lo aqui deixaria a chave mentindo.
+        return configured
     for candidate in ("cc", "clang", "gcc"):
         found = shutil.which(candidate)
         if found is not None:
             return found
 
-    raise BackendError("no C compiler found (tried cc, clang and gcc).")
+    raise BackendError(
+        "no C compiler found (tried cc, clang and gcc). "
+        "Install a C compiler (build-essential, clang or gcc).",
+        code=Code.NATIVE_TOOLCHAIN,
+    )
 
 
 def _run(command: list[str]) -> None:
@@ -357,7 +372,9 @@ def _run(command: list[str]) -> None:
         process = subprocess.run(command, capture_output=True, text=True, check=False)
     except OSError as error:
         raise BackendError(
-            f"internal error: failed to run {Path(command[0]).name}: {error}"
+            f"cannot run '{command[0]}': {error}. "
+            "Install a C compiler (build-essential, clang or gcc) or set CC.",
+            code=Code.NATIVE_TOOLCHAIN,
         ) from error
     if process.returncode == 0:
         return

@@ -170,8 +170,8 @@ def test_debug_flag_checks_overflow(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    debug = run_cli("--debug", str(script))
-    release = run_cli(str(script))
+    debug = run_cli("run", "--interpret", "--debug", str(script))
+    release = run_cli("--interpret", str(script))
 
     assert debug.returncode == 70
     assert "Integer overflow." in debug.stderr
@@ -261,7 +261,7 @@ def test_error_format_json_goes_to_stderr_on_run(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = run_cli("--error-format=json", str(script))
+    result = run_cli("--interpret", "--error-format=json", str(script))
 
     assert result.returncode == 70
     assert result.stdout == ""
@@ -279,7 +279,7 @@ def test_runtime_human_uses_the_same_header_as_compilation(tmp_path: Path) -> No
         encoding="utf-8",
     )
 
-    result = run_cli(str(script))
+    result = run_cli("--interpret", str(script))
 
     assert result.returncode == 70
     assert result.stderr == ("boom.lx:1:9: error[R1002]: Division by zero not allowed\n")
@@ -355,6 +355,41 @@ def test_max_heap_requires_emit_exe(tmp_path: Path) -> None:
     assert "--max-heap requires --emit=exe" in result.stderr
 
 
+def test_max_heap_requires_native_path_on_run(tmp_path: Path) -> None:
+    script = tmp_path / "ok.lx"
+    script.write_text("print(1);\n", encoding="utf-8")
+
+    result = run_cli("run", "--interpret", "--max-heap=64M", str(script))
+
+    assert result.returncode == 2
+    assert "--max-heap requires the native path" in result.stderr
+
+
+def test_no_cache_requires_native_path_on_run(tmp_path: Path) -> None:
+    script = tmp_path / "ok.lx"
+    script.write_text("print(1);\n", encoding="utf-8")
+
+    result = run_cli("run", "--json", "--no-cache", str(script))
+
+    assert result.returncode == 2
+    assert "--no-cache requires the native path" in result.stderr
+
+
+def test_keyboard_interrupt_sai_130(monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia import cli_commands as commands_module
+    from tests.inprocess import run_cli as run_inprocess
+
+    def boom(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setitem(commands_module.HANDLERS, "check", boom)
+
+    result = run_inprocess("check", "x.lx")
+
+    assert result.returncode == 130
+    assert "KeyboardInterrupt" not in result.stderr
+
+
 def test_parse_heap_size_accepts_units_and_bytes() -> None:
     assert parse_heap_size("512M") == 512 * 1024**2
     assert parse_heap_size("2g") == 2 * 1024**3
@@ -377,7 +412,7 @@ def test_subcommand_run_executes(tmp_path: Path) -> None:
     script = tmp_path / "run.lx"
     script.write_text("print(1 + 2)\n", encoding="utf-8")
 
-    result = run_cli("run", str(script))
+    result = run_cli("run", "--interpret", str(script))
 
     assert result.returncode == 0
     assert result.stdout.strip() == "3"
@@ -633,7 +668,7 @@ def test_timeout_exits_124_with_c0001(tmp_path: Path) -> None:
     script = tmp_path / "loop.lx"
     script.write_text("while (true) {\n}\n", encoding="utf-8")
 
-    result = run_cli("run", str(script), "--timeout=50", "--json")
+    result = run_cli("run", "--interpret", str(script), "--timeout=50", "--json")
 
     assert result.returncode == 124
     payload = json.loads(result.stderr)
@@ -645,7 +680,7 @@ def test_timeout_json_lines_emits_c0001(tmp_path: Path) -> None:
     script = tmp_path / "loop.lx"
     script.write_text("while (true) {\n}\n", encoding="utf-8")
 
-    result = run_cli("run", str(script), "--timeout=50", "--json-lines")
+    result = run_cli("run", "--interpret", str(script), "--timeout=50", "--json-lines")
 
     assert result.returncode == 124
     events = [json.loads(line) for line in result.stderr.splitlines()]
@@ -701,7 +736,7 @@ def test_run_never_emits_warnings(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = run_cli("run", str(script))
+    result = run_cli("run", "--interpret", str(script))
 
     assert result.returncode == 0
     assert "W1001" not in result.stderr

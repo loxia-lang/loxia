@@ -186,9 +186,14 @@ cause bugs when forgotten:
 
 Python **3.13** (`.python-version`, `pyproject.toml`). The code uses PEP 695 generics.
 
+`loxia run` compiles with the native backend by default (ADR-0149/ADR-0152); the
+tree-walk is the oracle and runs under `--interpret`. Programs that do not pass the strict
+check (missing annotations, declared backend gaps) are refused by `run` with a hint, never
+silently interpreted.
+
 ```bash
 uv run main.py                  # REPL
-uv run main.py script.lx        # run a script
+uv run main.py script.lx        # run a script (compiles; --interpret = tree-walk)
 uv run python -m loxia          # same, via package
 uv run main.py --version        # loxia 1.3.0
 uv run main.py --dump-ast s.lx  # AST as S-expression, no execution

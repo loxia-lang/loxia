@@ -451,7 +451,12 @@ class GenericLowering(LoweringBase):
         info = self._generic_function(stmt, type_args, line=expr.paren.line)
         arguments = [self._expr(argument) for argument in expr.arguments]
         prepared = self._prepare_call_arguments(
-            info.fn_sig, info, arguments, expr.spread, expr.paren
+            info.fn_sig,
+            info,
+            arguments,
+            expr.spread,
+            expr.paren,
+            sources=list(expr.arguments),
         )
         if prepared is None:
             return self._zero_desc(info.fn_sig.ret)

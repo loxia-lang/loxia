@@ -38,6 +38,7 @@ COMMANDS = (
     "doc",
     "explain",
     "capabilities",
+    "cache",
     "lsp",
     "mcp",
     "test",
@@ -60,6 +61,7 @@ _COMMAND_SUMMARIES = {
     "doc": "gera referência Markdown/JSON dos comentários `///`",
     "explain": "explica um código de diagnóstico",
     "capabilities": "descreve comandos, formatos e limites",
+    "cache": "inspeciona/limpa o cache de binários nativos",
     "lsp": "servidor de linguagem (LSP) sobre stdio",
     "mcp": "servidor MCP (Model Context Protocol) sobre stdio",
     "test": "roda suítes `*_test.lx`",
@@ -118,6 +120,10 @@ _COMMAND_EXAMPLES = {
     "fix": """exemplos:
   loxia fix src/main.lx
   loxia fix src/main.lx --apply""",
+    "cache": """exemplos:
+  loxia cache path
+  loxia cache prune --max-size 512M
+  loxia cache prune --dry-run --json""",
 }
 
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
@@ -157,6 +163,16 @@ def parse_heap_size(text: str) -> int:
             f"and {MAX_HEAP_BYTES // 1024**3}G"
         )
     return size
+
+
+def _parse_cache_size(text: str) -> int:
+    """Tamanho do cache (`512M`, `2G`) — mesma sintaxe do `--max-heap`."""
+    from loxia.native_cache import parse_size
+
+    try:
+        return parse_size(text)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from None
 
 
 class _ErrorFormatAction(argparse.Action):
@@ -292,7 +308,10 @@ def _add_timeout(container: argparse._ActionsContainer) -> None:
         "--timeout",
         type=int,
         metavar="MS",
-        help="tempo limite em milissegundos (0 = sem limite)",
+        help=(
+            "tempo limite em milissegundos (0 = sem limite); no run AOT cobre a "
+            "execução do binário, não o build"
+        ),
     )
 
 
@@ -491,6 +510,11 @@ def build_parser() -> argparse.ArgumentParser:
             f"{DEFAULT_HEAP_BYTES // 1024**2}M; ex.: 512M, 2G); só com --emit=exe"
         ),
     )
+    parser.add_argument(
+        "--interpret",
+        action="store_true",
+        help="executa no tree-walk em vez de compilar (equivalente a 'run --interpret')",
+    )
     _add_diagnostics_options(parser)
     _add_module_options(parser)
     _add_input_options(parser)
@@ -536,6 +560,30 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_input_options(groups.input)
         _add_timeout(groups.execution)
         _add_dependency_options(groups.modules)
+        groups.execution.add_argument(
+            "--interpret",
+            action="store_true",
+            help=(
+                "executa no tree-walk (oráculo/legado) em vez de compilar; "
+                "--json, --json-lines, --error-format diferente de human, "
+                "--sandbox, --stdin e --color=always já implicam isto"
+            ),
+        )
+        groups.execution.add_argument(
+            "--no-cache",
+            action="store_true",
+            help="força o build nativo; não reusa binário do cache (exige o caminho AOT)",
+        )
+        groups.execution.add_argument(
+            "--max-heap",
+            type=parse_heap_size,
+            metavar="SIZE",
+            help=(
+                "teto de heap do binário nativo "
+                f"(default: {DEFAULT_HEAP_BYTES // 1024**2}M; ex.: 512M, 2G); "
+                "exige AOT"
+            ),
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
         parser.add_argument(
             "script_args",
@@ -824,6 +872,24 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         groups.general.add_argument("--json", action="store_true", help="saída JSON")
     elif command == "capabilities":
         groups.general.add_argument("--json", action="store_true", help="saída JSON")
+    elif command == "cache":
+        parser.add_argument(
+            "action",
+            choices=("path", "prune"),
+            help="path: raiz do cache; prune: remove binários antigos até o limite",
+        )
+        groups.general.add_argument(
+            "--max-size",
+            type=_parse_cache_size,
+            metavar="SIZE",
+            help="limite total do cache (default: 1G ou $LOX_BUILD_CACHE_MAX)",
+        )
+        groups.general.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="não apaga; só relata o que sairia",
+        )
+        groups.general.add_argument("--json", action="store_true", help="saída JSON")
     else:  # pragma: no cover - guarda de programação
         raise AssertionError(f"unknown command {command}")
     return parser
@@ -896,6 +962,25 @@ def _validate(
         parser.error("--file-only/--format are only supported by ast")
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
         parser.error(f"{command} requires a script (or --stdin)")
+    if command == "run":
+        native_blockers = (
+            getattr(args, "interpret", False)
+            or args.stdin
+            or getattr(args, "sandbox", False)
+            or getattr(args, "json", False)
+            or getattr(args, "json_lines", False)
+            or args.error_format != "human"
+            or getattr(args, "color", "auto") == "always"
+        )
+        if native_blockers:
+            reason = (
+                "--interpret, --json, --json-lines, --error-format other than human, "
+                "--sandbox, --stdin and --color=always run on the tree-walk"
+            )
+            if getattr(args, "max_heap", None) is not None:
+                parser.error(f"--max-heap requires the native path ({reason})")
+            if getattr(args, "no_cache", False):
+                parser.error(f"--no-cache requires the native path ({reason})")
     if command == "build":
         if args.stdin:
             parser.error("build does not support --stdin yet")
@@ -918,6 +1003,8 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--watch requires --check")
     if args.gradual and not args.check:
         parser.error("--gradual requires --check")
+    if args.interpret and (args.check or args.dump_ast or args.emit):
+        parser.error("--interpret is only supported by run")
     if args.watch and args.stdin:
         parser.error("--watch cannot be combined with --stdin")
     if args.watch and not args.script:

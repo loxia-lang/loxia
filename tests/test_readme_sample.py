@@ -21,7 +21,7 @@ def test_readme_sample_runs(tmp_path: Path) -> None:
     source.write_text(match.group(1), encoding="utf-8")
 
     result = subprocess.run(
-        [sys.executable, str(ROOT / "main.py"), str(source)],
+        [sys.executable, str(ROOT / "main.py"), "--interpret", str(source)],
         cwd=ROOT,
         capture_output=True,
         text=True,

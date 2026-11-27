@@ -126,7 +126,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
-| `loxia run FILE` | Execute a program (type-checks in gradual mode first) | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia run FILE` | Compile with the native backend and run the binary (content-addressed cache); `--interpret` runs the tree-walk | `--interpret`, `--no-cache`, `--max-heap`, `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--lib`, `--json` |
 | `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--lib`, `--json` |
@@ -139,6 +139,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia doc FILE` | Generate Markdown/JSON from `///` | `--stdin`, `--file-name`, `--json`, `--error-format`, `--max-errors`, `--color` |
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
+| `loxia cache path\|prune` | Inspect the native binary cache or drop the oldest entries | `--max-size`, `--dry-run`, `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
 | `loxia mcp` | MCP server over stdio (tools) | — |
 | `loxia test [PATH…]` | Run `*_test.lx` suites (type-checked in gradual mode first) | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--changed[=REF]`, `--shard=INDEX/TOTAL`, `--native`, `--no-cache`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
@@ -260,13 +261,15 @@ source .lx
    ├─ scanner → tokens
    ├─ parser → AST
    ├─ resolver → lexical depths
-   ├─ checker (--check; run checks gradually) → type errors before execution
-   ├─ interpreter → effects
-   └─ backend (--emit) → LLVM IR → object → cc → native binary
+   ├─ checker (--check) → type errors before execution
+   ├─ backend (run; --emit) → LLVM IR → object → cc → native binary
+   └─ interpreter (--interpret, REPL) → effects
 ```
 
-The interpreter is the normative specification; the backend consumes the same checker
-types. This is what makes the differential corpus meaningful instead of cosmetic.
+`loxia run` compiles by default (ADR-0149); the interpreter is the normative
+specification (`--interpret`, REPL and the differential oracle) and the backend consumes
+the same checker types. This is what makes the differential corpus meaningful instead of
+cosmetic.
 
 ## Documentation
 

@@ -39,7 +39,7 @@ def test_golden_regex_cases_run_isolated(tmp_path: Path) -> None:
     if missing_requirements(leaker):
         pytest.skip("requer rust")
 
-    leaked = run_cli(str(leaker))
+    leaked = run_cli("--interpret", str(leaker))
     assert leaked.returncode == 0
     match = re.search(r"\[1, (\d+)\]", leaked.stdout)
     assert match is not None

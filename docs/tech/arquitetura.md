@@ -19,22 +19,23 @@ Scanner ───────────────► list[Token]
    │                    Resolver ────────► Interpreter.locals: {Expr: depth}
    │                       │                (binding scope errors)
    │                       ▼
-   │                    Checker ─────────► type errors (`--check`; `run` checa gradual)
+   │                    Checker ─────────► type errors (`--check`; `run` AOT e `build` estritos)
    │                       │
    ▼                       ▼
-   └──────────────────► Interpreter ──────► effects (print, variables, objects)
+   └──────────────────► Interpreter ──────► effects (`--interpret`, REPL, oráculo)
 
-   (path `--emit`)        Checker ─────────► Lowerer ──► llvmlite.ir ──► .o ──► cc
+   (path `run`/`--emit`)  Checker ─────────► Lowerer ──► llvmlite.ir ──► .o ──► cc
                                                                     └─► `--emit=ll`
 ```
 
 Each phase depends only on the previous one. The **resolver** is mandatory: without it, the
 interpreter does not know the distance of local variables. The **checker** is strict under
-`--check` and runs on the normal path in gradual mode (`run` blocks a real type error,
-missing annotations are silent); types are erased before execution.
+`--check`, `run` (AOT) and `build`; `run --interpret` keeps the gradual mode (a real type
+error blocks, missing annotations are silent). Types are erased before execution.
 
-On the backend path (`--emit`, [ADR-0031](../adr/0031-backend-nativo.md)) the checker is
-**mandatory**: lowering consumes concrete types. What has no representation yet
+On the backend path (`loxia run` by default and `--emit`,
+[ADR-0031](../adr/0031-backend-nativo.md), [ADR-0149](../adr/0149-motores-primarios-thir-e-congelamento.md))
+the checker is **mandatory** and strict: lowering consumes concrete types. What has no representation yet
 (`Float`, `String`, variables, functions, classes, `Any`) fails with an explicit compilation
 error — the backend never generates "roughly right" code.
 
@@ -59,7 +60,8 @@ Packages by phase (dependency only downward):
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI entry point: picks a subcommand or compatibility mode and dispatches to `HANDLERS` |
 | [`loxia/cli_args.py`](../../loxia/cli_args.py) | CLI surface: `COMMANDS`, `build_parser`/`_build_subcommand_parser`, option groups, per-command help and `_validate*` |
 | [`loxia/cli_commands.py`](../../loxia/cli_commands.py) | subcommand runners (`run`, `check`, `build`, `fmt`, `doc`, `lock`, `fetch`, `capabilities`, ...), timeout/watch and the `HANDLERS` table |
-| [`loxia/engine.py`](../../loxia/engine.py) | `Loxia` engine: parse + modules, resolver, checker, execution, `build` and diagnostic flushing |
+| [`loxia/engine.py`](../../loxia/engine.py) | `Loxia` engine: parse + modules, resolver, checker, execution, `prepare`/`compile_prepared` (build) and diagnostic flushing |
+| [`loxia/native_cache.py`](../../loxia/native_cache.py) | content-addressed binary cache for `run`/`test --native` (ADR-0152): closure key, toolchain fingerprint with a memoized `cc` identity, atomic store, size limit and `prune` |
 | [`loxia/scaffold.py`](../../loxia/scaffold.py) | `loxia new`/`init` (ADR-0106): minimal deterministic template, name normalization, `git init` and empty lock |
 | [`loxia/fixer.py`](../../loxia/fixer.py) | `loxia fix`: applies only `safe` fixes, with reparse/check per round (ADR-0093) |
 | [`loxia/manifest_edit.py`](../../loxia/manifest_edit.py) | scoped `loxia.toml` editing for `loxia add`/`remove` (ADR-0118) |

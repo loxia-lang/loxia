@@ -47,7 +47,12 @@ def discover_cases() -> list[Path]:
 
 
 def run_once(path: Path) -> float:
-    return _run_timed([sys.executable, str(ENTRYPOINT), str(path)], f"caso {path.name}")
+    # Desde o #244 o `run` compila; o baseline é do interpretador (o modo
+    # `--native` mede o binário separadamente).
+    return _run_timed(
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(path)],
+        f"caso {path.name}",
+    )
 
 
 def build_native(path: Path, binary: Path) -> None:
