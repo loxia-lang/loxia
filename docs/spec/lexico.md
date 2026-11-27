@@ -118,16 +118,21 @@ Strings ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)):
 ### Keywords
 
 ```
-and    as     async  await  class  elif   else   enum   except
-false  finally fn    for    if     in     interface is  match
-nil    not    or     raise  return super  this   true
-try    val    var    while
+and      as       async    await    break    class    continue elif
+else     enum     except   false    finally  fn       for      from
+if       import   in       interface is      match    nil      not
+or       raise    return   super    this     true     try      val
+var      while
 ```
 
 `not` is negation (ADR-0068); `!` alone is not a token — the scanner reports
 `Unexpected character: ! (use 'not' for negation).` and `!=` remains inequality.
 
 `fn` replaced `fun`; `fun` is now an ordinary identifier (it is not a keyword).
+
+`break` and `continue` became reserved when the statements entered the language
+([ADR-0139](../adr/0139-break-continue.md)); `import` and `from` gate the module syntax
+([ADR-0073](../adr/0073-imports-modulos.md)).
 
 They are case-sensitive (`Class` is an identifier).
 
