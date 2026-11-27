@@ -1331,3 +1331,60 @@ marcador** — fechar o intervalo agora silenciaria páginas que não foram lida
 - `docs/tech/docs-index.md` — **updated**: exemplo de `loxia_version` 1.3.0.
 - `docs/spec/garantias.md`, `docs/spec/erros.md` e `docs/stdlib/*` — **no-change** (gerado):
   `make docs-sync` reescreveu os blocos sem diff; o bump não altera comportamento.
+
+## 2026-11-27 — triagem do backlog de frescor
+
+Intervalo: `e083e73`. Fechei as 32 candidatas acumuladas desde a 1.2.0. O bump da 1.3.0 não
+mudou comportamento; as páginas geradas foram regravadas e comparadas byte a byte, e as
+manuais foram lidas contra o diff das fontes.
+
+- `docs/spec/lexico.md` — **updated**: o bloco de keywords listava 30 das 34 do scanner —
+  faltavam `break`, `continue`, `import` e `from` — e agora bate com `KEYWORDS`; a prosa
+  registra quando `break`/`continue` viraram reservadas (ADR-0139) e que `import`/`from`
+  são keywords de módulo (ADR-0073). `tests/test_docs_consistency.py` ganhou
+  `test_bloco_de_keywords_do_lexico_bate_com_o_scanner` para o bloco não voltar a divergir.
+- `docs/decisoes.md` — **updated**: a linha do ADR-0133 ganhou a quinta emenda (#239/#254):
+  goldens com `# requires: rust` rodam em subprocesso porque a tabela de handles do regex
+  nativo não pode ser herdada, mantendo `LOX_GOLDEN_SUBPROCESS=1` como escape.
+- `docs/spec/erros.md` — **no-change** (gerado): `make docs-sync` regravou o catálogo de
+  códigos sem diff; os quatro commits no intervalo (checker/LSP/objetos de classe) não
+  criaram código novo.
+- `docs/stdlib/asserts.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/builtins.md` — **no-change** (gerado): `make docs-sync` sem diff; o motor
+  `regex` já estava documentado na página.
+- `docs/stdlib/bytes.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/collections.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/contracts.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/convert.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/csv.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/documents.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/framing.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/fs.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/hash.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/index.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/json.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/lists.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/log.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/maps.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/paths.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/proc.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/property.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/rand.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/regex.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/results.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/sets.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/strings.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/timex.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/utf8.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/tech/mcp.md` — **no-change**: entre as fontes só `server.json` mudou (versão 1.3.0);
+  a página não cita número de versão e o contrato das tools (`loxia_run` devolve os bytes
+  exatos do CLI) não mudou. `loxia/mcp.py`, `cli_args`, `cli_commands` e `formatter/edits`
+  estão intactos desde o commit da página.
+- `docs/tech/python-coverage.md` — **no-change**: os commits do intervalo mexeram nos alvos
+  de teste (`pytest -n auto`, backend em xdist/in-process) e no CI, não nos comandos de
+  cobertura, pisos ou `COVERAGE_JOBS` (4) que a página documenta.
+- `docs/tech/test-report.md` — **no-change**: `std.test.Expectation` passou a guardar `Any`,
+  mas o envelope `start`/`result`/`discover`/`end`, o schema v1 e o `--capture` não mudaram;
+  `tests/test_test_runner.py` só ganhou `git_env()` no helper.
+
+<!-- triaged: e083e73 -->
