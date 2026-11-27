@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# `continue` dentro de `try` roda o `finally` uma vez antes do salto.
+var count = 0
+var i = 0
+
+while (i < 3) {
+  i = i + 1
+  try {
+    if (i == 2) {
+      continue
+    }
+    count = count + 1
+  } finally {
+    print("cleanup ${i}")
+  }
+}
+
+print(count)
+
+# expect: cleanup 1
+# expect: cleanup 2
+# expect: cleanup 3
+# expect: 2

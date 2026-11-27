@@ -154,9 +154,9 @@ class ExceptionLowering(LoweringBase):
         setjmp = self._function("_setjmp", _I32, [_I8_PTR])
         setjmp.attributes.add("returns_twice")
         status = self.builder.call(setjmp, [buffer])
-        normal = llvm_ir.append_block(self._function_ir, "try.normal")
-        caught = llvm_ir.append_block(self._function_ir, "try.caught")
-        end = llvm_ir.append_block(self._function_ir, "try.end")
+        normal = self._control.new_block(self._function_ir, "try.normal")
+        caught = self._control.new_block(self._function_ir, "try.caught")
+        end = self._control.new_block(self._function_ir, "try.end")
         ok = self.builder.icmp_signed("==", status, llvm_ir.constant(_I32, 0))
         self.builder.cbranch(ok, normal, caught)
 
@@ -206,8 +206,8 @@ class ExceptionLowering(LoweringBase):
                 ],
             )
             matched = self.builder.icmp_signed("!=", match, llvm_ir.constant(_I32, 0))
-            body = llvm_ir.append_block(self._function_ir, "except.body")
-            next_block = llvm_ir.append_block(self._function_ir, "except.next")
+            body = self._control.new_block(self._function_ir, "except.body")
+            next_block = self._control.new_block(self._function_ir, "except.next")
             self.builder.cbranch(matched, body, next_block)
             handler_blocks.append(body)
             self.builder = llvm_ir.builder(body)
@@ -239,22 +239,24 @@ class ExceptionLowering(LoweringBase):
                         class_name=clause.type_name.lexeme,
                     )
                 self._scopes[-1][clause.binding.lexeme] = handler_binding
+                popped = False
                 for statement in clause.body:
                     if self.builder.block.is_terminated:
                         break
                     self._stmt(statement)
                 if not self.builder.block.is_terminated:
-                    # O binding do `except` não está no escopo do `finally`.
-                    self._emit_finally(
-                        stmt,
-                        end,
-                        None,
-                        scopes_depth=len(self._scopes) - 1,
-                    )
+                    # O binding do `except` não está no escopo do `finally`; a
+                    # região do handler também já saiu quando o finally roda (o
+                    # caminho continua em `end`, na profundidade de fora).
+                    self._scopes.pop()
+                    self._pop_cleanup(handler_context)
+                    popped = True
+                    self._emit_finally(stmt, end, None)
             finally:
                 self._handler_exception = previous_handler
-                self._scopes.pop()
-                self._pop_cleanup(handler_context)
+                if not popped:
+                    self._scopes.pop()
+                    self._pop_cleanup(handler_context)
             self.builder = llvm_ir.builder(next_block)
 
         # Nenhum handler: finally e rethrow.
@@ -283,8 +285,8 @@ class ExceptionLowering(LoweringBase):
             [exception],
         )
         missing = self.builder.icmp_signed("==", raw, llvm_ir.null_pointer())
-        runtime_block = llvm_ir.append_block(self._function_ir, "except.runtime")
-        bound_block = llvm_ir.append_block(self._function_ir, "except.bound")
+        runtime_block = self._control.new_block(self._function_ir, "except.runtime")
+        bound_block = self._control.new_block(self._function_ir, "except.bound")
         self.builder.cbranch(missing, runtime_block, bound_block)
         instance_end = self.builder.block
 
@@ -325,28 +327,13 @@ class ExceptionLowering(LoweringBase):
         stmt: Try,
         end: Any,
         pending: Any | None,
-        *,
-        scopes_depth: int | None = None,
     ) -> None:
         if stmt.finally_body is None:
-            if pending is not None:
-                self.builder.call(
-                    self._function("lox_raise_value", _VOID, [_I8_PTR, _I32, _I32]),
-                    [
-                        pending,
-                        llvm_ir.constant(_I32, stmt.keyword.line),
-                        llvm_ir.constant(_I32, stmt.keyword.column),
-                    ],
-                )
-                self.builder.unreachable()
-            else:
-                self.builder.branch(end)
+            self.builder.branch(end)
             return
         # O frame já foi desempilhado antes de chamar o finally; um `return` aqui
         # deve rodar apenas os cleanups de fora, nunca este de novo.
         saved_scopes = self._scopes
-        if scopes_depth is not None:
-            self._scopes = self._scopes[:scopes_depth]
         try:
             self._lower_finally_body(stmt.finally_body)
         finally:
@@ -378,7 +365,7 @@ class ExceptionLowering(LoweringBase):
             self._scopes.pop()
 
     def _new_block(self, name: str) -> None:
-        block = llvm_ir.append_block(self._function_ir, name)
+        block = self._control.new_block(self._function_ir, name)
         self.builder = llvm_ir.builder(block)
 
     def _cstring_pointer(self, message: str) -> Any:
