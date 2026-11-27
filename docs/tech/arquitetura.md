@@ -229,7 +229,7 @@ compartilhada entre importadores (o prefixo `mod$` não depende de quem importa)
 arquivo descarta o workspace e refaz só a análise dele. `references`/`rename` aceitam
 símbolo de `std`/`[modules].paths` (antes o token era atribuído a um arquivo inexistente no
 root e a coleta estourava) e o rename recusa editar fora do root. Orçamento: uma workspace
-por vez, ≤2048 arquivos e ≤200k tokens em contribuições de módulo; acima disso o workspace
+por vez, ≤2048 arquivos, ≤512 módulos e ≤200k tokens em contribuições de módulo; acima disso o workspace
 é servido sem retenção por arquivo. Medido com `bench/lsp_workspace.py`: rebuild depois
 de editar em ~50 arquivos **55 ms** (era 2,45 s) e em 500 **160 ms** (era 24,5 s),
 retendo 4,1 MB e 33,8 MB (pico 10,1/43,1 MB); descoberta quente de 555 arquivos 8,2 ms,

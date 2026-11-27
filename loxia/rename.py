@@ -197,9 +197,10 @@ class WorkspaceCache:
             # Workspace grande demais para reter análise por arquivo: a memoização
             # do workspace continua (uma entrada), mas o rebuild depois de editar
             # paga a análise inteira. Degradação declarada, não thrash de LRU.
-            # Descartar o que era do workspace anterior também reavalia os tetos de
-            # módulos/tokens nesse ramo (senão eles sobrevivem sem auditoria).
-            self._retain(set())
+            # Não retém este workspace, mas também não descarta o anterior: a última
+            # workspace que cabia no orçamento já teve os tetos aplicados por
+            # `_retain`, e jogar as camadas por conteúdo fora faria um vaivém
+            # pequeno→grande→pequeno reanalisar arquivos inalterados.
             built = _build_workspace(root, files, module_cache, load_text=loader)
         else:
             built = _build_workspace(

@@ -104,10 +104,12 @@ as outras prontas.
 
 - Arquivos: **≤ 2048**; módulos: **≤ 512**; tokens em contribuições de módulo:
   **≤ 200 000**.
-- Acima do orçamento de arquivos o workspace é servido, mas **nada é retido** (o rebuild
-  depois de editar paga a análise inteira). Reter metade dos arquivos foi testado e é
-  pior: com 500 arquivos e LRU de 256, cada rebuild reanalisava os despejados e voltava
-  aos 25 s.
+- Acima do orçamento de arquivos o workspace é servido, mas **nada novo é retido** (o
+  rebuild depois de editar paga a análise inteira). Reter metade dos arquivos foi testado e
+  é pior: com 500 arquivos e LRU de 256, cada rebuild reanalisava os despejados e voltava
+  aos 25 s. O ramo grande também **não descarta** a última workspace que cabia: os tetos de
+  módulos/tokens já foram aplicados por `_retain` no build anterior, e um vaivém
+  pequeno→grande→pequeno não deve reanalisar arquivos inalterados.
 - Retenção medida (workspace de arquivos pequenos importando `std.lists`): 50 arquivos →
   **4,1 MB** (pico 10,1 MB); 500 → **33,8 MB** (pico 43,1 MB); rebuild depois de editar:
   **55 ms** e **160 ms** respectivamente (contra ~2,45 s e ~24,5 s do build frio, que
@@ -183,7 +185,7 @@ Testes que policiam a decisão:
   `test_workspace_cache_invalidates_external_module_edit`,
   `test_workspace_cache_keeps_only_the_current_workspace`,
   `test_workspace_above_the_budget_is_not_retained`,
-  `test_workspace_above_the_budget_drops_the_previous_cache`,
+  `test_workspace_above_the_budget_keeps_the_previous_cache`,
   `test_workspace_cache_clear_keeps_file_analyses` e
   `test_workspace_failure_is_not_memoized`.
 

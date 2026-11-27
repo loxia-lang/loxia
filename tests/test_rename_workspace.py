@@ -338,7 +338,7 @@ def test_workspace_above_the_budget_is_not_retained(
     assert sorted(analyzed) == ["a.lx", "b.lx"]
 
 
-def test_workspace_above_the_budget_drops_the_previous_cache(
+def test_workspace_above_the_budget_keeps_the_previous_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     analyzed = _counting_analysis(monkeypatch)
@@ -360,9 +360,10 @@ def test_workspace_above_the_budget_drops_the_previous_cache(
     cache.clear()
     cache.get(tmp_path, small_files)
 
-    # O ramo "grande demais" larga o cache anterior em vez de deixá-lo sobreviver
-    # sem reavaliar os tetos de módulos/tokens.
-    assert analyzed == ["a.lx"]
+    # O ramo "grande demais" não retém nada, mas também não descarta a camada por
+    # conteúdo (os tetos já foram aplicados pelo `_retain` anterior): voltar para a
+    # workspace pequena não reanalisa o arquivo inalterado.
+    assert analyzed == []
 
 
 def test_workspace_cache_clear_keeps_file_analyses(
