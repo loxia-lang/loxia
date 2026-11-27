@@ -77,7 +77,7 @@ def _run(tmp_path: Path, data: bytes) -> subprocess.CompletedProcess[bytes]:
     script = tmp_path / "transcript.lx"
     script.write_text(PROGRAM, encoding="utf-8")
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(script)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(script)],
         cwd=ROOT,
         input=data,
         capture_output=True,

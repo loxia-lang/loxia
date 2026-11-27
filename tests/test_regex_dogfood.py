@@ -27,7 +27,7 @@ def _run(
     environment = dict(os.environ)
     environment["LOX_BUILD_CACHE"] = cache
     environment.update(extra or {})
-    arguments = [sys.executable, str(ENTRYPOINT), str(TOOL)]
+    arguments = [sys.executable, str(ENTRYPOINT), "--interpret", str(TOOL)]
     if title is not None:
         arguments.append(title)
     return subprocess.run(

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def run_script(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "loxia", "run", str(path), "--", *args],
+        [sys.executable, "-m", "loxia", "run", "--interpret", str(path), "--", *args],
         cwd=ROOT,
         capture_output=True,
         text=True,

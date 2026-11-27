@@ -23,8 +23,14 @@ ENTRYPOINT = ROOT / "main.py"
 
 
 def _run(path: Path, *flags: str) -> subprocess.CompletedProcess[str]:
+    # O contrato destes testes é o do interpretador; `--check` não executa.
+    engine = (
+        ()
+        if any(flag in {"--check", "--dump-ast"} or flag.startswith("--emit") for flag in flags)
+        else ("--interpret",)
+    )
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), *flags, str(path)],
+        [sys.executable, str(ENTRYPOINT), *engine, *flags, str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,

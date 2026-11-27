@@ -26,7 +26,7 @@ def _run(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
 
 def test_monorepo_exemplo_roda_frozen_e_lock_esta_em_dia() -> None:
     checked = _run("lock", "--check", cwd=MONOREPO)
-    frozen = _run("run", "--frozen", str(ENTRY))
+    frozen = _run("run", "--interpret", "--frozen", str(ENTRY))
 
     assert checked.returncode == 0, checked.stderr
     assert frozen.returncode == 0, frozen.stderr

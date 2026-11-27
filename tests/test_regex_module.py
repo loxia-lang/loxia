@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(
 
 def _run(script: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(script)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(script)],
         cwd=script.parent,
         capture_output=True,
         text=True,

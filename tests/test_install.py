@@ -91,8 +91,22 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
+    # O install mínimo não tem llvmlite/libgc: o `run` AOT recusa com E4004 e a
+    # alternativa documentada é `--interpret` (ADR-0152).
+    blocked = subprocess.run(
+        [str(venv / "bin" / "loxia"), "run", str(work / "programa.lx")],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert blocked.returncode == 65
+    assert "E4004" in blocked.stderr
+    assert "--interpret" in blocked.stderr
+
     result = subprocess.run(
-        [str(venv / "bin" / "loxia"), str(work / "programa.lx")],
+        [str(venv / "bin" / "loxia"), "run", "--interpret", str(work / "programa.lx")],
         cwd=work,
         capture_output=True,
         text=True,

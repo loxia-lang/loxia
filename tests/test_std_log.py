@@ -28,7 +28,7 @@ def test_log_escreve_em_stderr_com_filtro(tmp_path: Path) -> None:
     path = tmp_path / "log.lx"
     path.write_text(SOURCE, encoding="utf-8")
     result = subprocess.run(
-        [sys.executable, "-m", "loxia", "run", str(path)],
+        [sys.executable, "-m", "loxia", "run", "--interpret", str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,
