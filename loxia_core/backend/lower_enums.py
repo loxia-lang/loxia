@@ -233,13 +233,13 @@ class EnumLowering(LoweringBase):
             raise _unsupported(f"Enum '{enum_ty.name}'", expr.keyword.line)
 
         result_desc = self._type_desc(self.types[expr], expr.keyword.line)
-        end = llvm_ir.append_block(self._function_ir, "match.end")
+        end = self._control.new_block(self._function_ir, "match.end")
         incoming: list[tuple[Any, Any]] = []
 
         for arm in expr.arms:
             pattern = arm.pattern
-            body = llvm_ir.append_block(self._function_ir, "match.arm")
-            next_block = llvm_ir.append_block(self._function_ir, "match.next")
+            body = self._control.new_block(self._function_ir, "match.arm")
+            next_block = self._control.new_block(self._function_ir, "match.next")
             if isinstance(pattern, WildcardPattern):
                 self.builder.branch(body)
             else:
@@ -369,13 +369,13 @@ class EnumLowering(LoweringBase):
     def _match_literal(self, expr: Match) -> Value:
         scrutinee = self._expr(expr.scrutinee)
         result_desc = self._type_desc(self.types[expr], expr.keyword.line)
-        end = llvm_ir.append_block(self._function_ir, "match.end")
+        end = self._control.new_block(self._function_ir, "match.end")
         incoming: list[tuple[Any, Any]] = []
 
         for arm in expr.arms:
             pattern = arm.pattern
-            body = llvm_ir.append_block(self._function_ir, "match.arm")
-            next_block = llvm_ir.append_block(self._function_ir, "match.next")
+            body = self._control.new_block(self._function_ir, "match.arm")
+            next_block = self._control.new_block(self._function_ir, "match.next")
             if isinstance(pattern, WildcardPattern):
                 self.builder.branch(body)
             else:
