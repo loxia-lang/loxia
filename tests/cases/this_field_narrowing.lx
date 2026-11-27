@@ -1,0 +1,40 @@
+# `this.campo` estreita como qualquer caminho de campo (ADR-0141).
+class C {
+  var n: Int = 1
+}
+
+class P {
+  var alvo: C? = nil
+
+  init(alvo: C?) {
+    this.alvo = alvo
+  }
+
+  tem() -> Bool {
+    if (this.alvo != nil) {
+      return true
+    }
+    return false
+  }
+
+  valor() -> Int {
+    if (this.alvo != nil) {
+      return this.alvo.n
+    }
+    return 0
+  }
+
+  negado() -> Int {
+    if (this.alvo == nil) {
+      return -1
+    }
+    return this.alvo.n
+  }
+}
+
+print(P(C()).tem()) # expect: true
+print(P(nil).tem()) # expect: false
+print(P(C()).valor()) # expect: 1
+print(P(nil).valor()) # expect: 0
+print(P(C()).negado()) # expect: 1
+print(P(nil).negado()) # expect: -1

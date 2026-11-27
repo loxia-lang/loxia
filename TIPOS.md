@@ -28,14 +28,20 @@ programa real + ADR e plano de monomorfização.
 
 ## 2. Checker
 
-- **Narrowing**: invalidação em chamada/atribuição a campo/índice, `var` capturado e merge
-  de fluxo estão implementados ([ADR-0045](docs/adr/0045-narrowing-representacao.md),
-  [ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)). O **soundness de fluxo** está
+- **Narrowing**: invalidação por raiz, por escrita no caminho (regra de *shape*: o refino de
+  tipo do pai sobrevive, o mesmo caminho por outra raiz cai, índice dinâmico cai inteiro), por
+  chamada de usuário, `var` capturado e merge de fluxo estão implementados
+  ([ADR-0045](docs/adr/0045-narrowing-representacao.md),
+  [ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)). `this.campo` estreita como qualquer
+  campo e o diagnóstico de refino derrubado cita a chamada/escrita que o derrubou, a linha e o
+  tipo anterior ([ADR-0141](docs/adr/0141-soundness-de-fluxo-do-checker.md), emenda de
+  2026-11-26). O **soundness de fluxo** está
   implementado ([ADR-0141](docs/adr/0141-soundness-de-fluxo-do-checker.md)): `break`/`continue`
   terminam o refino pós-laço, `match` faz fork/join por braço e todo nó de AST declara sua
-  política de fluxo (teste de cobertura). Restam **aliasing, efeitos e CFG completo**,
-  declarados fora do escopo atual ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md));
-  gatilhos no [ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md).
+  política de fluxo (teste de cobertura). Restam **escape/aliasing de chamadas, efeitos e CFG
+  completo**, declarados fora do escopo atual ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md));
+  gatilho no [ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md): três programas reais **e**
+  checker em Loxia (F6 do [ADR-0149](docs/adr/0149-motores-primarios-thir-e-congelamento.md)).
 - **Check obrigatório**: o [ADR-0142](docs/adr/0142-check-por-fases.md) liga o check em
   fases — **fases 1–3 implementadas**: `check --gradual`, pre-check do `loxia test` e `run`
   checando no modo gradual antes de executar e bloqueando erro de tipo. Não há escape de

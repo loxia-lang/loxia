@@ -19,11 +19,35 @@ from loxia_core.frontend import expr as ast_expr
 from loxia_core.frontend import stmt as ast_stmt
 from loxia_core.frontend.ty import NEVER, Ty, union
 
-RefinementKey = tuple[int, str, tuple[tuple[str, object], ...]]
+RefinementPath = tuple[tuple[str, object], ...]
+"""Caminho relativo à raiz: segmentos de campo (`field`, nome) e índice literal."""
+
+RefinementKey = tuple[int, str, RefinementPath]
 """Chave de refinamento: índice do escopo de declaração + raiz + caminho."""
 
 RefinementState = dict[RefinementKey, Ty]
 """Refinamentos vivos em um ponto do programa."""
+
+
+def write_affects(candidate: RefinementPath, written: RefinementPath) -> bool:
+    """Uma escrita em `written` pode mudar o valor lido em `candidate`?
+
+    Sem aliasing não se sabe se duas raízes são o mesmo objeto, então a regra é
+    conservadora no caminho: a escrita afeta o candidato quando ele é o próprio caminho,
+    está **abaixo** dele (a escrita substitui o valor) ou **termina** com ele (outra raiz
+    pode apontar para o mesmo objeto, com deslocamento desconhecido).
+
+    Escrever num sub-caminho (`p.x.n = 5`) **não** afeta o refino de tipo do pai
+    (`p.x: C`): atribuir um campo não troca a classe do objeto que o contém. É a precisão
+    de escrita do ADR-0141, sem custo de soundness.
+    """
+    if not written:
+        return True
+    if not candidate:
+        return False
+    if candidate[: len(written)] == written:
+        return True
+    return candidate[-len(written) :] == written
 
 
 class FlowPolicy(Enum):

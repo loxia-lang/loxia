@@ -55,7 +55,7 @@ missing, not a secret.
 | `l2.5` | 4 |
 | `l3` | 14 |
 | `l4` | 12 |
-| `l5` | 30 |
+| `l5` | 32 |
 | `l6` | 131 |
 | `k0` | 2 |
 | `t1` | 6 |
@@ -64,7 +64,7 @@ missing, not a secret.
 | `t4` | 3 |
 | `t7` | 3 |
 
-**265 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **7 negative** on purpose.
+**267 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **7 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

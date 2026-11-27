@@ -217,6 +217,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/method_fn_keyword.lx",
         "tests/cases/stack_methods.lx",
         "tests/cases/stack_ctor.lx",
+        "tests/cases/narrowing_write_shape.lx",
+        "tests/cases/this_field_narrowing.lx",
     ),
     "l4": (
         "tests/cases/closure_in_list.lx",
@@ -321,6 +323,7 @@ COMPILE_ERRORS: frozenset[str] = frozenset(
         "tests/cases/errors/interface_cast_static.lx",
         "tests/cases/errors/any_index.lx",
         "tests/cases/errors/any_member.lx",
+        "tests/cases/errors/any_narrowing_lost.lx",
         "tests/cases/errors/any_set.lx",
         "tests/cases/errors/arity.lx",
         "tests/cases/errors/arity_default_max.lx",
