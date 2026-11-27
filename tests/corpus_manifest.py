@@ -332,6 +332,7 @@ COMPILE_ERRORS: frozenset[str] = frozenset(
         "tests/cases/errors/break_post_loop.lx",
         "tests/cases/errors/builtin_redeclare.lx",
         "tests/cases/errors/class_inherit_self.lx",
+        "tests/cases/errors/class_object_from_any.lx",
         "tests/cases/errors/class_object_in_fn_map.lx",
         "tests/cases/errors/class_object_to_fn.lx",
         "tests/cases/errors/continue_outside_loop.lx",

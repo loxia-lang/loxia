@@ -40,9 +40,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   funciona continua: `val f = Animal; f(...)`, `Animal == Animal`, `print(Animal)` e a
   fábrica explícita `fn(args) -> Animal { return Animal(args) }`; identidade entre classes
   é `==`. `Type[C]`, `is`/`as fn` para objeto de classe e construção dinâmica ficam
-  adiados com gatilho ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)). Casos
+  adiados com gatilho ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)). O rebinding
+  `Base = OtherBase as Any` continua, mas só a partir de um objeto de classe convertido
+  explicitamente: um `Any` arbitrário num slot de classe vira erro de check
+  ([#247](https://github.com/loxia-lang/loxia/issues/247)) — antes o binário guardava o
+  payload (que não era descritor) e os motores divergiam. Casos
   `class_object_value.lx` (L6), `errors/class_object_to_fn.lx`,
-  `errors/class_object_in_fn_map.lx` e `tests/test_checker.py`.
+  `errors/class_object_in_fn_map.lx`, `errors/class_object_from_any.lx` e
+  `tests/test_checker.py`.
 - **`fn main() -> Result[T, String]` vira o ponto de entrada** ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md)):
   antes era uma função comum; agora roda automaticamente depois dos statements de topo e o
   `Err` devolvido vira `error[R1016]` + exit 70. Um `main` quase-Result (parâmetros, genérico

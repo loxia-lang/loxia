@@ -13,9 +13,10 @@
   [#219](https://github.com/loxia-lang/loxia/issues/219) e
   [#247](https://github.com/loxia-lang/loxia/issues/247)
 - **Implementação:** `loxia_core/semantics/type_ops.py` (`assignable`),
-  `loxia_core/semantics/checker.py` (`_mismatch_message`),
+  `loxia_core/semantics/checker.py` (`_mismatch_message`, `_assignable_value`),
   `tests/cases/class_object_value.lx`, `tests/cases/errors/class_object_to_fn.lx`,
-  `tests/cases/errors/class_object_in_fn_map.lx`, `tests/test_checker.py`
+  `tests/cases/errors/class_object_in_fn_map.lx`,
+  `tests/cases/errors/class_object_from_any.lx`, `tests/test_checker.py`
 
 ## Contexto
 
@@ -64,11 +65,14 @@ classe (comparação por identidade) e a fábrica explícita por lambda.
 gatilho está no [ADR-0107](0107-adiados-e-nao-objetivos.md) e o desenho no apêndice, para
 não ser redescoberto.
 
-**5. Rebinding de classe continua** ([ADR-0044](0044-identidade-classe.md)): `Base =
-OtherBase as Any` é aceito (a suíte oficial reatribui uma superclasse). O canto em que o
-`Any` não guarda classe — o binário imprime o descritor antigo e o tree-walk imprime o
-valor — é limitação registrada na issue
-[#247](https://github.com/loxia-lang/loxia/issues/247).
+**5. Rebinding de classe continua, com escape explícito**
+([ADR-0044](0044-identidade-classe.md)): `Base = OtherBase as Any` é aceito (a suíte
+oficial reatribui uma superclasse), mas um `Any` arbitrário no slot de classe é erro de
+check (`Expected the class object C, found `Any`.`) — era o furo do
+[#247](https://github.com/loxia-lang/loxia/issues/247): o binário guardava num slot `CLASS`
+um payload que não é descritor e os motores divergiam. O `as Any` de um objeto de classe
+continua sem suporte no backend (`E4001`), então o rebinding é dinâmico e só o tree-walk o
+executa hoje.
 
 ## Consequências
 
@@ -132,8 +136,12 @@ valor — é limitação registrada na issue
 - `tests/cases/errors/class_object_to_fn.lx` e
   `tests/cases/errors/class_object_in_fn_map.lx`: erro de check com a remediação; o segundo
   era o segfault.
-- `tests/test_checker.py::test_class_object_is_not_a_function_value` e
-  `test_class_object_in_a_variable_is_callable`.
+- `tests/cases/errors/class_object_from_any.lx` (#247): `var K = C; K = a` com `a: Any` é
+  erro de check; `K = B as Any` continua aceito (suíte oficial).
+- `tests/test_checker.py::test_class_object_is_not_a_function_value`,
+  `test_class_object_in_a_variable_is_callable`,
+  `test_class_slot_rejects_a_plain_any` e
+  `test_class_slot_accepts_a_class_object_cast_to_any`.
 - `make check` (I1, I4 e determinismo verdes).
 
 **Revisitar quando:** aparecer um programa real que precise construir a classe escolhida em

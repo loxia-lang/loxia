@@ -783,7 +783,9 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   ([ADR-0150](../adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md)): `val f = Animal` is
   callable (`f("Rex")`), but `val f: fn(String) -> Animal = Animal` is a check error, and a
   class object cannot be stored in a `fn(...)` slot, list or map. Identity between class
-  objects is `==` (`m["c"] == Circle`). In the expression, a union on the
+  objects is `==` (`m["c"] == Circle`). A class-typed slot can only be rebound from a class
+  object cast to `Any` (`Base = OtherBase as Any`); a plain `Any` is a check error. In the
+  expression, a union on the
   right side requires parentheses (`x is (Int | String)`); see
   [ADR-0067](../adr/0067-desambiguacao-sintatica.md) and
   [ADR-0025](../adr/0025-is-e-narrowing.md).
