@@ -304,7 +304,7 @@ class FunctionLowering(LoweringBase):
         self._cleanup_stack = []
         self._loop_stack = []
         self._emitting_finally = set()
-        self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
+        self.builder = llvm_ir.builder(self._control.new_block(info.ir, "entry"))
         self._stack_enter(info)
 
         env_arg = info.ir.args[0]
@@ -421,7 +421,8 @@ class FunctionLowering(LoweringBase):
         """Todo bloco precisa de terminador; continuações de panic ficam `unreachable`."""
         for block in function.blocks:
             if not block.is_terminated:
-                llvm_ir.builder(block).unreachable()
+                self.builder = llvm_ir.builder(block)
+                self.builder.unreachable()
 
     def _alloc_cell(self) -> Any:
         return self.builder.call(self._function("lox_alloc_cell", _I8_PTR, []), [])

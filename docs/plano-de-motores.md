@@ -46,7 +46,7 @@ As janelas são ilustrativas (meses a partir do início). O que decide é o port
 | Fase | Janela | Entrega | Portão para avançar | Congela | Issue |
 | --- | --- | --- | --- | --- | --- |
 | **F0** | 0–1 | `run` AOT+cache; `--interpret`; medição | paridade de canais + latência aceitável + docs | — | [#244](https://github.com/loxia-lang/loxia/issues/244) |
-| **F1** | 1–2 | IR de controle (blocos/phi/cleanup) | ADR-0065 honrado; corpus verde; I4 | — | [#245](https://github.com/loxia-lang/loxia/issues/245) |
+| **F1** | 1–2 | IR de controle (blocos/phi/cleanup; [ADR-0153](adr/0153-ir-de-controle-desenho.md)) | ADR-0065 honrado; corpus verde; I4 | — | [#245](https://github.com/loxia-lang/loxia/issues/245) |
 | **F2** | 2–5 | THIR + serialização; lowering consome THIR | 100% do corpus via THIR; side tables removidas; snapshot | — | a abrir no fim de F1 |
 | **F3** | 5–8 | THIR eval em Loxia (`loxvm`) | G1–G4 + soak 4 sem + fuzz 24 h | interpretador (+resolver) | a abrir no fim de F2 |
 | **F4** | 8–12 | compilador Loxia (THIR → `.ll` → `cc`) | G1–G4 + I4 + erros | lowering+driver | a abrir no fim de F3 |
