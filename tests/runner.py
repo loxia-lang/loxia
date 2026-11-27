@@ -10,10 +10,10 @@ Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):
 
 O runner executa o CLI (`loxia.cli.main`) para testar a saída e o exit code de
 verdade. Por padrão roda no próprio processo do pytest — o import é pago uma vez e
-casos com `# requires: rust` (motor nativo) rodam em subprocesso, porque o motor guarda
-handles no processo (#239); os demais continuam in-process. `LOX_GOLDEN_SUBPROCESS=1`
-cada caso custa poucos milissegundos; `LOX_GOLDEN_SUBPROCESS=1` restaura um
-processo por caso (boot do Python incluído) para depurar isolamento.
+cada caso custa poucos milissegundos. Casos com `# requires: rust` (motor nativo)
+rodam em subprocesso, porque o motor guarda handles no processo (#239); os demais
+continuam in-process. `LOX_GOLDEN_SUBPROCESS=1` restaura um processo por caso (boot do
+Python incluído) para depurar isolamento.
 """
 
 from __future__ import annotations
