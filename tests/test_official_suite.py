@@ -304,7 +304,7 @@ def _execute(path: Path) -> Result:
         temporary = Path(file.name)
 
     try:
-        return run_cli(str(temporary))
+        return run_cli("--interpret", str(temporary))
     finally:
         temporary.unlink(missing_ok=True)
 

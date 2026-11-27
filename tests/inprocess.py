@@ -82,3 +82,19 @@ def run_cli(
             os.environ.update(previous_env)
 
     return Result(returncode=exit_code, stdout=stdout.getvalue(), stderr=stderr.getvalue())
+
+
+def run_interpreted(
+    path: str,
+    *args: str,
+    stdin: str = "",
+    cwd: Path | None = ROOT,
+) -> Result:
+    """Roda um fonte no tree-walk — o oráculo normativo (ADR-0002/ADR-0149).
+
+    Desde o #244 o `run` compila por padrão; os testes de contrato do interpretador
+    (golden, suíte oficial, docs, exemplos) pedem o motor explicitamente. Em
+    processo ele também funciona com `redirect_stdout`, o que um binário filho não
+    respeita.
+    """
+    return run_cli("--interpret", path, *args, stdin=stdin, cwd=cwd)

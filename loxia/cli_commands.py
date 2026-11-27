@@ -12,7 +12,9 @@ import argparse
 import json
 import os
 import signal
+import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
@@ -195,6 +197,8 @@ def run_source(
             command="check",
         )
         sys.exit(lox.exit_code())
+    if _native_requested(args):
+        _run_native(lox, args, source=source)
     _with_timeout(
         args.timeout,
         lambda: lox.run(source),
@@ -202,6 +206,203 @@ def run_source(
         command="run",
     )
     sys.exit(lox.exit_code())
+
+
+_INTERPRET_HINT = (
+    "hint: `loxia run` compiles by default; this program needs a type annotation "
+    "to compile. Run it with `--interpret`, or annotate it."
+)
+_TOOLCHAIN_HINT = (
+    "hint: the native backend is unavailable; `--interpret` runs the tree-walk instead."
+)
+
+
+def _native_requested(args: argparse.Namespace) -> bool:
+    """`run` compila? (ADR-0149). O oráculo e as flags de tooling ficam no tree-walk."""
+    if getattr(args, "interpret", False):
+        return False
+    # Flags sem equivalente no binário: o contrato delas é o do interpretador.
+    if getattr(args, "stdin", False) or getattr(args, "sandbox", False):
+        return False
+    if getattr(args, "json", False) or getattr(args, "json_lines", False):
+        return False
+    if getattr(args, "error_format", "human") != "human":
+        return False
+    if getattr(args, "color", "auto") == "always":
+        return False
+    return getattr(args, "script", None) is not None
+
+
+def _terminate(process: subprocess.Popen[bytes]) -> None:
+    """Mata o grupo do processo: o binário pode ter filhos (`std.proc`).
+
+    Em POSIX o filho nasce na mesma sessão do CLI; sem o grupo, um `timeout`
+    deixaria processos órfãos segurando pipes.
+    """
+    if process.poll() is not None:
+        return
+    if os.name == "posix":
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            return
+        except OSError:
+            pass
+    process.kill()
+
+
+def _run_failure_hint(lox: Loxia) -> None:
+    """Dica acionável depois de uma recusa do AOT (o batch já foi impresso)."""
+    errors = [item for item in lox.reporter.batch().diagnostics if item.severity is Severity.ERROR]
+    if not errors:
+        return
+    if all(item.code is Code.MISSING_ANNOTATION for item in errors):
+        print(_INTERPRET_HINT, file=sys.stderr)
+    elif any(item.code is Code.NATIVE_TOOLCHAIN for item in errors):
+        print(_TOOLCHAIN_HINT, file=sys.stderr)
+
+
+def _execute_native(
+    lox: Loxia,
+    args: argparse.Namespace,
+    binary: Path,
+) -> NoReturn:
+    """Executa o binário com o stdio herdado; exit code e timeout são os do CLI."""
+    milliseconds = getattr(args, "timeout", None)
+    script_args = list(getattr(args, "script_args", None) or ())
+    try:
+        process = subprocess.Popen(
+            [str(binary), *script_args],
+            # Sessão própria: o `--timeout` mata o grupo do programa sem levar o
+            # CLI junto (o Ctrl-C do terminal continua chegando no CLI, que
+            # termina o filho no `KeyboardInterrupt`).
+            start_new_session=os.name == "posix",
+        )
+    except OSError as error:  # pragma: no cover - defensivo (binário do cache)
+        print(f"error: cannot execute '{binary.name}': {error}", file=sys.stderr)
+        sys.exit(65)
+    try:
+        code = process.wait(timeout=milliseconds / 1000 if milliseconds else None)
+    except subprocess.TimeoutExpired:
+        _terminate(process)
+        process.wait()
+        lox.report_timeout("run", milliseconds or 0)
+        sys.exit(124)
+    except KeyboardInterrupt:
+        _terminate(process)
+        process.wait()
+        sys.exit(130)
+    sys.exit(code)
+
+
+def _run_native(lox: Loxia, args: argparse.Namespace, *, source: str) -> NoReturn:
+    """Compila (ou reusa do cache) e executa o binário — o `run` padrão (ADR-0149)."""
+    from loxia import native_cache
+
+    assert args.script is not None
+    entry = Path(args.script).resolve()
+    statements = lox.prepare(source)
+    if statements is None:
+        lox.flush("run", exit_code=65, always=True)
+        sys.exit(65)
+
+    max_heap = getattr(args, "max_heap", None)
+    flags = [
+        "emit=exe",
+        f"debug={int(lox.debug)}",
+        f"heap={max_heap or 0}",
+    ]
+    for name in ("frozen", "offline"):
+        if getattr(args, name, False):
+            flags.append(name)
+    cache_dir_arg = getattr(args, "cache_dir", None)
+    if cache_dir_arg:
+        flags.append(f"cache-dir={cache_dir_arg}")
+    for path in getattr(args, "module_path", None) or ():
+        flags.append(f"module-path={path}")
+    request = native_cache.BuildRequest(
+        entry=entry,
+        flags=tuple(flags),
+        stamp=native_cache.toolchain_stamp(),
+    )
+    key = native_cache.build_key(
+        request,
+        lox.closure_texts(),
+        watched=lox.watched_files,
+    )
+    name = native_cache.entry_name(entry)
+    no_cache = bool(getattr(args, "no_cache", False))
+    cache_dir = None if no_cache else native_cache.directory("run")
+
+    def build(target: Path) -> str | None:
+        ok = lox.compile_prepared(
+            statements,
+            emit="exe",
+            output=target,
+            stem=entry.stem,
+            max_heap=max_heap,
+            command="run",
+        )
+        return None if ok else "native build failed"
+
+    with tempfile.TemporaryDirectory(prefix="lox-run-") as scratch:
+        fallback = Path(scratch) / name
+        if cache_dir is None:
+            if build(fallback) is not None:
+                _run_failure_hint(lox)
+                sys.exit(65)
+            _execute_native(lox, args, fallback)
+        cached = native_cache.locate(cache_dir, key, name)
+        if cached is not None:
+            _execute_native(lox, args, cached)
+        built, _error = native_cache.store(
+            cache_dir,
+            key,
+            name,
+            build,
+            fallback=fallback,
+        )
+        if built is None:
+            _run_failure_hint(lox)
+            sys.exit(65)
+        native_cache.enforce_limit(protect=[Path(built)])
+        _execute_native(lox, args, Path(built))
+
+
+def cache_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """`loxia cache path|prune`: inspeciona e limita o cache de binários."""
+    from loxia import native_cache
+
+    if args.action == "path":
+        root = native_cache.cache_root()
+        if root is None:
+            print("error: cannot create the cache directory.", file=sys.stderr)
+            sys.exit(1)
+        if args.json:
+            print(
+                json.dumps(
+                    {"path": str(root), "bytes": native_cache.cache_size(root)},
+                    ensure_ascii=False,
+                )
+            )
+        else:
+            print(root)
+        return
+    result = native_cache.prune(max_bytes=args.max_size, dry_run=args.dry_run)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "removed": result.removed,
+                    "freed": result.freed,
+                    "remaining": result.remaining,
+                    "dry_run": args.dry_run,
+                },
+                ensure_ascii=False,
+            )
+        )
+    else:
+        print(native_cache.summarize(result, dry_run=args.dry_run))
+    sys.exit(0)
 
 
 def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -731,6 +932,10 @@ def _capabilities_payload() -> dict[str, object]:
         {
             "name": "run",
             "features": [
+                "aot",
+                "interpret",
+                "no-cache",
+                "max-heap",
                 "json",
                 "json-lines",
                 "stdin",
@@ -791,6 +996,7 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
+        {"name": "cache", "features": ["path", "prune", "max-size", "dry-run", "json"]},
         {
             "name": "mcp",
             "features": ["stdio", "tools"],
@@ -1010,6 +1216,7 @@ HANDLERS: dict[str, Command] = {
     "doc": doc_command,
     "explain": explain_command,
     "capabilities": capabilities_command,
+    "cache": cache_command,
     "lsp": lsp_command,
     "mcp": mcp_command,
     "test": test_command,

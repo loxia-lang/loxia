@@ -15,7 +15,7 @@ def test_examples_run_without_errors() -> None:
     assert len(paths) >= 5
 
     for path in paths:
-        result = run_cli(str(path))
+        result = run_cli("--interpret", str(path))
 
         assert result.returncode == 0, f"{path.name} falhou: {result.stderr}"
         assert result.stdout.strip(), f"{path.name} não imprimiu nada"

@@ -32,7 +32,7 @@ print(os.getenv("LOX_KERNEL_TEST"))
         encoding="utf-8",
     )
     env = {"LOX_KERNEL_TEST": "ok", "PATH": "/usr/bin:/bin"}
-    result = _run(str(path), "a", "b", env=env)
+    result = _run("--interpret", str(path), "a", "b", env=env)
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == '["a", "b"]\nok\n'
@@ -48,7 +48,7 @@ print("depois")
         encoding="utf-8",
     )
 
-    result = _run(str(path))
+    result = _run("--interpret", str(path))
 
     assert result.returncode == 7
     assert result.stdout == "antes\n"
@@ -64,7 +64,7 @@ def test_leitura_e_escrita_de_arquivo(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = _run(str(path))
+    result = _run("--interpret", str(path))
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "linha\n\nnil\n"
@@ -86,7 +86,7 @@ print(io.readAll())
     )
 
     result = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(path)],
         cwd=ROOT,
         input=b"\xff\xfe",
         capture_output=True,
@@ -109,7 +109,7 @@ print(io.readLine())
     )
 
     result = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(path)],
         cwd=ROOT,
         input=b"\xff\n",
         capture_output=True,
@@ -131,7 +131,7 @@ def test_read_file_preserva_crlf(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = _run(str(path))
+    result = _run("--interpret", str(path))
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == '6\n"a\\r\\nb\\r\\n"\n'
@@ -139,7 +139,7 @@ def test_read_file_preserva_crlf(tmp_path: Path) -> None:
 
 def _run_bytes(path: Path, data: bytes) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(path)],
         cwd=ROOT,
         input=data,
         capture_output=True,

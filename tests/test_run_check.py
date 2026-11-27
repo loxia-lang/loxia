@@ -66,7 +66,7 @@ def test_run_cli_blocks_a_type_error(tmp_path: Path) -> None:
     program = tmp_path / "prog.lx"
     program.write_text(BLOCKS, encoding="utf-8")
 
-    blocked = run_cli("run", str(program))
+    blocked = run_cli("run", "--interpret", str(program))
 
     assert blocked.returncode == 65
     assert blocked.stdout == ""
@@ -114,7 +114,7 @@ def test_run_blocks_a_spread_into_a_non_variadic_call(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    blocked = run_cli("run", str(program))
+    blocked = run_cli("run", "--interpret", str(program))
 
     assert blocked.returncode == 65
     assert "E3002" in blocked.stderr

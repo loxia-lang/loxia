@@ -26,5 +26,5 @@ def test_learn_snippets_run(tmp_path: Path) -> None:
     for index, (page, source) in enumerate(snippets):
         path = tmp_path / f"learn_{index}.lx"
         path.write_text(source, encoding="utf-8")
-        result = run_cli(str(path))
+        result = run_cli("--interpret", str(path))
         assert result.returncode == 0, f"{page.name}: {result.stderr}\n{source}"

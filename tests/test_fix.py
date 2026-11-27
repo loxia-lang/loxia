@@ -28,7 +28,7 @@ def run_fix(path: Path, *args: str) -> Result:
 
 
 def run_program(path: Path) -> Result:
-    return run_cli("run", str(path))
+    return run_cli("run", "--interpret", str(path))
 
 
 def test_dry_run_nao_escreve(tmp_path: Path) -> None:

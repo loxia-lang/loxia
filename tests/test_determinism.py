@@ -63,7 +63,7 @@ VOLATILE = [
 def run_cli(path: str, seed: str, *flags: str) -> subprocess.CompletedProcess[bytes]:
     env = dict(os.environ, PYTHONHASHSEED=seed)
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), *flags, path],
+        [sys.executable, str(ENTRYPOINT), "--interpret", *flags, path],
         cwd=ROOT,
         env=env,
         capture_output=True,
@@ -125,7 +125,7 @@ def test_same_script_twice_is_byte_identical_even_with_different_cwd() -> None:
     from_root = run_cli(path, SEEDS[0])
 
     process = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(ROOT / path)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(ROOT / path)],
         cwd=ROOT / "examples",
         env=dict(os.environ, PYTHONHASHSEED=SEEDS[0]),
         capture_output=True,
@@ -174,7 +174,7 @@ def test_diagnostico_nao_depende_do_cwd(tmp_path: Path) -> None:
 
     env = dict(os.environ, PYTHONHASHSEED="0")
     from_root = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(script)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(script)],
         cwd=ROOT,
         env=env,
         capture_output=True,
@@ -183,7 +183,7 @@ def test_diagnostico_nao_depende_do_cwd(tmp_path: Path) -> None:
         check=False,
     )
     from_elsewhere = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(script)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(script)],
         cwd=tmp_path,
         env=env,
         capture_output=True,

@@ -211,7 +211,9 @@ jobs:
       - name: Conventional PR title (Loxia, dogfood)
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: uv run main.py tools/check_pr_title.lx
+        # `--interpret`: este job não instala libgc/llvmlite; o codegen já é
+        # exercitado no job `backend`. O dogfood aqui é o módulo `regex`.
+        run: uv run main.py --interpret tools/check_pr_title.lx
 
   ci-success:
     name: CI success

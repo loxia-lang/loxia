@@ -33,7 +33,7 @@ def test_main_de_modulo_nao_e_entry(tmp_path: Path) -> None:
         'import lib\nprint("top")\n' + _entry('  print("entry")\n  return Result.Ok(0)'),
     )
 
-    result = run_cli("run", str(program), cwd=tmp_path)
+    result = run_cli("run", "--interpret", str(program), cwd=tmp_path)
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "top\nentry\n"

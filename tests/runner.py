@@ -144,14 +144,14 @@ def execute(path: Path, timeout: int | None = None) -> Executed:
     if timeout is None:
         timeout = timeout_for(source)
     if not USE_SUBPROCESS and "rust" not in requirements(source):
-        result: Result = run_cli(str(path))
+        result: Result = run_cli("--interpret", str(path))
         return Executed(
             stdout=result.stdout.splitlines(),
             stderr=result.stderr,
             exit_code=result.returncode,
         )
     process = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        [sys.executable, str(ENTRYPOINT), "--interpret", str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,
