@@ -69,6 +69,10 @@ error (`ControlIRError`), never a user-facing `not supported by the backend yet`
 | C6 | A value does not cross a cleanup boundary outwards (definition depth ≤ use depth). | Reading a value after its region was unwound. |
 | C7 | Block labels and phi labels are unique; block order is the creation order, covered by the deterministic dump test. | Nondeterministic `.ll` / binary (I3). |
 
+C6 is an approximation: the depth is captured at block registration (entry), so a value
+defined and used inside a block that spans a cleanup exit is not distinguished; the check
+catches values defined in a block inside a region and used in a block outside it.
+
 C8 (token/span of the error site) is policed by the existing diagnostics and differential
 tests, not by the structural verifier: the model deliberately does not carry language
 spans. The cleanup behaviour itself is covered by the differential corpus, including
