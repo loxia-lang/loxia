@@ -154,12 +154,17 @@ A #216 pediu ou precisão, ou uma fronteira declarada. A fronteira já estava na
 faltava o que era barato e sem risco. Três mudanças, todas **só no checker** (o backend
 continua consumindo `checker.types`; representação e ABI intocadas):
 
-1. **Escrita por forma de caminho.** Uma escrita em `P` derruba o refino `K` quando `K` é `P`,
-   está abaixo de `P` ou **termina** com `P` (outra raiz pode apontar para o mesmo objeto,
-   com deslocamento desconhecido — `flow.write_affects`). Consequências:
-   - `h.x.n = 5` **preserva** `h.x: C`: atribuir um campo não troca a classe do objeto que o
-     contém. Antes a escrita derrubava todo refino de campo/índice.
-   - `b.nome = "z"` derruba `a.nome` (alias possível), mas não `a.outro`.
+1. **Escrita por slot e por sub-caminho.** Uma escrita em `P` derruba o refino `K` quando os
+   dois terminam no **mesmo segmento** (mesmo campo ou índice literal; outra raiz pode
+   alcançar o mesmo slot por alias) ou quando `P` é um **sub-caminho contíguo** de `K`
+   (a escrita substitui um ancestral e o valor lido abaixo muda) — `flow.write_affects`.
+   Consequências:
+   - `h.x.n = 5` **preserva** `h.x: C` (a escrita está abaixo do refino) e `p.outro = ...`
+     preserva `p.nome` (o nome do campo no fim é outro). Antes a escrita derrubava todo
+     refino de campo/índice.
+   - `b.nome = "z"` derruba `a.nome` (mesmo segmento, alias possível); `h.inner.n = ...`
+     derruba `q.n` com `val q = h.inner` (sub-caminho/segmento), incluindo o caso de
+     profundidades diferentes (`a.b.c.n` × `b.c.n`).
    - escrita com índice dinâmico (`xs[i] = ...`) cai na invalidação global: não há caminho.
 2. **`this.campo` estreita.** `_refinement_path`/`_peek_type` tratam `This` com um índice de
    escopo sentinela (`THIS_ROOT = -1`); `this` nunca é reatribuído, e chamada/escrita seguem
@@ -171,11 +176,21 @@ continua consumindo `checker.types`; representação e ABI intocadas):
    **só diagnóstico**: não participa de tipagem e é limpo como `_narrowings` (escopo,
    redefinição, re-refino, corpo de função).
 
-**Argumento de soundness.** Escrita não muda a classe de um objeto já referenciado, e a
-regra de sufixo cobre o caso de alias (`q.nome` invalida `p.nome`); o que sobra é
-conservador, nunca otimista. `this` é imutável como binding. Chamadas continuam derrubando
-tudo que é caminho — só uma análise de escape/alias responderia ao `h.x.m()` da #216, e isso
-é o gatilho do [ADR-0107](0107-adiados-e-nao-objetivos.md).
+**Argumento de soundness.** O slot de um campo é (objeto, nome): nomes diferentes nunca são o
+mesmo slot, e nomes iguais em objetos que podem ser o mesmo (alias entre raízes) são tratados
+como o mesmo slot. Substituir um ancestral invalida o que é lido abaixo dele. O resto é
+conservador: chamada, captura e índice dinâmico continuam derrubando tudo o que não dá para
+provar. O primeiro rascunho desta emenda comparava só prefixo/sufixo e deixava passar o alias
+de profundidade diferente (`val q = h.inner` com escrita em `h.inner.n`); o segundo fechava
+esse caso mas não o alinhamento em que a raiz do candidato é um objeto do caminho escrito
+(`val q = p.a` com escrita em `p.a.n`). Os três viraram regressão em
+`tests/test_checker_flow.py::test_write_affects` e em `tests/test_checker.py`
+(`test_narrowing_write_through_a_list_alias_drops_the_refinement`,
+`test_narrowing_write_through_a_deep_alias_drops_the_refinement`,
+`test_narrowing_write_through_an_alias_of_an_ancestor_drops_the_refinement`). `this` é imutável como
+binding. Chamadas continuam derrubando tudo que é caminho — só uma análise de escape/alias
+responderia ao `h.x.m()` da #216, e isso é o gatilho do
+[ADR-0107](0107-adiados-e-nao-objetivos.md).
 
 **Bug de coerência corrigido no caminho.** `_check` (chamada em contexto esperado, ex.:
 `val n: Int = len("ab")`) invalidava refinos mesmo para nativa pura, divergindo de

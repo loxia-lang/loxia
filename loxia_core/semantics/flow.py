@@ -29,25 +29,47 @@ RefinementState = dict[RefinementKey, Ty]
 """Refinamentos vivos em um ponto do programa."""
 
 
-def write_affects(candidate: RefinementPath, written: RefinementPath) -> bool:
+def write_affects(candidate: RefinementKey, written: RefinementKey) -> bool:
     """Uma escrita em `written` pode mudar o valor lido em `candidate`?
 
-    Sem aliasing não se sabe se duas raízes são o mesmo objeto, então a regra é
-    conservadora no caminho: a escrita afeta o candidato quando ele é o próprio caminho,
-    está **abaixo** dele (a escrita substitui o valor) ou **termina** com ele (outra raiz
-    pode apontar para o mesmo objeto, com deslocamento desconhecido).
+    O slot de um campo é identificado por (objeto, nome), e raízes distintas podem ser o
+    mesmo objeto (`val q = p`, `val q = h.inner`, um container, `this`). A escrita alcança
+    o candidato em três casos:
 
-    Escrever num sub-caminho (`p.x.n = 5`) **não** afeta o refino de tipo do pai
-    (`p.x: C`): atribuir um campo não troca a classe do objeto que o contém. É a precisão
-    de escrita do ADR-0141, sem custo de soundness.
+    - os dois terminam no **mesmo segmento** (mesmo campo/índice literal, com alias entre
+      as raízes): `q.nome = nil` derruba `p.nome`;
+    - o caminho escrito é um **sub-caminho contíguo** do candidato (a escrita substitui um
+      ancestral, e o valor lido abaixo muda): `h.inner.n = ...` derruba `q.n` com
+      `val q = h.inner`;
+    - a raiz do candidato é um objeto **do caminho escrito** (`val q = p.a`): a escrita em
+      `p.a.n` está no caminho de `q.n.m`, então o sufixo escrito casa com o prefixo do
+      candidato (`p.a.n` no caminho de `q.n.m`).
+
+    O contrário — escrita num caminho **abaixo** do candidato — não afeta o refino:
+    `p.x.n = 5` preserva `p.x: C` (atribuir um campo não troca a classe do objeto que o
+    contém), e `p.outro = ...` (ou `q.outro = ...`) preserva `p.x`, porque o nome do campo
+    no fim do caminho é diferente. `val q = p.a.n` seguido de `p.a.n = outro` também
+    preserva `q`: a escrita troca a referência, não o objeto que `q` guarda.
+
+    É a precisão de escrita do ADR-0141: conservadora no que não dá para provar sem
+    análise de alias, exata no que a identidade de campo prova.
     """
-    if not written:
-        return True
-    if not candidate:
+    path = candidate[2]
+    target = written[2]
+    if not path:
         return False
-    if candidate[: len(written)] == written:
+    if not target:
         return True
-    return candidate[-len(written) :] == written
+    if path[-1] == target[-1]:
+        return True
+    size = len(target)
+    if any(path[offset : offset + size] == target for offset in range(len(path) - size + 1)):
+        return True
+    # A raiz do candidato pode ser o objeto de um prefixo do caminho escrito
+    # (`val q = p.a` + `p.a.n = ...`): o sufixo próprio de `target` casa com o prefixo de
+    # `path`. O corte `len(target)` fica de fora: ali `q` guarda o objeto **antigo** do
+    # caminho, e a escrita só troca a referência.
+    return any(path[: size - cut] == target[cut:] for cut in range(1, size))
 
 
 class FlowPolicy(Enum):

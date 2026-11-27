@@ -180,6 +180,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/selfhost_ast_generic_enum.lx",
         "tests/cases/selfhost_ast_interface.lx",
         "tests/cases/selfhost_recursive_class.lx",
+        "tests/cases/narrowing_write_shape.lx",
+        "tests/cases/this_field_narrowing.lx",
     ),
     "t7": (
         "tests/cases/generic_class.lx",
@@ -217,8 +219,6 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/method_fn_keyword.lx",
         "tests/cases/stack_methods.lx",
         "tests/cases/stack_ctor.lx",
-        "tests/cases/narrowing_write_shape.lx",
-        "tests/cases/this_field_narrowing.lx",
     ),
     "l4": (
         "tests/cases/closure_in_list.lx",

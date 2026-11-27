@@ -135,7 +135,6 @@ from loxia_core.semantics.flow import (
     Invalidation,
     LoopContext,
     RefinementKey,
-    RefinementPath,
     RefinementState,
     join_exits,
     join_states,
@@ -903,13 +902,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         """Escrita num caminho derruba o que ela pode ter mudado (ADR-0141).
 
         Escrever em `p.x.n` não derruba o refino de tipo de `p.x` (a classe do objeto não
-        muda), mas derruba `p.x.n`, os caminhos abaixo dele e o mesmo caminho alcançado
-        por outra raiz (`q.x.n` com `q` alias de `p`) — `write_affects` explica a regra.
+        muda) nem um caminho com outro campo no fim (`p.outro`), mas derruba `p.x.n`, os
+        caminhos abaixo dele e o mesmo slot alcançado por outra raiz — `write_affects`
+        explica a regra.
         """
         self._record_invalidation(Invalidation("shape", key=path))
-        written: RefinementPath = path[2]
         for key in list(self._narrowings):
-            if key[2] and write_affects(key[2], written):
+            if write_affects(key, path):
                 self._drop(key, "write", token)
 
     def _invalidate_members(self, *, reason: str = "call", token: Token | None = None) -> None:
@@ -932,11 +931,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 ]:
                     del state[key]
             elif entry.kind == "shape" and entry.key is not None:
-                written = entry.key[2]
+                written = entry.key
                 for key in [
                     candidate
                     for candidate in state
-                    if candidate[2] and write_affects(candidate[2], written)
+                    if candidate[2] and write_affects(candidate, written)
                 ]:
                     del state[key]
             elif entry.kind == "members":
@@ -4715,7 +4714,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             isinstance(obj, UnionTy) and any(member is NIL for member in obj.members)
         )
         if nilable and not optional:
-            self._error(name, "Only instances have properties.", code=Code.TYPE_MISMATCH)
+            self._error(
+                name,
+                "Only instances have properties.",
+                code=Code.TYPE_MISMATCH,
+                notes=self._narrowing_notes(source) if source is not None else (),
+            )
             return ERROR
         if obj is NIL:
             return NIL

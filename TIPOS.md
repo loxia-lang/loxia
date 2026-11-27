@@ -28,8 +28,9 @@ programa real + ADR e plano de monomorfização.
 
 ## 2. Checker
 
-- **Narrowing**: invalidação por raiz, por escrita no caminho (regra de *shape*: o refino de
-  tipo do pai sobrevive, o mesmo caminho por outra raiz cai, índice dinâmico cai inteiro), por
+- **Narrowing**: invalidação por raiz, por escrita no caminho (regra de *slot/sub-caminho*: o refino de
+  tipo do pai e caminhos com outro campo no fim sobrevivem, o mesmo slot por outra raiz (ou
+  uma raiz que é objeto do caminho escrito) cai, índice dinâmico cai inteiro), por
   chamada de usuário, `var` capturado e merge de fluxo estão implementados
   ([ADR-0045](docs/adr/0045-narrowing-representacao.md),
   [ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)). `this.campo` estreita como qualquer

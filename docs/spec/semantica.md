@@ -799,12 +799,16 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   methods) do not. The body of a function/lambda starts without the caller's refinements.
   **Fields and literal indices** also narrow (`p.name`, `xs[0]`, `m["k"]`), and so does
   `this.name` inside a method. Mutating the root (`p = ...`) drops every refinement of that
-  root. A **write is finer**: `p.name = ...` drops the refinement of `p.name`, of the paths
-  below it and of the same path reached through another root (aliasing is assumed possible),
-  but **keeps** the type refinement of a parent (`p.name.n = 5` keeps `p.name: C`, because
-  assigning a field cannot change the class of the object that holds it) and of unrelated
-  paths. A dynamic index write (`xs[i] = ...`) and **any call** that may run user code still
-  drop every field/index refinement (no aliasing;
+  root. A **write is finer**: it drops a refinement when the written path is the **same
+  slot** (the same final field or index literal, which another root may reach through an
+  alias), when it is a **contiguous sub-path** of the refinement (the write replaces an
+  ancestor, so the value read below changes), or when the root of the refinement is an object
+  of the written path (`val q = p.a` with a write to `p.a.n`) — but **keeps** the type
+  refinement of a parent
+  (`p.name.n = 5` keeps `p.name: C`, because assigning a field cannot change the class of the
+  object that holds it) and any path with a different final field name (`p.outro = ...`, and
+  even `q.outro = ...`). A dynamic index write (`xs[i] = ...`) and **any call** that may run
+  user code still drop every field/index refinement (no aliasing;
   [ADR-0045](../adr/0045-narrowing-representacao.md),
   [ADR-0141](../adr/0141-soundness-de-fluxo-do-checker.md)). When a dropped refinement is
   needed, the diagnostic names the call/write that dropped it, its line and the last known
