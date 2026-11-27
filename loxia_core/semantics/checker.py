@@ -138,6 +138,7 @@ from loxia_core.semantics.flow import (
     RefinementState,
     join_exits,
     join_states,
+    write_affects,
 )
 from loxia_core.semantics.type_ops import TypeOps
 
@@ -161,6 +162,43 @@ RESERVED_TYPE_PARAM_NAMES = frozenset(
 )
 
 BUILTIN_CONSTRAINTS = frozenset({"Ord", "Num"})
+
+THIS_ROOT = -1
+"""Índice de escopo sentinela da raiz `this` (nunca colide com escopos reais)."""
+
+DROP_REASON_TEXT = {
+    "call": "call",
+    "write": "field/index write",
+    "assign": "assignment",
+    "capture": "call that may reassign a captured variable",
+    "iteration": "iteration over a user type",
+}
+"""Como a nota de proveniência nomeia quem derrubou o refino."""
+
+
+def _index_literal_text(segment: object) -> str:
+    """Literal de um segmento de índice, na grafia da linguagem."""
+    if isinstance(segment, tuple) and len(segment) == 2:
+        literal = segment[1]
+        if isinstance(literal, bool):
+            return "true" if literal else "false"
+        if isinstance(literal, str):
+            return f'"{literal}"'
+        return str(literal)
+    return str(segment)
+
+
+@dataclass(frozen=True)
+class DroppedRefinement:
+    """Por que um refino de caminho sumiu — usado só no diagnóstico (ADR-0141).
+
+    Não influencia tipagem: é a proveniência que a mensagem de `E3025`/`E3007` cita para
+    explicar por que o `is`/`!= nil` de três linhas antes não vale mais aqui.
+    """
+
+    reason: str
+    token: Token | None
+    ty: Ty
 
 
 @dataclass(frozen=True)
@@ -206,6 +244,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._captured_mutables: set[Token] = set(captured_mutables or ())
         self._captured_globals: set[str] = set(captured_globals or ())
         self._narrowings: RefinementState = {}
+        # Proveniência dos refinos derrubados: só alimenta a mensagem (ADR-0141).
+        self._dropped: dict[RefinementKey, DroppedRefinement] = {}
         self._loops: list[LoopContext] = []
         self._journals: list[list[Invalidation]] = []
         self._decls = decls if decls is not None else DeclTable()
@@ -695,6 +735,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         index = len(self._scopes) - 1
         for key in [key for key in self._narrowings if key[0] == index]:
             del self._narrowings[key]
+        for key in [key for key in self._dropped if key[0] == index]:
+            del self._dropped[key]
         self._scopes.pop()
         self._decl_tokens.pop()
 
@@ -711,6 +753,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         index = len(self._scopes) - 1
         for key in [key for key in self._narrowings if key[0] == index and key[1] == name.lexeme]:
             del self._narrowings[key]
+        for key in [key for key in self._dropped if key[0] == index and key[1] == name.lexeme]:
+            del self._dropped[key]
 
     def _find_decl(self, name: str) -> tuple[int, Ty] | None:
         for index in range(len(self._scopes) - 1, -1, -1):
@@ -795,12 +839,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         for journal in self._journals:
             journal.append(entry)
 
-    def _invalidate(self, name: str, index: int) -> None:
+    def _drop(self, key: RefinementKey, reason: str, token: Token | None = None) -> None:
+        """Derruba um refino guardando por que — a mensagem cita a proveniência."""
+        ty = self._narrowings.pop(key, None)
+        if ty is not None:
+            self._dropped[key] = DroppedRefinement(reason, token, ty)
+
+    def _invalidate(self, name: str, index: int, *, token: Token | None = None) -> None:
         """Atribuir à raiz invalida o caminho inteiro (`p`, `p.nome`, `p[0]`)."""
         self._record_invalidation(Invalidation("root", index=index, name=name))
         for key in list(self._narrowings):
             if key[0] == index and key[1] == name:
-                del self._narrowings[key]
+                self._drop(key, "assign", token)
 
     def _call_may_run_user_code(self, expr: Call) -> bool:
         """Chamadas nativas puras não executam closures do usuário.
@@ -818,7 +868,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return False
         return True
 
-    def _invalidate_captured(self) -> None:
+    def _invalidate_captured(self, *, token: Token | None = None) -> None:
         """Chamadas podem executar closures que mutam `var` capturado (P2).
 
         Refinos de campo/índice já caem em `_invalidate_members`; aqui só os de
@@ -827,37 +877,48 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if not self._captured_mutables and not self._captured_globals:
             return
         self._record_invalidation(Invalidation("captured"))
-        self._invalidate_captured_state(self._narrowings)
+        for key in [key for key in self._narrowings if self._is_captured_key(key)]:
+            self._drop(key, "capture", token)
+
+    def _is_captured_key(self, key: RefinementKey) -> bool:
+        """O refino é de uma variável que uma closure pode reatribuir?"""
+        if key[2]:
+            return False
+        index = key[0]
+        if index == 0 and key[1] in self._captured_globals:
+            return True
+        if not 0 <= index < len(self._decl_tokens):
+            return False
+        tokens = self._decl_tokens[index]
+        return tokens.get(key[1]) in self._captured_mutables
 
     def _invalidate_captured_state(self, state: RefinementState) -> None:
         """Aplica a invalidação de captura a um estado (usado no replay do `finally`)."""
         for key in list(state):
-            if key[2]:
-                continue
-            index = key[0]
-            if index == 0 and key[1] in self._captured_globals:
-                del state[key]
-                continue
-            tokens = self._decl_tokens[index] if index < len(self._decl_tokens) else {}
-            if tokens.get(key[1]) in self._captured_mutables:
+            if self._is_captured_key(key):
                 del state[key]
 
-    def _invalidate_path(self, key: RefinementKey) -> None:
-        """Mutar um caminho invalida ele e os caminhos mais fundos com o mesmo prefixo."""
-        self._record_invalidation(Invalidation("path", key=key))
-        size = len(key[2])
-        for candidate in list(self._narrowings):
-            if candidate[0] == key[0] and candidate[1] == key[1] and candidate[2][:size] == key[2]:
-                del self._narrowings[candidate]
+    def _invalidate_shape(self, path: RefinementKey, *, token: Token | None = None) -> None:
+        """Escrita num caminho derruba o que ela pode ter mudado (ADR-0141).
 
-    def _invalidate_members(self) -> None:
-        """Chamada/atribuição de campo/índice derruba todo refino de campo/índice.
+        Escrever em `p.x.n` não derruba o refino de tipo de `p.x` (a classe do objeto não
+        muda) nem um caminho com outro campo no fim (`p.outro`), mas derruba `p.x.n`, os
+        caminhos abaixo dele e o mesmo slot alcançado por outra raiz — `write_affects`
+        explica a regra.
+        """
+        self._record_invalidation(Invalidation("shape", key=path))
+        for key in list(self._narrowings):
+            if write_affects(key, path):
+                self._drop(key, "write", token)
 
-        Sem aliasing não dá para saber o que a chamada mutou; refinos de variáveis
-        continuam (ADR-0045)."""
+    def _invalidate_members(self, *, reason: str = "call", token: Token | None = None) -> None:
+        """Chamada que pode rodar código do usuário derruba todo refino de campo/índice.
+
+        Sem aliasing não dá para saber o que ela mutou; refinos de variáveis continuam
+        (ADR-0045, ADR-0141)."""
         self._record_invalidation(Invalidation("members"))
         for key in [key for key in self._narrowings if key[2]]:
-            del self._narrowings[key]
+            self._drop(key, reason, token)
 
     def _apply_invalidations(self, state: RefinementState, entries: list[Invalidation]) -> None:
         """Replay das invalidações de um `finally` sobre o estado de um salto."""
@@ -869,15 +930,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     if candidate[0] == entry.index and candidate[1] == entry.name
                 ]:
                     del state[key]
-            elif entry.kind == "path" and entry.key is not None:
-                path = entry.key
-                size = len(path[2])
+            elif entry.kind == "shape" and entry.key is not None:
+                written = entry.key
                 for key in [
                     candidate
                     for candidate in state
-                    if candidate[0] == path[0]
-                    and candidate[1] == path[1]
-                    and candidate[2][:size] == path[2]
+                    if candidate[2] and write_affects(candidate, written)
                 ]:
                     del state[key]
             elif entry.kind == "members":
@@ -888,6 +946,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _apply_refinements(self, refinements: dict[RefinementKey, Ty]) -> None:
         self._narrowings.update(refinements)
+        for key in refinements:
+            self._dropped.pop(key, None)
 
     def _error(
         self,
@@ -1039,10 +1099,47 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._is_named_value(expression.expression)
         return isinstance(expression, (Variable, Get, Index, Call))
 
+    def _narrowing_notes(self, expression: Expr) -> tuple[str, ...]:
+        """Explica por que o refino de um caminho não vale mais neste uso (ADR-0141).
+
+        Quando o usuário estreita um caminho e um uso posterior volta ao tipo declarado,
+        `E3025`/`E3007` sozinho não conta o que aconteceu. A nota nomeia a chamada/escrita
+        que derrubou o refino, o tipo que ele tinha e a saída barata (`is`/`as` ou ligar o
+        valor a um local).
+        """
+        key = self._refinement_path(expression)
+        if key is None:
+            return ()
+        dropped = self._dropped.get(key)
+        if dropped is None:
+            return ()
+        path = self._path_text(key)
+        ty = display(dropped.ty)
+        reason = DROP_REASON_TEXT.get(dropped.reason, DROP_REASON_TEXT["call"])
+        where = f" on line {dropped.token.line}" if dropped.token is not None else ""
+        if key[2]:
+            fix = f"re-narrow with `is`/`as` or bind it to a local: `val v = {path} as {ty}`"
+        else:
+            fix = "re-check it (`is`/`!= nil`) or copy it to a local inside the guard"
+        return (
+            f"the refinement of `{path}` (was `{ty}`) was dropped by the {reason}{where}; {fix}",
+        )
+
+    def _path_text(self, key: RefinementKey) -> str:
+        """Caminho legível da chave de refinamento (`h.x`, `xs[0]`, `m["k"]`)."""
+        text = key[1]
+        for kind, value in key[2]:
+            if kind == "field":
+                text += f".{value}"
+            else:
+                text += f"[{_index_literal_text(value)}]"
+        return text
+
     def _argument_notes(self, call: Call | None, index: int, token: Token) -> tuple[str, ...]:
         if call is None or not 1 <= index <= len(call.arguments):
             return ()
-        return self._provenance_notes(call.arguments[index - 1], token)
+        argument = call.arguments[index - 1]
+        return self._provenance_notes(argument, token) + self._narrowing_notes(argument)
 
     def _argument_error(
         self,
@@ -1111,9 +1208,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _check(self, expr: Expr, expected: Ty, token: Token) -> Ty:
         if isinstance(expr, Call):
             actual = self._infer_call(expr, expected, token)
-            self._invalidate_members()
+            # A mesma regra de `visit_call_expr`: nativa pura não derruba refino de campo
+            # (ADR-0144). Antes esta passagem invalidava mesmo `len(...)` em contexto
+            # esperado, divergindo do caminho de `_infer`.
             if self._call_may_run_user_code(expr):
-                self._invalidate_captured()
+                self._invalidate_members(reason="call", token=expr.paren)
+                self._invalidate_captured(token=expr.paren)
             if actual is ERROR:
                 return ERROR
             # `_check` não passa por `_infer`; o lowering lê o tipo de chamadas
@@ -1125,7 +1225,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     token,
                     self._mismatch_message(expected, actual),
                     code=Code.TYPE_MISMATCH,
-                    notes=self._provenance_notes(expr, token),
+                    notes=self._provenance_notes(expr, token) + self._narrowing_notes(expr),
                     help=self._any_cast_help(expected, actual),
                 )
             return actual
@@ -1145,7 +1245,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     token,
                     self._mismatch_message(expected, actual),
                     code=Code.TYPE_MISMATCH,
-                    notes=self._provenance_notes(expr, token),
+                    notes=self._provenance_notes(expr, token) + self._narrowing_notes(expr),
                     help=self._any_cast_help(expected, actual),
                 )
             return actual
@@ -1200,7 +1300,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     token,
                     self._mismatch_message(expected, actual),
                     code=Code.TYPE_MISMATCH,
-                    notes=self._provenance_notes(expr, token),
+                    notes=self._provenance_notes(expr, token) + self._narrowing_notes(expr),
                     help=self._any_cast_help(expected, actual),
                 )
                 return ERROR
@@ -1221,7 +1321,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 self._mismatch_message(expected, actual),
                 code=Code.TYPE_MISMATCH,
-                notes=self._provenance_notes(expr, token),
+                notes=self._provenance_notes(expr, token) + self._narrowing_notes(expr),
                 help=self._any_cast_help(expected, actual),
             )
 
@@ -2206,8 +2306,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         element = self.element_type(iterable, stmt.name)
 
         if isinstance(iterable, (ClassTy, InterfaceTy)) or iterable is ANY:
-            self._invalidate_members()
-            self._invalidate_captured()
+            # Iterador de usuário pode mutar o que quiser: invalidação conservadora.
+            self._invalidate_members(reason="iteration", token=stmt.name)
+            self._invalidate_captured(token=stmt.name)
         base = dict(self._narrowings)
         body_state: RefinementState = dict(base)
         context = LoopContext()
@@ -2494,10 +2595,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         enclosing_init = self._in_initializer
         enclosing_collector = self._return_collector
         enclosing_narrowings = dict(self._narrowings)
+        enclosing_dropped = dict(self._dropped)
         enclosing_loops = self._loops
         # Corpo de função/lambda tem fluxo próprio: não herda refinos nem laços do
         # chamador (ADR-0086; `break`/`continue` não atravessam a fronteira, ADR-0139).
         self._narrowings = {}
+        self._dropped = {}
         self._loops = []
 
         if not preserve_class:
@@ -2574,6 +2677,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             collected = self._return_collector or []
             self._return_collector = enclosing_collector
             self._narrowings = enclosing_narrowings
+            self._dropped = enclosing_dropped
             self._loops = enclosing_loops
             if generic:
                 self._generic_context.pop()
@@ -3110,12 +3214,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return key, current
 
     def _refinement_path(self, expr: Expr) -> RefinementKey | None:
-        """Caminho refinável: variável, ou campos/índices literais encadeados."""
+        """Caminho refinável: variável, `this` ou campos/índices literais encadeados."""
         if isinstance(expr, Variable):
             found = self._find_decl(expr.name.lexeme)
             if found is None:
                 return None
             return found[0], expr.name.lexeme, ()
+
+        if isinstance(expr, This):
+            # `this` nunca é reatribuído; o índice sentinela não colide com escopos.
+            if self._current_class is None and self._current_interface is None:
+                return None
+            return THIS_ROOT, "this", ()
 
         if isinstance(expr, Get):
             base = self._refinement_path(expr.object)
@@ -3148,6 +3258,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if self._find_decl(expr.name.lexeme) is None:
                 return None
             return self._lookup(expr.name)
+
+        if isinstance(expr, This):
+            return self._this_type()
 
         if isinstance(expr, Get):
             return self._peek_member(self._peek_type(expr.object), expr.name.lexeme)
@@ -3574,7 +3687,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         found = self._find_decl(expr.name.lexeme)
         if found is not None:
             index = found[0]
-            self._invalidate(expr.name.lexeme, index)
+            self._invalidate(expr.name.lexeme, index, token=expr.name)
             if assigned is not ERROR:
                 self._narrowings[(index, expr.name.lexeme, ())] = assigned
         return expected
@@ -3731,8 +3844,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # Nativas puras (`print`, `len`, `str`, `chars`, `range`, métodos de
             # `List`/`Map`) não podem mutar campos; manter o refino evita um falso
             # `E3025` em `if (c.x is T) { print(c.x.n); c.x.n = 5 }`.
-            self._invalidate_members()
-            self._invalidate_captured()
+            self._invalidate_members(reason="call", token=expr.paren)
+            self._invalidate_captured(token=expr.paren)
         return result
 
     def _infer_call(self, expr: Call, expected: Ty | None, token: Token) -> Ty:
@@ -3833,6 +3946,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 expr.paren,
                 "Can't call a value of type `Any`; cast it with `as` first.",
                 code=Code.ANY_ACCESS,
+                notes=self._narrowing_notes(expr.callee),
             )
             return ERROR
 
@@ -4512,14 +4626,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return narrowed
 
         obj = self._infer(expr.object)
-        return self._get_property_type(obj, expr.name, expr.optional)
+        return self._get_property_type(obj, expr.name, expr.optional, source=expr.object)
 
-    def _get_property_type(self, obj: Ty, name: Token, optional: bool) -> Ty:
+    def _get_property_type(
+        self, obj: Ty, name: Token, optional: bool, *, source: Expr | None = None
+    ) -> Ty:
         if obj is ANY:
             self._error(
                 name,
                 "Can't access a member of `Any`; narrow it with `is` or cast it with `as` first.",
                 code=Code.ANY_ACCESS,
+                notes=self._narrowing_notes(source) if source is not None else (),
             )
             return ERROR
         if isinstance(obj, TyVar):
@@ -4597,7 +4714,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             isinstance(obj, UnionTy) and any(member is NIL for member in obj.members)
         )
         if nilable and not optional:
-            self._error(name, "Only instances have properties.", code=Code.TYPE_MISMATCH)
+            self._error(
+                name,
+                "Only instances have properties.",
+                code=Code.TYPE_MISMATCH,
+                notes=self._narrowing_notes(source) if source is not None else (),
+            )
             return ERROR
         if obj is NIL:
             return NIL
@@ -5289,6 +5411,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 expr.bracket,
                 "Can't index a value of type `Any`; cast it with `as` first.",
                 code=Code.ANY_ACCESS,
+                notes=self._narrowing_notes(expr.object),
             )
             return ERROR
         if isinstance(obj, TupleTy):
@@ -5323,7 +5446,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_index_set_expr(self, expr: IndexSet) -> Ty:
         result = self._index_set(expr)
-        self._invalidate_members()
+        base = self._refinement_path(expr.object)
+        segment = self._literal_segment(expr.index)
+        if base is not None and segment is not None:
+            self._invalidate_shape((base[0], base[1], base[2] + (segment,)), token=expr.bracket)
+        else:
+            # Índice dinâmico não tem caminho: conservador, derruba tudo.
+            self._invalidate_members(reason="write", token=expr.bracket)
         return result
 
     def _index_set(self, expr: IndexSet) -> Ty:
@@ -5484,6 +5613,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 expr.name,
                 "Can't assign a field on `Any`; cast the receiver with `as` first.",
                 code=Code.ANY_ACCESS,
+                notes=self._narrowing_notes(expr.object),
             )
             return ERROR
 
@@ -5517,8 +5647,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         path = self._refinement_path(expr.object)
         if path is not None:
-            self._invalidate_path((path[0], path[1], path[2] + (("field", expr.name.lexeme),)))
-        self._invalidate_members()
+            self._invalidate_shape(
+                (path[0], path[1], path[2] + (("field", expr.name.lexeme),)),
+                token=expr.name,
+            )
+        else:
+            self._invalidate_members(reason="write", token=expr.name)
 
         is_initializer_this = self._in_initializer and isinstance(expr.object, This)
         if not field_info.mutable and not is_initializer_this:
@@ -5545,13 +5679,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return method
 
-    def visit_this_expr(self, expr: This) -> Ty:
+    def _this_type(self) -> Ty:
+        """Tipo de `this` no corpo corrente (classe, interface ou erro fora de corpo)."""
         if self._current_interface is not None:
             return InterfaceTy(self._current_interface.name)
         if self._current_class is None:
             return ERROR
 
         return ClassTy(self._current_class.name, self._current_class.type_params)
+
+    def visit_this_expr(self, expr: This) -> Ty:
+        return self._this_type()
 
     def visit_unary_expr(self, expr: Unary) -> Ty:
         right = self._infer(expr.right)

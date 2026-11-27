@@ -1520,6 +1520,509 @@ def test_narrowing_field_invalidations(source: str, capsys: pytest.CaptureFixtur
     assert "Expected a string, a list or a map, found" in captured.err
 
 
+def test_narrowing_write_of_a_subpath_keeps_the_parent_type() -> None:
+    # Escrever `h.x.n` não troca a classe do objeto em `h.x` (ADR-0141).
+    lox = check(
+        """
+        class C {
+          var n: Int = 1
+        }
+        class H {
+          var x: Any = nil
+        }
+        val h = H()
+        h.x = C()
+        if (h.x is C) {
+          h.x.n = 5
+          print(h.x.n)
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_write_of_another_path_keeps_the_refinement() -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          var apelido: String?;
+          init(nome: String?, apelido: String?) {
+            this.nome = nome;
+            this.apelido = apelido;
+          }
+        }
+        val p = P("Ana", "A")
+        if (p.nome != nil) {
+          p.apelido = nil
+          print(len(p.nome))
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_assignment_of_another_variable_keeps_the_refinement() -> None:
+    # `q` é outra raiz; a escrita em `q` não mexe no refino de valor de `x`.
+    lox = check(
+        """
+        var x: String? = "a"
+        var q: String? = nil
+        if (x != nil) {
+          q = "b"
+          print(len(x))
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_write_same_shape_through_another_root_still_drops(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Sem aliasing, `q.nome = nil` pode ser o mesmo objeto de `p.nome`: conservador.
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        val p = P("a")
+        val q = P("b")
+        if (p.nome != nil) {
+          q.nome = nil
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_write_of_a_different_field_through_an_alias_keeps_the_refinement() -> None:
+    # Mesmo objeto (`q = p`), mas o campo escrito tem outro nome: o slot é outro.
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          var apelido: String?;
+          init(nome: String?, apelido: String?) {
+            this.nome = nome;
+            this.apelido = apelido;
+          }
+        }
+        val p = P("a", "b")
+        val q = p
+        if (p.nome != nil) {
+          q.apelido = nil
+          print(len(p.nome))
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_write_through_a_list_alias_drops_the_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `p` também está em `xs[0]`: escrever pelo índice é o mesmo slot (soundness).
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        val p = P("a")
+        val xs: List[P] = [p]
+        if (p.nome != nil) {
+          xs[0].nome = nil
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_write_through_an_alias_of_an_ancestor_drops_the_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `val q = p.a`: escrever `p.a.n` substitui um ancestral de `q.n.m`.
+    lox = check(
+        """
+        class C {
+          var m: Any = nil;
+          fn init(v: Any) { this.m = v; }
+          fn id() -> Int { return 7; }
+        }
+        class Mid {
+          var n: C;
+          fn init(n: C) { this.n = n; }
+        }
+        class Root {
+          var a: Mid;
+          fn init(a: Mid) { this.a = a; }
+        }
+        val p = Root(Mid(C(C(nil))))
+        val bad = C(5)
+        val q = p.a
+        if (q.n.m is C) {
+          p.a.n = bad
+          print(q.n.m.id())
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `q.n.m` (was `C`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
+def test_narrowing_write_through_a_deep_alias_drops_the_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `val a = A(b)` põe o mesmo objeto em outra raiz; a escrita em `a.b.c.n` alcança
+    # `b.c.n` (o caminho escrito é sub-caminho contíguo do refinado).
+    lox = check(
+        """
+        class C {
+          var n: String?;
+          init(n: String?) { this.n = n; }
+        }
+        class B {
+          var c: C;
+          init(c: C) { this.c = c; }
+        }
+        class A {
+          var b: B;
+          init(b: B) { this.b = b; }
+        }
+        val b = B(C("x"))
+        val a = A(b)
+        if (b.c.n != nil) {
+          a.b.c.n = nil
+          print(len(b.c.n))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_of_a_nilable_member_reports_the_dropped_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # O erro de membro (E3001) também carrega a proveniência do refino derrubado.
+    lox = check(
+        """
+        class C {
+          var n: Int = 1;
+        }
+        class P {
+          var alvo: C?;
+          init(alvo: C?) { this.alvo = alvo; }
+          clear() -> Nil { this.alvo = nil; }
+          peek() -> Int {
+            if (this.alvo != nil) {
+              this.clear()
+              return this.alvo.n
+            }
+            return 0
+          }
+        }
+        print(P(C()).peek())
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Only instances have properties." in captured.err
+    assert "the refinement of `this.alvo` (was `C`)" in captured.err
+
+
+def test_narrowing_write_with_dynamic_index_still_drops(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        val xs: List[Int?] = [1, nil]
+        var i = 0
+        if (xs[0] != nil) {
+          xs[i] = nil
+          print(xs[0] + 1)
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Operands must be numbers." in captured.err
+
+
+def test_narrowing_write_in_another_list_over_drops_by_design(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Precisão declarada (ADR-0141): sem análise de alias, escrever `ys[0]` também derruba
+    # o refino de `xs[0]` — mesmo índice literal, listas que podem ser a mesma. O caso é
+    # escopo da análise de alias/escape adiada no ADR-0107; aqui ele fica fixado como
+    # conservador, não como promessa de precisão. Se a fatia 2 entrar, este teste muda.
+    lox = check(
+        """
+        val xs: List[String?] = ["a"]
+        val ys: List[String?] = ["b"]
+        if (xs[0] != nil) {
+          ys[0] = nil
+          print(len(xs[0]))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+    assert "the refinement of `xs[0]` (was `String`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
+def test_narrowing_a_field_of_this() -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+          tamanho() -> Int {
+            if (this.nome != nil) {
+              return len(this.nome)
+            }
+            return 0
+          }
+        }
+        print(P("abc").tamanho())
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_of_this_field_is_dropped_by_a_call(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+          clear() -> Nil { this.nome = nil; }
+          peek() -> Int {
+            if (this.nome != nil) {
+              this.clear()
+              return len(this.nome)
+            }
+            return 0
+          }
+        }
+        print(P("abc").peek())
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_pure_native_in_an_expected_context_keeps_the_field_refinement() -> None:
+    # `val n: Int = len(...)` passa por `_check`, que antes invalidava como chamada
+    # de usuário (divergia de `visit_call_expr`, ADR-0144).
+    lox = check(
+        """
+        class C {
+          var n: Int = 1
+        }
+        class H {
+          var x: Any = nil
+        }
+        val h = H()
+        h.x = C()
+        if (h.x is C) {
+          val n: Int = len("ab")
+          h.x.n = 5
+          print(h.x.n)
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_dropped_refinement_names_the_call_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        fn clear(p: P) -> Nil {
+          p.nome = nil;
+        }
+
+        val p = P("a")
+        if (p.nome != nil) {
+          clear(p)
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `p.nome` (was `String`) was dropped by the call on line 12" in (
+        captured.err
+    )
+    assert "re-narrow with `is`/`as` or bind it to a local" in captured.err
+
+
+def test_dropped_refinement_names_the_assignment_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var n: Int = 1;
+        }
+        var s: Any = C()
+        if (s is C) {
+          s = nil
+          print(s.n)
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `s` (was `C`) was dropped by the assignment on line 7" in (
+        captured.err
+    )
+
+
+def test_dropped_refinement_names_capture_invalidation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var src: String? = "a"
+        fn touch() -> Nil {
+          src = nil;
+        }
+        if (src != nil) {
+          touch()
+          print(len(src))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "was dropped by the call that may reassign a captured variable on line 7" in (
+        captured.err
+    )
+
+
+def test_dropped_refinement_names_the_iteration_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class It {
+          var i: Int = 0;
+          fn iter() -> It { return this; }
+          fn next() -> Int? {
+            if (this.i < 2) {
+              this.i = this.i + 1;
+              return this.i;
+            }
+            return nil;
+          }
+        }
+        class C {
+          var n: Int = 1;
+        }
+        class H {
+          var x: Any = nil;
+        }
+        val h = H()
+        h.x = C()
+        val it = It()
+        if (h.x is C) {
+          for y in it {
+            print(h.x.n)
+          }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "was dropped by the iteration over a user type" in captured.err
+
+
+def test_dropped_refinement_names_the_write_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        val p = P("a")
+        val q = P("b")
+        if (p.nome != nil) {
+          q.nome = nil
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `p.nome` (was `String`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
+def test_dropped_index_refinement_renders_the_literal_path(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        val m: Map[String, String?] = {"k": "v"}
+        if (m["k"] != nil) {
+          m["k"] = nil
+          print(len(m["k"]))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert 'the refinement of `m["k"]` (was `String`)' in captured.err
+
+
 def test_storage_type_ignores_narrowing() -> None:
     source = """
     val x: Int? = 1

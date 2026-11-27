@@ -796,10 +796,23 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   Calls that may execute user code (function, method, constructor, function value
   or user iterator) invalidate refinements of a mutable `var` captured by a closure;
   pure native calls (`print`, `len`, `str`, `repr`, `chars`, `range`, `List`/`Map`
-  methods) do not. The body of a function/lambda starts without the caller's refinements. **Fields and literal indices** also narrow
-  (`p.name`, `xs[0]`, `m["k"]`); mutating the path (`p.name = ...`), the root (`p = ...`),
-  **any call** or an assignment to a field/index invalidates all field/index refinements
-  (no aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)). The normal
+  methods) do not. The body of a function/lambda starts without the caller's refinements.
+  **Fields and literal indices** also narrow (`p.name`, `xs[0]`, `m["k"]`), and so does
+  `this.name` inside a method. Mutating the root (`p = ...`) drops every refinement of that
+  root. A **write is finer**: it drops a refinement when the written path is the **same
+  slot** (the same final field or index literal, which another root may reach through an
+  alias), when it is a **contiguous sub-path** of the refinement (the write replaces an
+  ancestor, so the value read below changes), or when the root of the refinement is an object
+  of the written path (`val q = p.a` with a write to `p.a.n`) — but **keeps** the type
+  refinement of a parent
+  (`p.name.n = 5` keeps `p.name: C`, because assigning a field cannot change the class of the
+  object that holds it) and any path with a different final field name (`p.outro = ...`, and
+  even `q.outro = ...`). A dynamic index write (`xs[i] = ...`) and **any call** that may run
+  user code still drop every field/index refinement (no aliasing;
+  [ADR-0045](../adr/0045-narrowing-representacao.md),
+  [ADR-0141](../adr/0141-soundness-de-fluxo-do-checker.md)). When a dropped refinement is
+  needed, the diagnostic names the call/write that dropped it, its line and the last known
+  type, and suggests `is`/`as` or binding the value to a local. The normal
   exit of `while (x != nil)` refines the rest of the block through the false branch **only
   when no `break` can leave the loop**; with a reachable `break` the exit joins the entry,
   the body fallthrough and the break states, and the false-branch refinement is not applied.

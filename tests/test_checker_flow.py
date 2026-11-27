@@ -9,7 +9,7 @@ from loxia.engine import Loxia
 from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend import expr as ast_expr
 from loxia_core.frontend import stmt as ast_stmt
-from loxia_core.semantics.flow import EXPR_FLOW, STMT_FLOW, FlowPolicy
+from loxia_core.semantics.flow import EXPR_FLOW, STMT_FLOW, FlowPolicy, write_affects
 
 
 def check(source: str) -> Loxia:
@@ -134,3 +134,47 @@ def test_soundness_fix_keeps_the_common_refinement(source: str) -> None:
     assert lox.reporter.had_error is False, [
         (item.code.name, item.message) for item in lox.reporter.batch().diagnostics
     ]
+
+
+def _field_key(root: str, *names: str) -> tuple[int, str, tuple[tuple[str, object], ...]]:
+    return (0, root, tuple(("field", name) for name in names))
+
+
+@pytest.mark.parametrize(
+    ("candidate", "written", "affects"),
+    [
+        # Mesmo caminho.
+        (_field_key("p", "x"), _field_key("p", "x"), True),
+        # Escrita num ancestral: substitui o objeto que o candidato lê.
+        (_field_key("p", "x", "n"), _field_key("p", "x"), True),
+        # Escrita num sub-caminho: a classe do objeto em `p.x` não muda.
+        (_field_key("p", "x"), _field_key("p", "x", "n"), False),
+        # Outro campo da mesma raiz.
+        (_field_key("p", "nome"), _field_key("p", "apelido"), False),
+        # Mesmo campo em outra raiz: aliasing é possível.
+        (_field_key("a", "nome"), _field_key("b", "nome"), True),
+        # Outro campo em outra raiz: o slot tem outro nome.
+        (_field_key("a", "nome"), _field_key("b", "apelido"), False),
+        # Alias por container: `xs[0].x` e `p.x` são o mesmo slot.
+        (_field_key("p", "x"), (0, "xs", (("index", ("int", 0)), ("field", "x"))), True),
+        # Sub-caminho contíguo no meio: `a.b.c.d` é trocado por `o.b.c`.
+        (_field_key("p", "a", "b", "c", "d"), _field_key("o", "b", "c"), True),
+        # A raiz do candidato é um objeto do caminho escrito: `val q = p.a` + `p.a.n`.
+        (_field_key("q", "n", "m"), _field_key("p", "a", "n"), True),
+        # A escrita é o próprio slot do candidato alcançado pela raiz aliasada.
+        (_field_key("q", "n", "m"), _field_key("p", "a", "n", "m"), True),
+        # `val q = p.a.n` guarda o objeto antigo: trocar `p.a.n` não muda `q`.
+        (_field_key("q", "m"), _field_key("p", "a", "n"), False),
+        # Trocar a referência `p.a` não muda o objeto que `q` já guarda.
+        (_field_key("q", "n", "m"), _field_key("p", "a"), False),
+        # Refino de variável não cai com escrita de campo.
+        ((0, "p", ()), _field_key("q", "x"), False),
+    ],
+)
+def test_write_affects(
+    candidate: tuple[int, str, tuple[tuple[str, object], ...]],
+    written: tuple[int, str, tuple[tuple[str, object], ...]],
+    affects: bool,
+) -> None:
+    """A regra de escrita do ADR-0141, caso a caso."""
+    assert write_affects(candidate, written) is affects

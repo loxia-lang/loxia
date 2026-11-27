@@ -1,6 +1,6 @@
 # ADR-0141 — Checker: soundness de fluxo, merge ciente de saltos e escopo da precisão
 
-- **Status:** accepted (fatia de soundness, gate do corpus e split `TypeOps`/`DeclTable` implementados em 2026-11-24)
+- **Status:** accepted (fatia de soundness, gate do corpus e split `TypeOps`/`DeclTable` implementados em 2026-11-24; emenda de precisão de escrita em 2026-11-26)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0025](0025-is-e-narrowing.md),
@@ -148,6 +148,55 @@ derruba refinos de campo/índice e de `var` capturado; atribuição atualiza o r
 índice só refina quando literal. O que muda é **quem participa do merge**, não o que
 invalida.
 
+## Emenda 2026-11-26 — precisão de escrita, `this.campo` e proveniência
+
+A #216 pediu ou precisão, ou uma fronteira declarada. A fronteira já estava na Decisão 1;
+faltava o que era barato e sem risco. Três mudanças, todas **só no checker** (o backend
+continua consumindo `checker.types`; representação e ABI intocadas):
+
+1. **Escrita por slot e por sub-caminho.** Uma escrita em `P` derruba o refino `K` quando os
+   dois terminam no **mesmo segmento** (mesmo campo ou índice literal; outra raiz pode
+   alcançar o mesmo slot por alias) ou quando `P` é um **sub-caminho contíguo** de `K`
+   (a escrita substitui um ancestral e o valor lido abaixo muda) — `flow.write_affects`.
+   Consequências:
+   - `h.x.n = 5` **preserva** `h.x: C` (a escrita está abaixo do refino) e `p.outro = ...`
+     preserva `p.nome` (o nome do campo no fim é outro). Antes a escrita derrubava todo
+     refino de campo/índice.
+   - `b.nome = "z"` derruba `a.nome` (mesmo segmento, alias possível); `h.inner.n = ...`
+     derruba `q.n` com `val q = h.inner` (sub-caminho/segmento), incluindo o caso de
+     profundidades diferentes (`a.b.c.n` × `b.c.n`).
+   - escrita com índice dinâmico (`xs[i] = ...`) cai na invalidação global: não há caminho.
+2. **`this.campo` estreita.** `_refinement_path`/`_peek_type` tratam `This` com um índice de
+   escopo sentinela (`THIS_ROOT = -1`); `this` nunca é reatribuído, e chamada/escrita seguem
+   a regra conservadora dos campos (uma chamada derruba `this.campo`, porque `this` pode ter
+   escapado).
+3. **Proveniência no diagnóstico.** `E3025` e o mismatch de membro/argumento citam o refino
+   derrubado, o tipo que ele tinha, quem o derrubou (chamada, escrita, atribuição, captura,
+   iteração), a linha e a saída barata (`is`/`as` ou ligar a um local). O mapa `_dropped` é
+   **só diagnóstico**: não participa de tipagem e é limpo como `_narrowings` (escopo,
+   redefinição, re-refino, corpo de função).
+
+**Argumento de soundness.** O slot de um campo é (objeto, nome): nomes diferentes nunca são o
+mesmo slot, e nomes iguais em objetos que podem ser o mesmo (alias entre raízes) são tratados
+como o mesmo slot. Substituir um ancestral invalida o que é lido abaixo dele. O resto é
+conservador: chamada, captura e índice dinâmico continuam derrubando tudo o que não dá para
+provar. O primeiro rascunho desta emenda comparava só prefixo/sufixo e deixava passar o alias
+de profundidade diferente (`val q = h.inner` com escrita em `h.inner.n`); o segundo fechava
+esse caso mas não o alinhamento em que a raiz do candidato é um objeto do caminho escrito
+(`val q = p.a` com escrita em `p.a.n`). Os três viraram regressão em
+`tests/test_checker_flow.py::test_write_affects` e em `tests/test_checker.py`
+(`test_narrowing_write_through_a_list_alias_drops_the_refinement`,
+`test_narrowing_write_through_a_deep_alias_drops_the_refinement`,
+`test_narrowing_write_through_an_alias_of_an_ancestor_drops_the_refinement`). `this` é imutável como
+binding. Chamadas continuam derrubando tudo que é caminho — só uma análise de escape/alias
+responderia ao `h.x.m()` da #216, e isso é o gatilho do
+[ADR-0107](0107-adiados-e-nao-objetivos.md).
+
+**Bug de coerência corrigido no caminho.** `_check` (chamada em contexto esperado, ex.:
+`val n: Int = len("ab")`) invalidava refinos mesmo para nativa pura, divergindo de
+`visit_call_expr` e do que o #214 promete; agora as duas passagens usam
+`_call_may_run_user_code`.
+
 ## Consequências
 
 ### Positivas
@@ -208,14 +257,24 @@ invalida.
   allow-list de 5 casos dependentes de valor e sem os casos com `# requires:` (host). Ela
   falha se aparecer um furo novo **ou** se a allow-list ficar obsoleta (um caso que deixou
   de ser check-clean ou mudou de código).
+- Emenda de 2026-11-26: `tests/test_checker.py` cobre escrita em sub-caminho (preserva o
+  pai), escrita em outro caminho (preserva), mesmo caminho por outra raiz (derruba), índice
+  dinâmico (derruba), `this.campo` (refina e cai na chamada), nativa pura em contexto
+  esperado (`_check`) e a nota de proveniência de chamada, escrita e índice. O corpus
+  diferencial ganhou `narrowing_write_shape.lx` e `this_field_narrowing.lx` (l6, três
+  canais); `errors/any_narrowing_lost.lx` fixa a nota.
 
 **Revisitar quando:** houver `break` com rótulo/`loop` explícito, `match` estrutural com
 guards, contratos estáticos, ou um programa real que precise de invariantes de laço; ou se
 o corpus de conformidade ([ADR-0115](0115-corpus-de-conformidade-adiado.md)) exigir a regra
-de narrowing escrita para uma implementação externa.
+de narrowing escrita para uma implementação externa. A precisão que resta (escape/alias de
+chamadas) tem gatilho no [ADR-0107](0107-adiados-e-nao-objetivos.md): três programas reais
+batem no falso positivo e o checker já foi portado para Loxia (F6 do
+[ADR-0149](0149-motores-primarios-thir-e-congelamento.md)).
 
 ## Referências
 
-- #160 (decisão), #112 (dívida de checker), #164 (`break`/`continue`), #167 (`match` literal)
+- #160 (decisão), #112 (dívida de checker), #164 (`break`/`continue`), #167 (`match` literal),
+  #216 (precisão de escrita, `this.campo` e proveniência), #214 (nativas puras)
 - [ADR-0014](0014-identidade-e-invariantes.md) (portão), [ADR-0059](0059-i4-check-limpo-compila.md) (I4)
 - [`../spec/garantias.md`](../spec/garantias.md), [`../spec/semantica.md`](../spec/semantica.md)

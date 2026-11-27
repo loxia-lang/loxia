@@ -1294,3 +1294,25 @@ intervalo agora silenciaria páginas que não foram lidas.
 - `docs/decisoes.md` — **no-change**: a linha do ADR-0151 continua verdadeira; o commit
   `82c83b6` só ajustou o ADR-0151 (lock no fingerprint, 512 módulos) e o engine. O backlog
   de stdlib/spec/tech é anterior ao PR e precisa de uma triagem própria.
+
+## 2026-11-26 — precisão de escrita do checker (#216)
+
+Intervalo: `5c7aa63`. Só as páginas que este PR tocou/regenerou foram triadas; o backlog de
+stdlib/spec/tech anterior a este trabalho continua pendente e **sem marcador** — fechar o
+intervalo agora silenciaria páginas que não foram lidas.
+
+- `docs/spec/semantica.md` — **updated**: a escrita derruba o mesmo slot (inclusive por
+  outra raiz), um sub-caminho contíguo e uma raiz que é objeto do caminho escrito, preserva o
+  refino de tipo do pai e caminhos com outro campo no fim;
+  `this.campo` estreita; o diagnóstico de refino derrubado cita quem o derrubou.
+- `docs/spec/garantias.md` — **updated** (bloco gerado): dois casos L6 a mais no corpus.
+- `docs/decisoes.md` — **updated**: a linha de soundness de fluxo descreve a precisão de
+  escrita entregue e mantém no ADR-0107 o gatilho do alias de chamadas. A correção de
+  soundness posterior (`d1b6db0`) completou o predicado sem mudar a linha, então o veredicto
+  do intervalo é um só.
+- `docs/tech/test-coverage.md` — **updated** (gerado): contagem de testes.
+- `docs/spec/erros.md` — **no-change**: códigos e mensagens não mudaram; a nota de
+  proveniência é texto do diagnóstico, não um código novo.
+- `docs/adr/0107`/`0141` — emenda de decisão; ADRs não participam do relatório de frescor.
+  `docs/spec/erros.md`, `docs/spec/lexico.md`, `docs/stdlib/*` e `docs/tech/*` continuam o
+  backlog anterior a este PR, sem marcador.

@@ -106,6 +106,7 @@
     "tests/cases/errors/any_index.lx": "dfdf6a78fa4f63a75ef2e3b46c61db8cb40023c3f3ed8325884702aabe8c6cf7",
     "tests/cases/errors/any_interface_cast.lx": "2331751638837006aa5a085030738a009eda1c09036869e958cab0ccf0a18625",
     "tests/cases/errors/any_member.lx": "f4b5ca68847cfbdcea7678c6c23144dcda84cdc0fc812f270ae1fbef8a89dee5",
+    "tests/cases/errors/any_narrowing_lost.lx": "7e6723986366c60a5900a8ac380e6a1cf1893d6f07bfed21767221a2e062cd30",
     "tests/cases/errors/any_set.lx": "4d71058d7fbae5dbf68dc41896319be1a5a25ab306768d9f56357a548cd448db",
     "tests/cases/errors/arity.lx": "4356b7dca346926aac9e4279b34ae65c0723b9174d2e075ea7acd5e55d028949",
     "tests/cases/errors/arity_default_max.lx": "771ad15af954af938431b82093332d393454db157e38f7f1d9462b36eb88be23",
@@ -276,6 +277,7 @@
     "tests/cases/method_fn_keyword.lx": "fc0c28c9a39c13a98407c16e70c539ece7de39283f5a8dfbd9ddea4a24995623",
     "tests/cases/multiline_strings.lx": "e1a85e212b8fb34081d9e7c31b0b689ceade4288e8610308c35f994fb5e4929d",
     "tests/cases/narrowed_index.lx": "7b5df42632afe8e6aa6288fb1745637d872e75a5afb08909442667160ff3da90",
+    "tests/cases/narrowing_write_shape.lx": "4d82042a4c7200b443f03c86a913ce93fa11c96596dae41b54383bbe3c7bc1cd",
     "tests/cases/nested_destructure.lx": "d424451187beb0bbf463e531ac4184e76e7924024c94e6139f8fac99aa678f83",
     "tests/cases/nil_aware.lx": "c801481ef1a9ef6e1b97bb3bffff24eaed3a5b694b2f8a9fe456863d062d464a",
     "tests/cases/nil_value.lx": "14ecc14c4bf4c11f0f76bc47a3c012ff19a7adc3c905b91da3576e251563649f",
@@ -364,6 +366,7 @@
     "tests/cases/super_in_closure.lx": "9314c2f08d7f7ce03c43cfe6502d8510990115af5a7f0ddb3b3904ae7dc5eb63",
     "tests/cases/super_with_this.lx": "30155e4b8d1ed6a2662015a2824ab24da2e8de48a4792b5f8b6fa357f16c88b1",
     "tests/cases/ternary.lx": "1abde3c2a7eb4ca2a35438d214bc2d64fc211d9d523eead46e6f0871905fe53c",
+    "tests/cases/this_field_narrowing.lx": "9f2d17f6cf56e5f76c35353cfe59f76e6a0c8ba9e551a472731d667e9abcfb9a",
     "tests/cases/this_in_lambda.lx": "f22cf20c9242e41932c32736f0a4969a5e065bf437a326cd54fd7dbb7008f480",
     "tests/cases/trailing_comma.lx": "07eed2ae50fef2a2e6a5b66a1f41795147858a19dc6521187b613e90ceae1961",
     "tests/cases/try_finally_scope.lx": "2a77b2e94728e7126ec1e0838aa50341c659afc97c2357410b0fc447f1c7633f",
@@ -539,6 +542,26 @@
             "column": 9,
             "line": 9,
             "offset": 119
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/any_narrowing_lost.lx": [
+      {
+        "code": "E3007",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 20,
+            "line": 17,
+            "offset": 270
+          },
+          "file": "tests/cases/errors/any_narrowing_lost.lx",
+          "start": {
+            "column": 19,
+            "line": 17,
+            "offset": 269
           }
         }
       }
@@ -3741,6 +3764,7 @@
     "tests/cases/errors/any_index.lx": "eb030bf1373c3598711f1e6d0f957e1c5b95cba866bf38751dc6dd3c56cc850a",
     "tests/cases/errors/any_interface_cast.lx": "cd8d749158c419f29c0452e348464c8e44cb50ea2817453b134f081127c0b8e1",
     "tests/cases/errors/any_member.lx": "59a68895b251a78ea74dcb54ad5c1a65001a6d5d0084a9c1c84d515a9726c4a5",
+    "tests/cases/errors/any_narrowing_lost.lx": "a9464701aa59fe71724f67093ffb557a4eadc510bf9d1bcaec1b32b216195245",
     "tests/cases/errors/any_set.lx": "0cd51483be6bcdc81854d7c7df6b04a90cac73f408114e33086d8210922baff8",
     "tests/cases/errors/arity.lx": "d353f26c046d64b28d816e176014b29e804a18f3a591bf959eaa022cb9d3b1ef",
     "tests/cases/errors/arity_default_max.lx": "25203521cbbfa19fc408bbb9934dfefdb97bf61560ee5ad1083189a6b7928536",
@@ -3911,6 +3935,7 @@
     "tests/cases/method_fn_keyword.lx": "89c74d133fa7f08e7effecc44521b110ba6e7707e346b09c120c6a8f73939f7b",
     "tests/cases/multiline_strings.lx": "91df5a89bfec22cfa59ad3b650bf32928c9bb2f21bed175167dfa800cdf53925",
     "tests/cases/narrowed_index.lx": "296f8c013f8f0c083dde11a2fa433af8ac82c90c6aac3d25cfb7a8423288406d",
+    "tests/cases/narrowing_write_shape.lx": "24641151ab1be4c48dc8d47b57107166f1678b62c887f6277118bd0d73633702",
     "tests/cases/nested_destructure.lx": "7165e2654b8ed9b0886893490b5c3c9732dcdf48b72500dc5d169964343538d3",
     "tests/cases/nil_aware.lx": "14cc9197b719c3f0239015c21c41c77ec409db11cc77df9ed487d0dbb139c5e1",
     "tests/cases/nil_value.lx": "8197609d8b9de3b29ccf9a8a1df26d76dbb707c7cd8deaf94014235ae5fc1424",
@@ -3999,6 +4024,7 @@
     "tests/cases/super_in_closure.lx": "b6a1386d6539350747f14e9eb4da088595b9b78e28d28bc3dd5c72008b45220c",
     "tests/cases/super_with_this.lx": "201e3660e103d5e4c4dac2b2946c21711d0bc92dff7e5eae36ca8a121a968f99",
     "tests/cases/ternary.lx": "b9a6d3679e1fb90ef1cc48b7f7a26c2eed0c092ebb7b61347dcbf48109528092",
+    "tests/cases/this_field_narrowing.lx": "d20e4393f8f0a24b4087c95b08eac7ea7fdc25e492bf5d2fe49ec93b969cb4db",
     "tests/cases/this_in_lambda.lx": "d0e6c1697121bfe77ec6287b231e2aead42b6fa7cfda3befd24a76720f96f8dd",
     "tests/cases/trailing_comma.lx": "f5ca5c58827c0a9e9343d4e695d638b1c4b967805e2462447072e1868d82c21b",
     "tests/cases/try_finally_scope.lx": "7d8573dcdb80c51a3ecf2f77d857099755396a0c841bd9cf4793d30850199dd5",

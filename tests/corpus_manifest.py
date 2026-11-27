@@ -180,6 +180,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/selfhost_ast_generic_enum.lx",
         "tests/cases/selfhost_ast_interface.lx",
         "tests/cases/selfhost_recursive_class.lx",
+        "tests/cases/narrowing_write_shape.lx",
+        "tests/cases/this_field_narrowing.lx",
     ),
     "t7": (
         "tests/cases/generic_class.lx",
@@ -321,6 +323,7 @@ COMPILE_ERRORS: frozenset[str] = frozenset(
         "tests/cases/errors/interface_cast_static.lx",
         "tests/cases/errors/any_index.lx",
         "tests/cases/errors/any_member.lx",
+        "tests/cases/errors/any_narrowing_lost.lx",
         "tests/cases/errors/any_set.lx",
         "tests/cases/errors/arity.lx",
         "tests/cases/errors/arity_default_max.lx",

@@ -1,0 +1,19 @@
+# O diagnóstico nomeia a chamada que derrubou o refino (ADR-0141).
+class P {
+  var nome: String? = nil
+
+  fn init(nome: String?) {
+    this.nome = nome
+  }
+}
+
+fn limpar(p: P) -> Nil {
+  p.nome = nil
+}
+
+val p = P("a")
+if (p.nome != nil) {
+  limpar(p)
+  print(len(p.nome))
+}
+# expect error: was dropped by the call on line 16; re-narrow with `is`/`as` or bind it to a local
