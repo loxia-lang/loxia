@@ -15,6 +15,7 @@ from typing import Any
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis
+from loxia_core.backend.control_ir import ControlIR, ControlIRBuilder
 from loxia_core.backend.lower_model import (
     _I32,
     Binding,
@@ -45,6 +46,7 @@ class CleanupContext:
     frame: Any | None
     finally_body: list[Stmt] | None
     scopes_depth: int
+    unwound: bool = False
 
 
 @dataclass
@@ -68,7 +70,8 @@ class LoweringBase:
     flow_types: dict[Expr, Ty]
     depths: dict[Expr, int]
     main: Any
-    builder: Any
+    _builder: Any = None
+    _control: ControlIR
     _runtime: Any
     _extern_values: dict[str, Any]
     _messages: Any
@@ -110,6 +113,22 @@ class LoweringBase:
     _emitted_generic_classes: set[str]
     _pending_generic_classes: list[ClassLayout]
     type_aliases: dict[str, Ty]
+
+    @property
+    def builder(self) -> Any:
+        """Target builder, wrapped by the control IR (ADR-0153)."""
+        return self._builder
+
+    @builder.setter
+    def builder(self, value: Any) -> None:
+        if value is not None and not isinstance(value, ControlIRBuilder):
+            control = getattr(self, "_control", None)
+            if control is not None:
+                value = ControlIRBuilder(value, control)
+        self._builder = value
+        control = getattr(self, "_control", None)
+        if control is not None and value is not None:
+            control.observe(value)
 
     # Métodos compartilhados entre mixins. O MRO resolve para a implementação real.
     def _expr(self, expr: Expr) -> Value:
@@ -347,6 +366,7 @@ class LoweringBase:
         """Registra um `try` ativo para o `return` desempilhar frame/finally."""
         context = CleanupContext(frame, finally_body, scopes_depth)
         self._cleanup_stack.append(context)
+        self._control.push_cleanup()
         return context
 
     def _pop_cleanup(self, context: CleanupContext) -> None:
@@ -357,6 +377,8 @@ class LoweringBase:
         """
         if self._cleanup_stack and self._cleanup_stack[-1] is context:
             self._cleanup_stack.pop()
+            if not context.unwound:
+                self._control.pop_cleanup()
 
     def __getattr__(self, name: str) -> Any:
         # Demais métodos definidos em outro mixin são resolvidos pelo MRO em runtime.

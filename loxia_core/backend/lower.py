@@ -22,6 +22,7 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
+from loxia_core.backend.control_ir import ControlIR
 from loxia_core.backend.lower_base import CleanupContext, LoopContext
 from loxia_core.backend.lower_bytes import BytesLowering
 from loxia_core.backend.lower_calls import CallLowering
@@ -166,6 +167,7 @@ class Lowerer(
         self.type_aliases = type_aliases or {}
         self._function_types = function_types or {}
         self.main: Any = None
+        self._control = ControlIR()
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
         self._extern_values: dict[str, Any] = {}
@@ -232,6 +234,7 @@ class Lowerer(
         self._prepare_interface_signatures()
         self._predeclare_functions(statements)
 
+        self._control.reset()
         main = llvm_ir.define_main(self.module)
         self.main = main
         self._function_ir = main
@@ -239,7 +242,7 @@ class Lowerer(
         self._scopes = [{}]
         self._captures = {}
         self._cleanup_stack = []
-        self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
+        self.builder = llvm_ir.builder(self._control.new_block(main, "entry"))
         init_path = llvm_ir.cstring_pointer(self.builder, self._cstring(self.source_path))
         self.builder.call(
             self._function("lox_init", _VOID, [_I8_PTR, _I32, llvm_ir.pointer_pointer()]),
@@ -268,6 +271,7 @@ class Lowerer(
                 continue
             info = self._top_level[id(statement)]
             self._emit_function(info, statement, ())
+        self._control.verify_all()
 
     def _call_entry(self, entry: Function) -> None:
         """Chama o `main -> Result` do arquivo de entrada (ADR-0148).
@@ -391,6 +395,9 @@ class Lowerer(
         for cleanup in reversed(self._cleanup_stack[limit:]):
             if id(cleanup) in self._emitting_finally:
                 continue
+            if not cleanup.unwound:
+                cleanup.unwound = True
+                self._control.pop_cleanup()
             if cleanup.frame is not None:
                 self.builder.call(
                     self._function("lox_try_pop", _VOID, [_I8_PTR]),
@@ -1789,7 +1796,7 @@ class Lowerer(
         )
         self.builder.unreachable()
 
-        block = llvm_ir.append_block(self._function_ir, f"poison{self._poison_count}")
+        block = self._control.new_block(self._function_ir, f"poison{self._poison_count}")
         self._poison_count += 1
         self.builder = llvm_ir.builder(block)
 
