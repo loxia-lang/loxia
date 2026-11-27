@@ -20,11 +20,11 @@ print("output: " + (cli.option(options, "output") or "?"))
 print("ext:    " + paths.ext(cli.option(options, "output") or ""))
 
 val lines = csv.parse(
-  "product,category,quantity,price\n"
-    + "pen,stationery,10,2.50\n"
-    + "notebook,stationery,3,18.00\n"
-    + "coffee,food,2,15.75\n"
-    + "coffee,food,1,15.75\n"
+  "product,category,quantity,price\n" +
+    "pen,stationery,10,2.50\n" +
+    "notebook,stationery,3,18.00\n" +
+    "coffee,food,2,15.75\n" +
+    "coffee,food,1,15.75\n",
 )
 if (lines == nil) {
   raise RuntimeError("Invalid CSV.")
@@ -74,12 +74,12 @@ print("")
 print(fmt.pad("category", 14) + fmt.pad("total", 10) + "  share")
 for category in lists.sort(categories.toList(), compareText) {
   val value = totals[category]
-  print((
-    fmt.pad(category, 14)
-      + fmt.pad(fmt.fixed(value, 2), 10)
-      + "  "
-      + fmt.pad(fmt.percent(value / total, 1), 8)
-  ))
+  print(
+    (fmt.pad(category, 14) +
+      fmt.pad(fmt.fixed(value, 2), 10) +
+      "  " +
+      fmt.pad(fmt.percent(value / total, 1), 8)),
+  )
 }
 
 print("")

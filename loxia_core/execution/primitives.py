@@ -11,17 +11,23 @@ página `docs/stdlib/builtins.md`); este módulo guarda a implementação/orácu
 
 from __future__ import annotations
 
+import errno
+import hashlib
 import os
+import stat
 import sys
 import time
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 from loxia_core.diagnostics.errors import NativeError
+from loxia_core.execution import regex_runtime
 from loxia_core.execution.fs_runtime import FileTable
 from loxia_core.execution.lox_list import LoxList
+from loxia_core.execution.lox_tuple import LoxTuple
 from loxia_core.execution.proc_runtime import ProcTable
-from loxia_core.frontend.ty import BOOL, INT, NIL, STRING, ListTy, Ty, union
+from loxia_core.frontend.ty import BOOL, BYTES, INT, NIL, STRING, ListTy, TupleTy, Ty, union
 
 
 def _substr(text: str, start: int, end: int) -> str:
@@ -139,10 +145,14 @@ def _flush() -> None:
 
 
 def _exists(path: str) -> bool:
+    if "\0" in path:
+        return False
     return os.path.exists(path)
 
 
 def _list_dir(path: str) -> LoxList | None:
+    if "\0" in path:
+        return None
     try:
         entries = sorted(os.listdir(path))
     except OSError:
@@ -196,6 +206,85 @@ def _fs_write(interpreter: object, identifier: int, text: str) -> None:
 
 def _fs_close(interpreter: object, identifier: int) -> None:
     _fs_table(interpreter).close(identifier)
+
+
+def _fs_read_bytes(interpreter: object, identifier: int, count: int) -> bytes | None:
+    return _fs_table(interpreter).read_bytes(identifier, count)
+
+
+_FS_ERROR_KINDS = {
+    errno.ENOENT: "notFound",
+    errno.EACCES: "permission",
+    errno.EPERM: "permission",
+    errno.EISDIR: "isDirectory",
+    errno.ENOTDIR: "notDirectory",
+    errno.EEXIST: "alreadyExists",
+    errno.EMFILE: "tooManyFiles",
+    errno.ENFILE: "tooManyFiles",
+    errno.ENOSPC: "noSpace",
+    errno.ENOTEMPTY: "notEmpty",
+    errno.EXDEV: "crossDevice",
+}
+
+
+def _fs_failure(action: str, error: OSError) -> NativeError:
+    """Erro de host com `kind` estável; nunca `strerror`/locale (ADR-0119)."""
+    kind = _FS_ERROR_KINDS.get(error.errno or 0, "io")
+    return NativeError(f"{kind}: {action}.")
+
+
+def _fs_invalid_path() -> NativeError:
+    return NativeError("io: invalid path.")
+
+
+def _fs_rename(source: str, target: str) -> None:
+    try:
+        os.replace(source, target)
+    except ValueError:
+        raise _fs_invalid_path() from None
+    except OSError as error:
+        raise _fs_failure("can't rename", error) from None
+
+
+def _fs_remove(path: str) -> None:
+    try:
+        os.remove(path)
+    except ValueError:
+        raise _fs_invalid_path() from None
+    except OSError as error:
+        # macOS returns EPERM for unlink(directory); normalize to the same kind as
+        # Linux (EISDIR) so the public `kind` does not depend on the platform.
+        if os.path.isdir(path):
+            raise NativeError("isDirectory: can't remove a directory.") from None
+        raise _fs_failure("can't remove", error) from None
+
+
+def _fs_mkdir(path: str) -> None:
+    try:
+        os.mkdir(path)
+    except ValueError:
+        raise _fs_invalid_path() from None
+    except OSError as error:
+        raise _fs_failure("can't create the directory", error) from None
+
+
+def _fs_stat(path: str) -> LoxTuple:
+    try:
+        info = os.stat(path)
+    except ValueError:
+        raise _fs_invalid_path() from None
+    except OSError as error:
+        raise _fs_failure("can't stat", error) from None
+    mtime_ms = info.st_mtime_ns // 1_000_000
+    return LoxTuple((info.st_size, mtime_ms, stat.S_ISDIR(info.st_mode)))
+
+
+def _sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _sha256_bytes(data: bytes) -> bytes:
+    return hashlib.sha256(data).digest()
 
 
 def _proc_table(interpreter: object) -> ProcTable:
@@ -252,6 +341,78 @@ def _sleep(milliseconds: int) -> None:
     time.sleep(milliseconds / 1000.0)
 
 
+def _regex_compile(pattern: str, flags: int, mode: int) -> LoxList:
+    if flags < 0:
+        raise NativeError("regex_engine.compile() expects a non-negative flags mask.")
+    if mode not in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
+        raise NativeError("regex_engine.compile() expects mode 0 (linear) or 1 (full).")
+    code, handle, offset = regex_runtime.compile_pattern(pattern, flags, mode)
+    values: list[object] = [1, handle] if code == 0 else [0, code, offset]
+    return LoxList(values)
+
+
+def _regex_find(handle: int, subject: str, start: int) -> LoxList | None:
+    if start < 0:
+        raise NativeError("regex_engine.find() expects a non-negative start.")
+    code, spans = regex_runtime.match_pattern(handle, subject, start)
+    if code == regex_runtime.NO_MATCH:
+        return None
+    if code < 0:
+        raise NativeError(_regex_error(code))
+    values: list[object] = list(spans)
+    return LoxList(values)
+
+
+def _regex_group_names(handle: int) -> LoxList:
+    if handle < 1:
+        raise NativeError("regex_engine.groupNames() expects a handle from compile.")
+    return LoxList(list(regex_runtime.group_names(handle)))
+
+
+def _regex_free(handle: int) -> None:
+    if handle < 1:
+        raise NativeError("regex_engine.free() expects a handle from compile.")
+    regex_runtime.free_pattern(handle)
+
+
+def _regex_error(code: int) -> str:
+    return regex_runtime.error_message(code)
+
+
+# Orçamento do kernel por grupo (ADR-0123). O grupo é o prefixo do namespace da
+# primitiva (`io.*` → `io`); sem prefixo, é `core`. `process` é o namespace e `proc`
+# é o grupo histórico.
+_GROUP_ALIASES = {"process": "proc"}
+
+KERNEL_BUDGET = 40
+
+GROUP_BUDGET: dict[str, int] = {
+    "core": 5,
+    "io": 8,
+    "fs": 11,
+    "os": 2,
+    "proc": 10,
+    "time": 2,
+    "digest": 2,
+}
+
+# Módulos nativos têm orçamento próprio, fora dos 40 do kernel (ADR-0126).
+NATIVE_MODULE_BUDGET: dict[str, int] = {"sqlite3": 20, "regex_engine": 4}
+
+# Camada de APIs públicas de módulo (`modulo.funcao`), para quando um wrapper Lox
+# expuser uma capacidade que o interpretador não tem (ADR-0128). Vazio na v1: as
+# capacidades nativas ainda são primitivas de namespace. Preenchido pelo #83.
+API_LAYERS: dict[str, str] = {}
+
+
+def primitive_group(name: str) -> str:
+    """Grupo de orçamento de uma primitiva: namespace, ou `core` sem prefixo."""
+    namespace, separator, _ = name.partition(".")
+    if not separator:
+        return "core"
+    return _GROUP_ALIASES.get(namespace, namespace)
+
+
 @dataclass(frozen=True)
 class Primitive:
     lox: str
@@ -263,6 +424,22 @@ class Primitive:
     needs_interpreter: bool = False
     # O símbolo C recebe `(line, column)` no fim, para o panic apontar a chamada.
     site: bool = False
+    # Capacidade que só existe no binário (ADR-0128): o interpretador recusa.
+    native_only: bool = False
+
+    @property
+    def group(self) -> str:
+        """Grupo de orçamento (ADR-0123): o namespace da primitiva."""
+        return primitive_group(self.lox)
+
+    @property
+    def layer(self) -> str:
+        """Rótulo derivado dos dois eixos (ADR-0128): motor e determinismo."""
+        if self.native_only:
+            return "native-only"
+        if self.ambient:
+            return "ambient"
+        return "core"
 
 
 PRIMITIVES: tuple[Primitive, ...] = (
@@ -321,6 +498,16 @@ PRIMITIVES: tuple[Primitive, ...] = (
         site=True,
     ),
     Primitive(
+        "fs.readBytes",
+        "lox_fs_read_bytes",
+        (INT, INT),
+        union(BYTES, NIL),
+        _fs_read_bytes,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
         "fs.write",
         "lox_fs_write",
         (INT, STRING),
@@ -338,6 +525,26 @@ PRIMITIVES: tuple[Primitive, ...] = (
         _fs_close,
         ambient=True,
         needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "fs.rename",
+        "lox_fs_rename",
+        (STRING, STRING),
+        NIL,
+        _fs_rename,
+        ambient=True,
+        site=True,
+    ),
+    Primitive("fs.remove", "lox_fs_remove", (STRING,), NIL, _fs_remove, ambient=True, site=True),
+    Primitive("fs.mkdir", "lox_fs_mkdir", (STRING,), NIL, _fs_mkdir, ambient=True, site=True),
+    Primitive(
+        "fs.stat",
+        "lox_fs_stat",
+        (STRING,),
+        TupleTy((INT, INT, BOOL)),
+        _fs_stat,
+        ambient=True,
         site=True,
     ),
     Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit, site=True),
@@ -443,9 +650,75 @@ PRIMITIVES: tuple[Primitive, ...] = (
     ),
     Primitive("time.now", "lox_time_now", (), INT, _now, ambient=True),
     Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True, site=True),
+    Primitive("digest.sha256", "lox_digest_sha256", (STRING,), STRING, _sha256),
+    Primitive("digest.sha256Bytes", "lox_digest_sha256_bytes", (BYTES,), BYTES, _sha256_bytes),
+    Primitive(
+        "regex_engine.compile",
+        "lox_regex_engine_compile",
+        (STRING, INT, INT),
+        ListTy(INT),
+        _regex_compile,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.find",
+        "lox_regex_engine_find",
+        (INT, STRING, INT),
+        union(ListTy(INT), NIL),
+        _regex_find,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.groupNames",
+        "lox_regex_engine_group_names",
+        (INT,),
+        ListTy(STRING),
+        _regex_group_names,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.free",
+        "lox_regex_engine_free",
+        (INT,),
+        NIL,
+        _regex_free,
+        site=True,
+    ),
 )
 
+
+def budget_violations(
+    primitives: Iterable[Primitive],
+    budget: Mapping[str, int],
+    total: int | None = None,
+) -> list[str]:
+    """Grupos ou total acima do orçamento; lista vazia quando tudo cabe.
+
+    Usado pelo teste de orçamento (ADR-0123); é uma função pura para o próprio teste
+    conseguir simular estouro sem tocar na tabela real.
+    """
+    counts = Counter(primitive.group for primitive in primitives)
+    problems: list[str] = []
+    for group, count in sorted(counts.items()):
+        limit = budget.get(group)
+        if limit is None:
+            problems.append(f"group '{group}' has no budget")
+        elif count > limit:
+            problems.append(f"group '{group}' has {count}, budget {limit}")
+    if total is not None and sum(counts.values()) > total:
+        problems.append(f"kernel has {sum(counts.values())} primitives, budget {total}")
+    return problems
+
+
 PRIMITIVE_BY_LOX: dict[str, Primitive] = {primitive.lox: primitive for primitive in PRIMITIVES}
+
+
+def kernel_primitives() -> tuple[Primitive, ...]:
+    """Primitivas do kernel: as de módulo nativo têm orçamento separado (ADR-0126)."""
+    return tuple(
+        primitive for primitive in PRIMITIVES if primitive.group not in NATIVE_MODULE_BUDGET
+    )
+
 
 # Perfil `--sandbox` (ADR-0112): o programa não lê/escreve arquivos nem cria processos.
 # O loader de módulos continua lendo `std/` e arquivos do projeto pelo host; só as
@@ -460,12 +733,20 @@ SANDBOX_DENIED_NAMES = frozenset(
         "fs.read",
         "fs.write",
         "fs.close",
+        "fs.readBytes",
+        "fs.rename",
+        "fs.remove",
+        "fs.mkdir",
+        "fs.stat",
     }
 )
 SANDBOX_DENIED_PREFIXES = ("process.",)
 
 
 def is_sandbox_denied(name: str) -> bool:
+    primitive = PRIMITIVE_BY_LOX.get(name)
+    if primitive is not None and primitive.native_only:
+        return True
     return name in SANDBOX_DENIED_NAMES or name.startswith(SANDBOX_DENIED_PREFIXES)
 
 
@@ -483,6 +764,11 @@ class PrimitiveCallable:
         return len(self.primitive.params)
 
     def call(self, interpreter: object, arguments: list[object]) -> object:
+        if self.primitive.native_only:
+            raise NativeError(
+                f"`{self.primitive.lox}` is not supported by the interpreter; "
+                "build with `--emit=exe`."
+            )
         if self.sandboxed:
             raise NativeError(f"{self.primitive.lox}() is not available in sandbox mode.")
         if self.primitive.needs_interpreter:

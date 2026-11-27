@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.destructuring import DestructurePattern
 from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.tokens import Token
@@ -26,12 +27,15 @@ class Visitor[R](Protocol):
     def visit_interface_stmt(self, stmt: Interface) -> R: ...
     def visit_type_alias_stmt(self, stmt: TypeAlias) -> R: ...
     def visit_return_stmt(self, stmt: Return) -> R: ...
+    def visit_break_stmt(self, stmt: Break) -> R: ...
+    def visit_continue_stmt(self, stmt: Continue) -> R: ...
     def visit_var_stmt(self, stmt: Var) -> R: ...
     def visit_destructure_stmt(self, stmt: Destructure) -> R: ...
     def visit_enum_stmt(self, stmt: EnumDecl) -> R: ...
     def visit_try_stmt(self, stmt: Try) -> R: ...
     def visit_raise_stmt(self, stmt: Raise) -> R: ...
     def visit_while_stmt(self, stmt: While) -> R: ...
+    def visit_error_stmt(self, stmt: ErrorStmt) -> R: ...
 
 
 class Stmt(Protocol):
@@ -60,6 +64,8 @@ class Import(Stmt):
 @dataclass(frozen=True, eq=False)
 class Block(Stmt):
     statements: list[Stmt]
+    start: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_block_stmt(self)
@@ -74,6 +80,7 @@ class Field:
     doc: str | None = None
     keyword: Token | None = None
     end: Token | None = None
+    type_span: Span | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -86,6 +93,8 @@ class Class(Stmt):
     display_name: str | None = None
     implements: list[Token] = field(default_factory=list)
     doc: str | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)
@@ -99,6 +108,8 @@ class TypeAlias(Stmt):
     name: Token
     target: Ty
     doc: str | None = None
+    end: Token | None = None
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_type_alias_stmt(self)
@@ -116,6 +127,8 @@ class Interface(Stmt):
     methods: list[Function]
     display_name: str | None = None
     doc: str | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_interface_stmt(self)
@@ -126,6 +139,7 @@ class EnumVariant:
     name: Token
     payload: list[Ty]
     doc: str | None = None
+    payload_spans: list[Span] = field(default_factory=list)
 
 
 @dataclass(frozen=True, eq=False)
@@ -135,6 +149,8 @@ class EnumDecl(Stmt):
     variants: list[EnumVariant]
     display_name: str | None = None
     doc: str | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_enum_stmt(self)
@@ -145,6 +161,8 @@ class ExceptClause:
     type_name: Token
     binding: Token
     body: list[Stmt]
+    keyword: Token | None = None
+    end: Token | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -153,6 +171,7 @@ class Try(Stmt):
     body: list[Stmt]
     handlers: list[ExceptClause]
     finally_body: list[Stmt] | None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_try_stmt(self)
@@ -165,6 +184,18 @@ class Raise(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_raise_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ErrorStmt(Stmt):
+    """Declaração que falhou; inerte e usada só na árvore recuperada."""
+
+    start: Token
+    end: Token | None = None
+    message: str = ""
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_error_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)
@@ -182,6 +213,7 @@ class Param:
     default: Expr | None = None
     type_annotation: Ty | None = None
     variadic: bool = False
+    type_span: Span | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -198,6 +230,7 @@ class Function(Stmt):
     end: Token | None = None
     fn_token: Token | None = None
     params_end: Token | None = None
+    return_type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)
@@ -208,6 +241,7 @@ class ForIn(Stmt):
     name: Token
     iterable: Expr
     body: Stmt
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_for_in_stmt(self)
@@ -218,6 +252,7 @@ class If(Stmt):
     condition: Expr
     then_branch: Stmt
     else_branch: Stmt | None
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_if_stmt(self)
@@ -233,6 +268,22 @@ class Return(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
+class Break(Stmt):
+    keyword: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_break_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Continue(Stmt):
+    keyword: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_continue_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
 class Var(Stmt):
     name: Token
     initializer: Expr | None
@@ -240,6 +291,8 @@ class Var(Stmt):
     type_annotation: Ty | None = None
     doc: str | None = None
     keyword: Token | None = None
+    end: Token | None = None
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)
@@ -251,6 +304,9 @@ class Destructure(Stmt):
     initializer: Expr
     mutable: bool
     type_annotation: Ty | None = None
+    keyword: Token | None = None
+    end: Token | None = None
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_destructure_stmt(self)
@@ -260,6 +316,7 @@ class Destructure(Stmt):
 class While(Stmt):
     condition: Expr
     body: Stmt
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_while_stmt(self)

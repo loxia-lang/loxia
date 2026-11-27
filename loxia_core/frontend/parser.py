@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import cast
 
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.errors import ParseError
 from loxia_core.frontend.destructuring import (
@@ -18,6 +19,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -28,6 +30,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -43,12 +46,16 @@ from loxia_core.frontend.expr import (
     VariantPattern,
     WildcardPattern,
 )
+from loxia_core.frontend.spans import span_of_token_exact, span_of_token_range
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     EnumVariant,
+    ErrorStmt,
     ExceptClause,
     Expression,
     Field,
@@ -96,10 +103,14 @@ class Parser:
         self._repl: bool = repl
         self._bracket_depth: int = 0
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
+        # Nomes de tipo vistos em anotações/assinaturas, em ordem textual. É uma
+        # side table (como a trivia): o AST e o JSON v2 não mudam (ADR-0090/#130).
+        self.type_spans: list[Span] = []
 
     def parse(self) -> list[Stmt] | None:
         statements: list[Stmt] = []
         while not self._is_at_end():
+            before = self._current
             try:
                 declaration = self._declaration()
             except RecursionError:
@@ -109,6 +120,9 @@ class Parser:
                 break
             if declaration is not None:
                 statements.append(declaration)
+            if self._current == before:
+                # Um `_synchronize` que não avançou não pode travar o parse inteiro.
+                self._advance()
 
         return statements
 
@@ -130,6 +144,7 @@ class Parser:
         """
         # Salva a posição atual para poder dar rollback caso não seja uma expressão
         saved_current = self._current
+        saved_type_spans = len(self.type_spans)
         state = self.reporter.mark()
 
         try:
@@ -161,12 +176,14 @@ class Parser:
 
         # Rollback: restaura a posição dos tokens e descarta os diagnósticos do teste
         self._current = saved_current
+        del self.type_spans[saved_type_spans:]
         self.reporter.restore(state)
 
         # Faz o parse padrão de statements
         return self.parse()
 
     def _declaration(self) -> Stmt | None:
+        start = self._peek()
         try:
             if self._match(TokenType.IMPORT):
                 return self._import_declaration(self._previous())
@@ -198,9 +215,12 @@ class Parser:
                 return self._var_declaration(mutable=True, keyword=self._previous())
 
             return self._statement()
-        except ParseError:
-            self._synchronize()
-            return None
+        except ParseError as error:
+            self._synchronize(error.token)
+            end = self._previous()
+            if (end.offset or 0) < (start.offset or 0):  # pragma: no cover - EOF guard
+                end = start
+            return ErrorStmt(start, end, error.message)
 
     def _is_type_alias_declaration(self) -> bool:
         if not self._check(TokenType.IDENTIFIER) or self._peek().lexeme != "type":
@@ -221,9 +241,10 @@ class Parser:
                 Code.INVALID_TYPE_ANNOTATION,
             )
         self._consume(TokenType.EQUAL, "Expect '=' after type alias name.")
-        target = self._type()
+        target, type_span = self._type_with_span()
+        end = self._previous()
         self._end_statement("Expect ';' after type alias.")
-        return TypeAlias(keyword, name, target, doc=keyword.doc)
+        return TypeAlias(keyword, name, target, doc=keyword.doc, end=end, type_span=type_span)
 
     def _module_path(self) -> tuple[Token, ...]:
         path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
@@ -314,6 +335,8 @@ class Parser:
             type_params,
             implements=implements,
             doc=keyword.doc,
+            keyword=keyword,
+            end=self._previous(),
         )
 
     def _interface_declaration(self, keyword: Token) -> Stmt:
@@ -339,7 +362,7 @@ class Parser:
             methods.append(self._function("method", allow_abstract=True, fn_token=fn_token))
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after interface body.")
-        return Interface(name, methods, doc=keyword.doc)
+        return Interface(name, methods, doc=keyword.doc, keyword=keyword, end=self._previous())
 
     def _enum_declaration(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect enum name.")
@@ -352,29 +375,44 @@ class Parser:
             while True:
                 variant = self._consume(TokenType.IDENTIFIER, "Expect variant name.")
                 payload: list[Ty] = []
+                payload_spans: list[Span] = []
                 if self._match(TokenType.LEFT_PAREN):
                     if not self._check(TokenType.RIGHT_PAREN):
-                        payload.append(self._type())
+                        payload_ty, payload_span = self._type_with_span()
+                        payload.append(payload_ty)
+                        payload_spans.append(payload_span)
                         while self._match(TokenType.COMMA):
-                            payload.append(self._type())
+                            payload_ty, payload_span = self._type_with_span()
+                            payload.append(payload_ty)
+                            payload_spans.append(payload_span)
                     self._consume(
                         TokenType.RIGHT_PAREN,
                         "Expect ')' after variant payload.",
                     )
 
-                variants.append(EnumVariant(variant, payload, doc=variant.doc))
+                variants.append(
+                    EnumVariant(variant, payload, doc=variant.doc, payload_spans=payload_spans)
+                )
                 if not self._match(TokenType.COMMA):
                     break
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after enum variants.")
-        return EnumDecl(name, type_params, variants, doc=keyword.doc)
+        return EnumDecl(
+            name,
+            type_params,
+            variants,
+            doc=keyword.doc,
+            keyword=keyword,
+            end=self._previous(),
+        )
 
     def _field_declaration(self, mutable: bool, *, keyword: Token) -> Field:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
 
         type_annotation: Ty | None = None
+        type_span: Span | None = None
         if self._match(TokenType.COLON):
-            type_annotation = self._type()
+            type_annotation, type_span = self._type_with_span()
 
         initializer: Expr | None = None
         if self._match(TokenType.EQUAL):
@@ -395,20 +433,31 @@ class Parser:
             doc=keyword.doc,
             keyword=keyword,
             end=end,
+            type_span=type_span,
         )
 
-    def _destructure(self, mutable: bool) -> Stmt:
+    def _destructure(self, mutable: bool, *, keyword: Token) -> Stmt:
         pattern = self._destructure_pattern()
 
         type_annotation: Ty | None = None
+        type_span: Span | None = None
         if self._match(TokenType.COLON):
-            type_annotation = self._type()
+            type_annotation, type_span = self._type_with_span()
 
         self._consume(TokenType.EQUAL, "Expect '=' after destructuring pattern.")
         initializer = self._expression()
+        end = self._previous()
         self._end_statement("Expect ';' after destructuring.")
 
-        return Destructure(pattern, initializer, mutable, type_annotation)
+        return Destructure(
+            pattern,
+            initializer,
+            mutable,
+            type_annotation,
+            keyword=keyword,
+            end=end,
+            type_span=type_span,
+        )
 
     def _destructure_pattern(self) -> DestructurePattern:
         if self._match(TokenType.LEFT_PAREN):
@@ -430,13 +479,14 @@ class Parser:
 
     def _var_declaration(self, mutable: bool, *, keyword: Token) -> Stmt:
         if self._check(TokenType.LEFT_PAREN):
-            return self._destructure(mutable)
+            return self._destructure(mutable, keyword=keyword)
 
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
 
         type_annotation: Ty | None = None
+        type_span: Span | None = None
         if self._match(TokenType.COLON):
-            type_annotation = self._type()
+            type_annotation, type_span = self._type_with_span()
 
         initializer: Expr | None = None
 
@@ -449,6 +499,7 @@ class Parser:
                 Code.INVALID_DECLARATION,
             )
 
+        end = self._previous()
         self._end_statement("Expect ';' after variable declaration.")
 
         return Var(
@@ -458,19 +509,27 @@ class Parser:
             type_annotation,
             doc=keyword.doc,
             keyword=keyword,
+            end=end,
+            type_span=type_span,
         )
 
     def _statement(self) -> Stmt:
         if self._match(TokenType.FOR):
-            return self._for_statement()
+            return self._for_statement(self._previous())
         if self._match(TokenType.IF):
-            return self._if_statement("if")
+            return self._if_statement(self._previous())
 
         if self._match(TokenType.RETURN):
             return self._return_statement()
 
+        if self._match(TokenType.BREAK):
+            return self._break_statement()
+
+        if self._match(TokenType.CONTINUE):
+            return self._continue_statement()
+
         if self._match(TokenType.WHILE):
-            return self._while_statement()
+            return self._while_statement(self._previous())
 
         if self._match(TokenType.TRY):
             return self._try_statement(self._previous())
@@ -479,7 +538,9 @@ class Parser:
             return self._raise_statement(self._previous())
 
         if self._match(TokenType.LEFT_BRACE):
-            return Block(self._block())
+            start = self._previous()
+            statements = self._block()
+            return Block(statements, start=start, end=self._previous())
 
         return self._expression_statement()
 
@@ -489,11 +550,21 @@ class Parser:
 
         handlers: list[ExceptClause] = []
         while self._match(TokenType.EXCEPT):
+            except_keyword = self._previous()
             type_name = self._consume(TokenType.IDENTIFIER, "Expect exception type after 'except'.")
             self._consume(TokenType.AS, "Expect 'as' after exception type.")
             binding = self._consume(TokenType.IDENTIFIER, "Expect binding name after 'as'.")
             self._consume(TokenType.LEFT_BRACE, "Expect '{' after except binding.")
-            handlers.append(ExceptClause(type_name, binding, self._block()))
+            except_body = self._block()
+            handlers.append(
+                ExceptClause(
+                    type_name,
+                    binding,
+                    except_body,
+                    keyword=except_keyword,
+                    end=self._previous(),
+                )
+            )
 
         finally_body: list[Stmt] | None = None
         if self._match(TokenType.FINALLY):
@@ -507,7 +578,17 @@ class Parser:
                 Code.INVALID_DECLARATION,
             )
 
-        return Try(keyword, body, handlers, finally_body)
+        return Try(keyword, body, handlers, finally_body, end=self._previous())
+
+    def _break_statement(self) -> Stmt:
+        keyword = self._previous()
+        self._end_statement("Expect ';' after 'break'.")
+        return Break(keyword)
+
+    def _continue_statement(self) -> Stmt:
+        keyword = self._previous()
+        self._end_statement("Expect ';' after 'continue'.")
+        return Continue(keyword)
 
     def _raise_statement(self, keyword: Token) -> Stmt:
         value: Expr | None = None
@@ -535,66 +616,31 @@ class Parser:
         finally:
             self._bracket_depth = saved_depth
 
-    def _for_statement(self) -> Stmt:
-        if not self._check(TokenType.LEFT_PAREN):
-            return self._for_in_statement()
+    def _for_statement(self, keyword: Token) -> Stmt:
+        if self._check(TokenType.LEFT_PAREN):
+            raise self._error(
+                self._peek(),
+                "C-style 'for' was removed; use `for x in range(n)` or a `while` loop.",
+                Code.SYNTAX_UNEXPECTED,
+            )
 
-        self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
-        initializer: Stmt | None = None
+        return self._for_in_statement(keyword)
 
-        if self._match(TokenType.SEMICOLON):
-            initializer = None
-        elif self._match(TokenType.VAL):
-            initializer = self._var_declaration(mutable=False, keyword=self._previous())
-        elif self._match(TokenType.VAR):
-            initializer = self._var_declaration(mutable=True, keyword=self._previous())
-        else:
-            initializer = self._expression_statement()
-
-        cond: Expr | None = None
-
-        if not self._check(TokenType.SEMICOLON):
-            cond = self._expression()
-
-        self._consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
-
-        increm: Expr | None = None
-
-        if not self._check(TokenType.RIGHT_PAREN):
-            increm = self._expression()
-
-        self._consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
-
-        body = self._statement()
-
-        if increm is not None:
-            body = Block([body, Expression(increm)])
-
-        if cond is None:
-            cond = Literal(True)
-
-        body = While(cond, body)
-
-        if initializer is not None:
-            body = Block([initializer, body])
-
-        return body
-
-    def _for_in_statement(self) -> Stmt:
+    def _for_in_statement(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect loop variable name after 'for'.")
         self._consume(TokenType.IN, "Expect 'in' after loop variable.")
         iterable = self._expression()
         body = self._statement()
 
-        return ForIn(name, iterable, body)
+        return ForIn(name, iterable, body, keyword=keyword)
 
-    def _while_statement(self) -> Stmt:
+    def _while_statement(self, keyword: Token) -> Stmt:
         self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
         cond = self._expression()
         self._consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
         body = self._statement()
 
-        return While(cond, body)
+        return While(cond, body, keyword=keyword)
 
     def _return_statement(self) -> Stmt:
         keyword = self._previous()
@@ -610,10 +656,10 @@ class Parser:
         self._end_statement("Expect ';' after return value.")
         return Return(keyword, value)
 
-    def _if_statement(self, keyword: str) -> Stmt:
-        self._consume(TokenType.LEFT_PAREN, f"Expect '(' after '{keyword}'.")
+    def _if_statement(self, keyword: Token) -> Stmt:
+        self._consume(TokenType.LEFT_PAREN, f"Expect '(' after '{keyword.lexeme}'.")
         cond = self._expression()
-        self._consume(TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword}' condition.")
+        self._consume(TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword.lexeme}' condition.")
 
         then_branch = self._statement()
         else_branch = None
@@ -621,12 +667,20 @@ class Parser:
         if self._match(TokenType.ELSE):
             else_branch = self._statement()
         elif self._match(TokenType.ELIF):
-            else_branch = self._if_statement("elif")
+            else_branch = self._if_statement(self._previous())
 
-        return If(cond, then_branch, else_branch)
+        return If(cond, then_branch, else_branch, keyword=keyword)
 
     def _expression_statement(self) -> Stmt:
-        expr = self._expression()
+        start = self._peek()
+        try:
+            expr = self._expression()
+        except ParseError as error:
+            self._synchronize(error.token)
+            end = self._previous()
+            if (end.offset or 0) < (start.offset or 0):  # pragma: no cover - EOF guard
+                end = start
+            return Expression(ErrorExpr(start, end, error.message))
         if self._check(TokenType.COLON):
             raise self._error(
                 self._peek(),
@@ -673,8 +727,9 @@ class Parser:
         params_end = self._previous()
 
         return_type: Ty | None = None
+        return_type_span: Span | None = None
         if self._match(TokenType.ARROW):
-            return_type = self._type()
+            return_type, return_type_span = self._type_with_span()
 
         if allow_abstract and not self._check(TokenType.LEFT_BRACE):
             self._end_statement("Expect ';' after method signature.")
@@ -706,6 +761,7 @@ class Parser:
             end=end,
             fn_token=fn_token,
             params_end=params_end,
+            return_type_span=return_type_span,
         )
 
     def _type_parameters(
@@ -768,8 +824,9 @@ class Parser:
                 name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
 
                 type_annotation: Ty | None = None
+                type_span: Span | None = None
                 if self._match(TokenType.COLON):
-                    type_annotation = self._type()
+                    type_annotation, type_span = self._type_with_span()
 
                 default: Expr | None = None
                 if self._match(TokenType.EQUAL):
@@ -795,6 +852,7 @@ class Parser:
                         default,
                         type_annotation,
                         variadic,
+                        type_span=type_span,
                     )
                 )
 
@@ -825,20 +883,36 @@ class Parser:
                 )
 
         return_type: Ty | None = None
+        return_type_span: Span | None = None
         if self._match(TokenType.ARROW):
-            return_type = self._type()
+            return_type, return_type_span = self._type_with_span()
 
         body: list[Stmt]
+        end: Token
         if self._match(TokenType.FAT_ARROW):
             arrow = self._previous()
             expression = self._expression()
             body = [Return(arrow, expression)]
+            end = self._previous()
         elif self._match(TokenType.LEFT_BRACE):
             body = self._block()
+            end = self._previous()
         else:
             raise self._error(self._peek(), "Expect '=>' or '{' after lambda parameters.")
 
-        return Lambda(keyword, parameters, body, return_type)
+        return Lambda(
+            keyword,
+            parameters,
+            body,
+            return_type,
+            end=end,
+            return_type_span=return_type_span,
+        )
+
+    def _type_with_span(self, *, allow_union: bool = True) -> tuple[Ty, Span]:
+        start = self._peek()
+        ty = self._type(allow_union=allow_union)
+        return ty, span_of_token_range(start, self._previous())
 
     def _type(self, *, allow_union: bool = True) -> Ty:
         ty = self._postfix_type()
@@ -880,6 +954,7 @@ class Parser:
             return first
 
         token = self._consume(TokenType.IDENTIFIER, "Expect type name.")
+        self.type_spans.append(span_of_token_exact(token))
         name = token.lexeme
 
         if self._match(TokenType.LEFT_BRACKET):
@@ -1003,7 +1078,7 @@ class Parser:
                         Code.INVALID_ASSIGNMENT_TARGET,
                     )
                     return expr
-                return IndexSet(expr.object, expr.index, value, expr.bracket)
+                return IndexSet(expr.object, expr.index, value, expr.bracket, expr.end)
 
             self._error(equals, "Invalid assignment target.", Code.INVALID_ASSIGNMENT_TARGET)
 
@@ -1087,14 +1162,14 @@ class Parser:
                 expr = Binary(expr, operator, right)
             elif self._match_infix(TokenType.IS):
                 operator = self._previous()
-                test_type = self._type(allow_union=False)
+                test_type, type_span = self._type_with_span(allow_union=False)
                 if self._check(TokenType.PIPE):
                     raise self._error(
                         self._peek(),
                         "Type unions in 'is' need parentheses: 'is (A | B)'.",
                         Code.INVALID_TYPE_ANNOTATION,
                     )
-                expr = Is(expr, test_type, operator)
+                expr = Is(expr, test_type, operator, type_span=type_span)
             else:
                 break
 
@@ -1189,8 +1264,8 @@ class Parser:
 
         while self._match_infix(TokenType.AS):
             operator: Token = self._previous()
-            target = self._type()
-            expr = As(expr, target, operator)
+            target, type_span = self._type_with_span()
+            expr = As(expr, target, operator, type_span=type_span)
 
         return expr
 
@@ -1236,8 +1311,8 @@ class Parser:
                         raise self._error(self._peek(), "Expect index expression.")
 
                     index = self._expression()
-                    self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
-                    expr = Index(expr, index, bracket)
+                    end = self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
+                    expr = Index(expr, index, bracket, end)
                 optional_call = False
             else:
                 break
@@ -1323,7 +1398,7 @@ class Parser:
                         break
 
             self._consume(TokenType.RIGHT_BRACE, "Expect '}' after map entries.")
-            return MapLiteral(entries, brace)
+            return MapLiteral(entries, brace, end=self._previous())
 
     def _primary(self) -> Expr:
 
@@ -1372,7 +1447,7 @@ class Parser:
                             break
 
                 self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.")
-                return ListLiteral(elements, bracket)
+                return ListLiteral(elements, bracket, end=self._previous())
 
         if self._match(TokenType.LEFT_BRACE):
             return self._map_literal(self._previous())
@@ -1395,7 +1470,7 @@ class Parser:
                             break
 
                     self._consume(TokenType.RIGHT_PAREN, "Expect ')' after tuple elements.")
-                    return TupleLiteral(elements, paren)
+                    return TupleLiteral(elements, paren, end=self._previous())
 
                 self._consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
                 return Grouping(first, paren, self._previous())
@@ -1415,18 +1490,34 @@ class Parser:
         arms: list[MatchArm] = []
         while not self._check(TokenType.RIGHT_BRACE):
             pattern = self._pattern()
-            self._consume(TokenType.FAT_ARROW, "Expect '=>' after match pattern.")
+            arrow = self._consume(TokenType.FAT_ARROW, "Expect '=>' after match pattern.")
             body = self._expression()
-            arms.append(MatchArm(pattern, body))
+            arms.append(MatchArm(pattern, body, arrow))
             self._match(TokenType.SEMICOLON)
             self._match(TokenType.COMMA)
 
-        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
+        end = self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
         if not arms:
             raise self._error(keyword, "Match needs at least one arm.", Code.INVALID_MATCH)
-        return Match(keyword, scrutinee, arms)
+        return Match(keyword, scrutinee, arms, end)
 
     def _pattern(self) -> Pattern:
+        if self._match(
+            TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE, TokenType.NIL
+        ):
+            return self._literal_pattern(self._previous())
+
+        if self._match(TokenType.MINUS):
+            minus = self._previous()
+            number = self._consume(TokenType.NUMBER, "Expect number after '-' in pattern.")
+            if not isinstance(number.literal, int):
+                raise self._error(
+                    number,
+                    "Float patterns are not supported; use Int, String, Bool or nil.",
+                    Code.INVALID_MATCH,
+                )
+            return LiteralPattern(minus, -number.literal, end=number)
+
         token = self._consume(TokenType.IDENTIFIER, "Expect match pattern.")
         if token.lexeme == "_":
             return WildcardPattern(token)
@@ -1442,6 +1533,21 @@ class Parser:
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after pattern bindings.")
 
         return VariantPattern(token, variant, bindings)
+
+    def _literal_pattern(self, token: Token) -> LiteralPattern:
+        if token.type is TokenType.TRUE:
+            return LiteralPattern(token, True)
+        if token.type is TokenType.FALSE:
+            return LiteralPattern(token, False)
+        if token.type is TokenType.NIL:
+            return LiteralPattern(token, None)
+        if isinstance(token.literal, float):
+            raise self._error(
+                token,
+                "Float patterns are not supported; use Int, String, Bool or nil.",
+                Code.INVALID_MATCH,
+            )
+        return LiteralPattern(token, token.literal)
 
     def _match(self, *types: TokenType) -> bool:
         for token_type in types:
@@ -1516,13 +1622,54 @@ class Parser:
         code: Code = Code.SYNTAX_UNEXPECTED,
     ) -> ParseError:
         self.reporter.error(token, message, code=code)
-        return ParseError()
+        return ParseError(token, message)
 
-    def _synchronize(self) -> None:
+    @staticmethod
+    def _starts_statement(token: Token) -> bool:
+        return token.type is TokenType.IDENTIFIER or token.type in {
+            TokenType.IMPORT,
+            TokenType.FROM,
+            TokenType.CLASS,
+            TokenType.INTERFACE,
+            TokenType.ENUM,
+            TokenType.FN,
+            TokenType.VAL,
+            TokenType.VAR,
+            TokenType.FOR,
+            TokenType.IF,
+            TokenType.WHILE,
+            TokenType.RETURN,
+            TokenType.BREAK,
+            TokenType.CONTINUE,
+            TokenType.TRY,
+            TokenType.RAISE,
+            TokenType.LEFT_BRACE,
+            TokenType.NUMBER,
+            TokenType.STRING,
+            TokenType.LEFT_PAREN,
+            TokenType.LEFT_BRACKET,
+            TokenType.THIS,
+            TokenType.SUPER,
+            TokenType.NOT,
+            TokenType.MINUS,
+            TokenType.TILDE,
+        }
+
+    def _synchronize(self, error_token: Token | None = None) -> None:
+        if error_token is not None and error_token is self._peek():
+            if error_token.type is TokenType.EOF:
+                return
+            if error_token.line > self._previous().line and self._starts_statement(error_token):
+                # O token que falhou já inicia a próxima linha e pode ser um statement
+                # válido (lista/parentese aberta na linha anterior). Não o consuma.
+                return
         self._advance()
 
         while not self._is_at_end():
             if self._previous().type == TokenType.SEMICOLON:
+                return
+
+            if self._peek().line > self._previous().line:
                 return
 
             if self._peek().type in {
@@ -1534,6 +1681,8 @@ class Parser:
                 TokenType.IF,
                 TokenType.WHILE,
                 TokenType.RETURN,
+                TokenType.BREAK,
+                TokenType.CONTINUE,
             }:
                 return
 

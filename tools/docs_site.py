@@ -134,10 +134,10 @@ def _write_spec_current() -> int:
         # Relative on purpose: the same page is served again as an i18n fallback at
         # /pt/reference/<slug>/. From /reference/<slug>/ this hits the /1.0/reference/<slug>
         # redirect; from /pt/reference/<slug>/ it lands on /pt/1.0/reference/<slug>/.
-        banner = f"> **1.2 (current).** [1.0 archive](../../1.0/reference/{slug}/)\n"
+        banner = f"> **1.3 (current).** [1.0 archive](../../1.0/reference/{slug}/)\n"
         freshness = _refresh_for(_sources(document.front_matter), None)
         text = (
-            _front_matter(title, "Normative reference for the Loxia language (1.2).", order)
+            _front_matter(title, "Normative reference for the Loxia language (1.3).", order)
             + banner
             + "\n"
             + body
@@ -170,7 +170,7 @@ def _write_spec_archive(version: str) -> int:
             document.body, path.stem
         )
         body = _strip_h1(document.body)
-        banner = f"> **1.0 (arquivado).** [Ver 1.2](../../../../reference/{slug}/)\n"
+        banner = f"> **1.0 (arquivado).** [Ver 1.3](../../../../reference/{slug}/)\n"
         if commit:
             freshness = (
                 f"> Congelado de [`{tag}`]({REPOSITORY}/releases/tag/{tag}) "

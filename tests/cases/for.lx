@@ -1,5 +1,5 @@
-for (var i = 0; i < 3; i = i + 1) {
-  print(i);
+for i in 0..3 {
+  print(i)
 }
 # expect: 0
 # expect: 1

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# regex (ADR-0131): findAll over a fixed text, repeated. The first run may build
+# the Rust engine; the harness takes the median, so the build is an outlier.
+import regex
+
+var text = ""
+var index = 0
+while (index < 40) {
+  text = text + "the quick brown fox jumps over the lazy dog. "
+  index = index + 1
+}
+
+val re = regex.tryCompile("[a-z]+")
+if (re != nil) {
+  var total = 0
+  var round = 0
+  while (round < 20) {
+    total = total + len(re.findAll(text))
+    round = round + 1
+  }
+  print(total)
+  re.close()
+}

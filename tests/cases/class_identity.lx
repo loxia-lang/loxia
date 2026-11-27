@@ -10,7 +10,7 @@ fn make_local() -> A {
 
 val local = make_local()
 
-print(local is A);   # expect: false
-print(B() is A);     # expect: true
-print(A() is B);     # expect: false
-print((B() as A));   # expect: B instance
+print(local is A)  # expect: false
+print(B() is A)    # expect: true
+print(A() is B)    # expect: false
+print((B() as A))  # expect: B instance

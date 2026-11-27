@@ -29,6 +29,7 @@ from loxia_core.backend.lower_model import (
     Value,
     ValueType,
     _unsupported,
+    field_words,
 )
 from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import As, Is, Super, This
@@ -37,6 +38,7 @@ from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import (
     BOOL as TY_BOOL,
 )
+from loxia_core.frontend.ty import BYTES as TY_BYTES
 from loxia_core.frontend.ty import (
     FLOAT as TY_FLOAT,
 )
@@ -60,6 +62,7 @@ from loxia_core.frontend.ty import (
     ClassTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     NativeFnTy,
@@ -226,6 +229,7 @@ class ClassCodegenLowering(LoweringBase):
         )
 
         self.builder.store(raw, self._globals[layout.name].storage)
+        self.builder.call(self._function("lox_register_class", _VOID, [_I8_PTR]), [raw])
         self._emit_class_methods(layout)
         self._emit_ctor(layout)
 
@@ -452,11 +456,11 @@ class ClassCodegenLowering(LoweringBase):
 
         self._local_class_counter += 1
         key = f"{name}@{self._local_class_counter}"
-        fields = self._class_fields(stmt, 0)
+        fields = self._class_fields(stmt, 0, 0)
         methods, init, init_method, new_methods = self._class_methods(
             stmt, name, None, 0, ir_name=key
         )
-        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * len(fields))])
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * field_words(fields))])
         layout = ClassLayout(
             name,
             len(self._classes) + 1,
@@ -521,6 +525,7 @@ class ClassCodegenLowering(LoweringBase):
             vtable,
             init_closure,
         )
+        self.builder.call(self._function("lox_register_class", _VOID, [_I8_PTR]), [raw])
 
         self._emit_class_methods(layout)
         self._emit_ctor(layout)
@@ -601,7 +606,7 @@ class ClassCodegenLowering(LoweringBase):
 
     def _ctor_allocate(self, layout: ClassLayout, descriptor: Any = None) -> Value:
         assert layout.instance_type is not None
-        size = 16 + 8 * layout.field_count()
+        size = 16 + 8 * layout.word_count()
         raw = self.builder.call(
             self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
             [llvm_ir.constant(_INT, size)],
@@ -630,7 +635,9 @@ class ClassCodegenLowering(LoweringBase):
         for field in layout.all_fields():
             if field.initializer is None:
                 continue
-            value = self._coerce(self._expr(field.initializer), field.ty, field.line)
+            value = self._coerce(
+                self._expr_with_expected(field.initializer, field.annotation), field.ty, field.line
+            )
             self._store_field(instance, field, value)
 
     def _ctor_require_fields(self, layout: ClassLayout, instance: Value) -> None:
@@ -695,8 +702,28 @@ class ClassCodegenLowering(LoweringBase):
         )
 
     def _expand_alias(self, ty: Ty) -> Ty:
-        if isinstance(ty, ClassTy) and ty.name in self.type_aliases:
-            return self.type_aliases[ty.name]
+        if isinstance(ty, ClassTy):
+            if ty.name in self.type_aliases:
+                return self._expand_alias(self.type_aliases[ty.name])
+            if not ty.args and ty.name in self._interface_ids:
+                # O parser entrega `ClassTy(I)`; interface é identificada pelo id.
+                return InterfaceTy(ty.name)
+            return ty
+        if isinstance(ty, ListTy):
+            return ListTy(self._expand_alias(ty.element))
+        if isinstance(ty, MapTy):
+            return MapTy(self._expand_alias(ty.key), self._expand_alias(ty.value))
+        if isinstance(ty, TupleTy):
+            return TupleTy(tuple(self._expand_alias(item) for item in ty.items))
+        if isinstance(ty, UnionTy):
+            return UnionTy(tuple(self._expand_alias(member) for member in ty.members))
+        if isinstance(ty, FnTy):
+            return FnTy(
+                tuple(self._expand_alias(param) for param in ty.params),
+                self._expand_alias(ty.ret),
+                ty.min_params,
+                ty.variadic,
+            )
         return ty
 
     def _is_expr(self, expr: Is) -> Value:
@@ -717,6 +744,85 @@ class ClassCodegenLowering(LoweringBase):
             return self._is_any(value, test_type, target_desc, expr.operator.line)
         boxed = self._box_value(value, expr.operator.line)
         return self._is_any(boxed, test_type, target_desc, expr.operator.line)
+
+    def _type_text_desc(self, desc: TypeDesc) -> str:
+        """Texto de tipo para uma assinatura de função (ADR-0147)."""
+        if desc.optional:
+            inner = TypeDesc(desc.ty, desc.fn, False, desc.class_name, desc.interface_name)
+            return f"U<{self._type_text_desc(inner)},N>"
+        if desc.ty is ValueType.ANY:
+            return "A"
+        if desc.ty is ValueType.NIL:
+            return "N"
+        if desc.ty is ValueType.BOOL:
+            return "B"
+        if desc.ty is ValueType.INT:
+            return "I"
+        if desc.ty is ValueType.FLOAT:
+            return "F"
+        if desc.ty is ValueType.STRING:
+            return "S"
+        if desc.ty is ValueType.BYTES:
+            return "Y"
+        if desc.ty is ValueType.RANGE:
+            return "R"
+        if desc.ty is ValueType.LIST:
+            return "L<A>"
+        if desc.ty is ValueType.MAP:
+            return "M<A,A>"
+        if desc.ty is ValueType.TUPLE:
+            return "T<>"
+        if desc.ty is ValueType.ENUM:
+            layout = self._enum_layouts.get(desc.class_name or "")
+            return f"E<{layout.enum_id}>" if layout is not None else "A"
+        if desc.ty is ValueType.INSTANCE:
+            if desc.interface_name is not None:
+                interface_id = self._interface_ids.get(desc.interface_name)
+                return f"J<{interface_id}>" if interface_id is not None else "A"
+            if desc.class_name is not None:
+                layout = self._class_layout_for_type(desc.class_name)
+                return f"C<{layout.id}>" if layout is not None else "A"
+            return "A"
+        if desc.ty is ValueType.FUNCTION:
+            if desc.fn is None:
+                return "A"
+            return self._fn_sig_text(desc.fn)
+        return "A"
+
+    def _fn_sig_text(self, sig: FnSig) -> str:
+        params = ",".join(self._type_text_desc(param) for param in sig.params)
+        separator = "," if params else ""
+        return (
+            f"K<{sig.min_params},{1 if sig.variadic else 0},{len(sig.params)},"
+            f"{params}{separator}{self._type_text_desc(sig.ret)}>"
+        )
+
+    def _fn_sig_pointer(self, sig: FnSig, text: str | None = None) -> Any:
+        return self.builder.call(
+            self._function("lox_fn_sig_cached", _I8_PTR, [_I8_PTR]),
+            [self._cstring_pointer(text if text is not None else self._fn_sig_text(sig))],
+        )
+
+    def _closure_sig_fields(self, closure: Any, sig: FnSig, fn_ty: FnTy | None = None) -> None:
+        text = self._fn_sig_text(sig)
+        if fn_ty is not None:
+            try:
+                text = self._type_text(fn_ty, 0)
+            except BackendError:
+                text = self._fn_sig_text(sig)
+        maximum = 2**63 - 1 if sig.variadic else len(sig.params)
+        self.builder.store(
+            llvm_ir.constant(_INT, sig.min_params),
+            self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 3)]),
+        )
+        self.builder.store(
+            llvm_ir.constant(_INT, maximum),
+            self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 4)]),
+        )
+        self.builder.store(
+            self._fn_sig_pointer(sig, text),
+            self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 5)]),
+        )
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
         """`Any is T` com checagem recursiva (listas, mapas, tuplas, enums).
@@ -751,6 +857,8 @@ class ClassCodegenLowering(LoweringBase):
             return "F"
         if ty is TY_STRING:
             return "S"
+        if ty is TY_BYTES:
+            return "Y"
         if ty is TY_RANGE:
             return "R"
         if isinstance(ty, ListTy):
@@ -784,42 +892,21 @@ class ClassCodegenLowering(LoweringBase):
             if mapped is None:
                 raise _unsupported(f"Unbound type parameter '{ty.name}'", line)
             return self._type_text(mapped, line)
-        if isinstance(ty, (FnTy, NativeFnTy, ClassObjectTy)):
+        if isinstance(ty, InterfaceTy):
+            interface_id = self._interface_ids.get(ty.name)
+            if interface_id is None:
+                raise _unsupported(f"Interface '{ty.name}'", line)
+            return f"J<{interface_id}>"
+        if isinstance(ty, FnTy):
+            params = ",".join(self._type_text(param, line) for param in ty.params)
+            separator = "," if params else ""
+            return (
+                f"K<{ty.min_params},{1 if ty.variadic else 0},{len(ty.params)},"
+                f"{params}{separator}{self._type_text(ty.ret, line)}>"
+            )
+        if isinstance(ty, (NativeFnTy, ClassObjectTy)):
             return "X"
         raise _unsupported(f"Type '{ty}'", line)
-
-    def _tag_of(self, desc: TypeDesc) -> int:
-        from loxia_core.backend.lower_model import (
-            ANY_TAG_BOOL,
-            ANY_TAG_CLASS,
-            ANY_TAG_ENUM,
-            ANY_TAG_FLOAT,
-            ANY_TAG_FUNCTION,
-            ANY_TAG_INSTANCE,
-            ANY_TAG_INT,
-            ANY_TAG_LIST,
-            ANY_TAG_MAP,
-            ANY_TAG_NIL,
-            ANY_TAG_RANGE,
-            ANY_TAG_STRING,
-            ANY_TAG_TUPLE,
-        )
-
-        return {
-            ValueType.INT: ANY_TAG_INT,
-            ValueType.FLOAT: ANY_TAG_FLOAT,
-            ValueType.BOOL: ANY_TAG_BOOL,
-            ValueType.STRING: ANY_TAG_STRING,
-            ValueType.NIL: ANY_TAG_NIL,
-            ValueType.CLASS: ANY_TAG_CLASS,
-            ValueType.INSTANCE: ANY_TAG_INSTANCE,
-            ValueType.FUNCTION: ANY_TAG_FUNCTION,
-            ValueType.RANGE: ANY_TAG_RANGE,
-            ValueType.LIST: ANY_TAG_LIST,
-            ValueType.MAP: ANY_TAG_MAP,
-            ValueType.TUPLE: ANY_TAG_TUPLE,
-            ValueType.ENUM: ANY_TAG_ENUM,
-        }[desc.ty]
 
     def _as_any(
         self, expr: As, value: Value, target_desc: TypeDesc, target_ty: Ty | None = None
@@ -925,15 +1012,43 @@ class ClassCodegenLowering(LoweringBase):
         return Value(ValueType.FLOAT, merged)
 
     def _as_expr(self, expr: As) -> Value:
-        target_ty = self._subst_ty(expr.target_type)
+        target_ty = self._expand_alias(self._subst_ty(expr.target_type))
         target_desc = self._type_desc(target_ty, expr.operator.line)
         value = self._expr(expr.left)
         if value.ty is ValueType.ANY:
             return self._as_any(expr, value, target_desc, target_ty)
+        if isinstance(target_ty, FnTy):
+            if value.optional:
+                value = self._unwrap(
+                    value,
+                    expr.operator.line,
+                    f"Can't cast value to {display(target_ty)}.",
+                    column=expr.operator.column,
+                    code=Code.RUNTIME_CAST,
+                )
+            # O checker já comparou assinatura e representação quando a origem é
+            # um `FnTy` estático, mas o slot pode ser a sentinela de função não
+            # inicializada (nil), então a checagem de runtime vale para todos.
+            # União/`Any`: a assinatura real do closure é checada em runtime, como
+            # no tree-walk (um default a menos no alvo falha R1011).
+            boxed = self._box_value(value, expr.operator.line)
+            return self._as_any(expr, boxed, target_desc, target_ty)
+        if isinstance(target_ty, InterfaceTy):
+            # A interface é um ponteiro de instância; o matcher confere a tabela
+            # de interfaces do descritor (ADR-0146).
+            boxed = self._box_value(value, expr.operator.line)
+            return self._as_any(expr, boxed, target_desc, target_ty)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
+            target_name = "Float" if target_desc.ty is ValueType.FLOAT else "Int"
             if value.optional:
-                value = self._unwrap(value, expr.operator.line, "Can't cast value to Int.")
+                value = self._unwrap(
+                    value,
+                    expr.operator.line,
+                    f"Can't cast value to {target_name}.",
+                    column=expr.operator.column,
+                    code=Code.RUNTIME_CAST,
+                )
             if target_desc.ty is ValueType.FLOAT:
                 if value.ty is ValueType.FLOAT:
                     return value
@@ -967,6 +1082,7 @@ class ClassCodegenLowering(LoweringBase):
                 ValueType.MAP,
                 ValueType.TUPLE,
                 ValueType.ENUM,
+                ValueType.BYTES,
             )
             and value.ty is target_desc.ty
             and not value.optional
@@ -974,11 +1090,14 @@ class ClassCodegenLowering(LoweringBase):
             return value
 
         target = self._target_class(target_ty, expr.operator.line)
+        target_display = display(target_ty)
         if value.optional:
             value = self._unwrap(
                 value,
                 expr.operator.line,
-                f"Can't cast value to {target}.",
+                f"Can't cast value to {target_display}.",
+                column=expr.operator.column,
+                code=Code.RUNTIME_CAST,
             )
         check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
@@ -986,7 +1105,11 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.operator, f"Can't cast value to {target}.", code=Code.RUNTIME_CAST)
+        self._poison(
+            expr.operator,
+            f"Can't cast value to {target_display}.",
+            code=Code.RUNTIME_CAST,
+        )
 
         self.builder = llvm_ir.builder(ok)
         return Value(
@@ -1008,6 +1131,7 @@ class ClassCodegenLowering(LoweringBase):
         display: str,
         sig: FnSig,
         function: FunctionInfo | None = None,
+        fn_ty: FnTy | None = None,
     ) -> Value:
         raw = self.builder.call(self._function("lox_alloc_closure", _I8_PTR, []), [])
         closure = self.builder.bitcast(raw, _CLOSURE.as_pointer())
@@ -1032,6 +1156,7 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 2)],
             ),
         )
+        self._closure_sig_fields(closure, sig, fn_ty)
         return Value(ValueType.FUNCTION, raw, sig, function=function)
 
     def _method_thunk(self, layout: ClassLayout, method: MethodLayout) -> Any:
@@ -1135,6 +1260,7 @@ class ClassCodegenLowering(LoweringBase):
             method.info.fn_sig,
             self._method_thunk(layout, method),
             method_closure,
+            function=method.info,
         )
 
     def _bind_closure(
@@ -1166,7 +1292,14 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)],
             ),
         )
-        return self._make_raw_closure(thunk, raw_env, f"<fn {name}>", sig, function)
+        return self._make_raw_closure(
+            thunk,
+            raw_env,
+            f"<fn {name}>",
+            sig,
+            function,
+            fn_ty=function.fn_ty if function is not None else None,
+        )
 
     def _bound_method(self, instance: Value, layout: ClassLayout, method: MethodLayout) -> Value:
         struct_ = self._instance_struct(instance, 0)

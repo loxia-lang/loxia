@@ -1,10 +1,12 @@
 fn soma(a: Int, b: Int) -> Int {
-  return a + b;
+  return a + b
 }
-print(soma(1, 2));  # expect: 3
-print(soma);        # expect: <fn soma>
+
+print(soma(1, 2))  # expect: 3
+print(soma)        # expect: <fn soma>
 
 fn vazio() -> Nil {
-  return;
+  return
 }
-print(vazio());     # expect: nil
+
+print(vazio()) # expect: nil

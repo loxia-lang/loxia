@@ -4,12 +4,10 @@
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any, cast
 
-ROOT = Path(__file__).resolve().parents[1]
+from tests.inprocess import Result, run_cli
 
 UNUSED = """fn f() -> Int {
   val unused = 1
@@ -25,24 +23,12 @@ TYPO = """fn f() -> Nil {
 """
 
 
-def run_fix(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, "-m", "loxia", "fix", str(path), *args],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def run_fix(path: Path, *args: str) -> Result:
+    return run_cli("fix", str(path), *args)
 
 
-def run_program(path: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, "-m", "loxia", "run", str(path)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def run_program(path: Path) -> Result:
+    return run_cli("run", str(path))
 
 
 def test_dry_run_nao_escreve(tmp_path: Path) -> None:
@@ -107,13 +93,7 @@ def test_w1002_remove_unused_import(tmp_path: Path) -> None:
     entry.write_text("from mod import unused;\nprint(1)\n", encoding="utf-8")
     before = run_program(entry)
     assert before.returncode == 0
-    check = subprocess.run(
-        [sys.executable, "-m", "loxia", "check", "--json", str(entry)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    check = run_cli("check", "--json", str(entry))
     assert '"W1002"' in check.stdout
     assert '"applicability": "safe"' in check.stdout
     result = run_fix(entry, "--apply")
@@ -134,13 +114,7 @@ def test_w1002_nao_marca_uso_em_tipo(tmp_path: Path) -> None:
         "from types import Thing\nval thing: Thing = Thing(1)\nprint(thing.value)\n",
         encoding="utf-8",
     )
-    check = subprocess.run(
-        [sys.executable, "-m", "loxia", "check", "--json", str(entry)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    check = run_cli("check", "--json", str(entry))
     assert check.returncode == 0, check.stdout
     assert '"W1002"' not in check.stdout
 
@@ -206,13 +180,7 @@ def test_e3004_sem_tipo_exato_nao_ganha_fix(tmp_path: Path) -> None:
     source = "fn f(x) -> Int { return x }\nprint(f(1))\n"
     path = tmp_path / "annotation_unknown.lx"
     path.write_text(source, encoding="utf-8")
-    checked = subprocess.run(
-        [sys.executable, "-m", "loxia", "check", "--json", str(path)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    checked = run_cli("check", "--json", str(path))
     payload = json.loads(checked.stdout)
     diagnostic = next(item for item in payload["diagnostics"] if item["code"] == "E3004")
     assert diagnostic["fixes"] == []
@@ -258,22 +226,10 @@ def test_fixes_unsafe_produzem_codigo_valido(tmp_path: Path) -> None:
     for name, (source, code) in cases.items():
         path = tmp_path / f"{name}.lx"
         path.write_text(source, encoding="utf-8")
-        checked = subprocess.run(
-            [sys.executable, "-m", "loxia", "check", "--json", str(path)],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        checked = run_cli("check", "--json", str(path))
         payload = json.loads(checked.stdout)
         diagnostic = next(item for item in payload["diagnostics"] if item["code"] == code)
         fixed = _apply_fix_edits(source, diagnostic["fixes"][0])
         path.write_text(fixed, encoding="utf-8")
-        after = subprocess.run(
-            [sys.executable, "-m", "loxia", "check", str(path)],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        after = run_cli("check", str(path))
         assert after.returncode == 0, (name, fixed, after.stdout)

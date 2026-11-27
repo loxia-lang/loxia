@@ -439,6 +439,31 @@ def test_capabilities_json_is_deterministic() -> None:
     assert payload["fixes"]["implemented"] is True
 
 
+def test_capabilities_publishes_primitives_and_budget() -> None:
+    payload = json.loads(run_cli("capabilities", "--json").stdout)
+    primitives = payload["primitives"]
+
+    assert len(primitives) == 40
+    assert primitives[0] == {
+        "name": "substr",
+        "group": "core",
+        "layer": "core",
+        "ambient": False,
+        "native_only": False,
+        "site": True,
+    }
+    assert payload["kernel_budget"]["total"] == 40
+    assert payload["kernel_budget"]["groups"]["fs"] == 11
+    assert payload["native_modules"] == [
+        {"name": "regex_engine", "budget": 4, "used": 4},
+        {"name": "sqlite3", "budget": 20, "used": 0},
+    ]
+    human = run_cli("capabilities").stdout
+    assert "primitives: 40 (" in human
+    assert "layers: " in human
+    assert "native modules: regex_engine 4/4" in human
+
+
 def test_explain_known_and_unknown_code() -> None:
     known = run_cli("explain", "E2001")
     warning = run_cli("explain", "W1001")
@@ -861,6 +886,19 @@ class Box {
     assert symbols["value"]["container"] == "Box"
 
 
+def test_repl_narrows_function_values() -> None:
+    result = _run_repl(
+        "fn dobro(x: Int) -> Int { return x * 2 }\n"
+        "val a: Any = dobro\n"
+        "print(a is fn(Int) -> Int)\n"
+        "print((a as fn(Int) -> Int)(4))\n"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "true" in result.stdout
+    assert "8" in result.stdout
+
+
 def _run_repl(stdin: str, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), "repl", *args],
@@ -966,3 +1004,44 @@ def test_todo_comando_tem_handler_e_parser() -> None:
     assert set(HANDLERS) == set(COMMANDS)
     for command in COMMANDS:
         assert _build_subcommand_parser(command).prog == f"loxia {command}"
+
+
+def test_check_gradual_accepts_missing_annotations(tmp_path: Path) -> None:
+    script = tmp_path / "gradual.lx"
+    script.write_text("fn f(x) { return x }\nprint(f(1))\n", encoding="utf-8")
+
+    result = run_cli("check", "--gradual", str(script))
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert "warning[E3004]" in result.stderr
+
+
+def test_legacy_check_gradual_accepts_missing_annotations(tmp_path: Path) -> None:
+    script = tmp_path / "gradual.lx"
+    script.write_text("fn f(x) { return x }\nprint(f(1))\n", encoding="utf-8")
+
+    result = run_cli("--check", "--gradual", str(script))
+
+    assert result.returncode == 0
+    assert "warning[E3004]" in result.stderr
+
+
+def test_check_gradual_still_rejects_type_errors(tmp_path: Path) -> None:
+    script = tmp_path / "gradual.lx"
+    script.write_text('fn f(x: Int) -> Int { return x }\nprint(f("a"))\n', encoding="utf-8")
+
+    result = run_cli("check", "--gradual", str(script))
+
+    assert result.returncode == 65
+    assert "Expected Int, found String." in result.stderr
+
+
+def test_gradual_in_legacy_mode_requires_check(tmp_path: Path) -> None:
+    script = tmp_path / "programa.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = run_cli("--gradual", str(script))
+
+    assert result.returncode == 2
+    assert "--gradual requires --check" in result.stderr

@@ -1,7 +1,12 @@
 # `super` is lexical in lambdas and local functions (ADR-0022/ADR-0040).
 class A {
-  fn value() -> Int { return 1 }
-  fn name() -> String { return "A" }
+  fn value() -> Int {
+    return 1
+  }
+
+  fn name() -> String {
+    return "A"
+  }
 }
 
 class B(A) {
@@ -10,7 +15,9 @@ class B(A) {
   }
 
   fn viaLocal() -> String {
-    fn inner() -> String { return super.name() }
+    fn inner() -> String {
+      return super.name()
+    }
     return inner()
   }
 }

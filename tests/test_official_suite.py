@@ -12,16 +12,18 @@ Os `.lx` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import re
-import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from loxia.engine import Loxia
+from tests.inprocess import Result, run_cli
+
 CASES = Path(__file__).resolve().parent / "official" / "cases"
 
 OUTPUT_RE = re.compile(r"//\s*expect:\s?(.*)")
@@ -34,6 +36,53 @@ SNIPPET_LINE = re.compile(r"^\s*\d+ \|")
 CLASS_RE = re.compile(r"\bclass\s+(\w+)(?:\s*\(\s*(\w+)\s*\))?\s*\{")
 THIS_FIELD_RE = re.compile(r"\bthis\.(\w+)\s*=")
 DECLARED_RE = re.compile(r"\b(?:var|val)\s+(\w+)")
+
+# Fase 2 do ADR-0142: o check bloqueia antes de executar; estes 26 casos do livro
+# esperavam erro de runtime e agora saem 65 com o diagnóstico do checker. O valor é
+# a mensagem que o harness exige no stderr (o livro é o oráculo da linguagem, não do
+# momento do erro).
+CHECK_BLOCKED: dict[str, str] = {
+    "call/bool.lx": "Can only call functions and classes.",
+    "call/nil.lx": "Can only call functions and classes.",
+    "call/num.lx": "Can only call functions and classes.",
+    "call/object.lx": "Can only call functions and classes.",
+    "call/string.lx": "Can only call functions and classes.",
+    "field/get_on_bool.lx": "Only instances have properties.",
+    "field/get_on_class.lx": "Only instances have properties.",
+    "field/get_on_function.lx": "Only instances have properties.",
+    "field/get_on_nil.lx": "Only instances have properties.",
+    "field/get_on_num.lx": "Only instances have properties.",
+    "field/get_on_string.lx": "Only instances have properties.",
+    "field/set_on_bool.lx": "Only instances have fields.",
+    "field/set_on_class.lx": "Only instances have fields.",
+    "field/set_on_function.lx": "Only instances have fields.",
+    "field/set_on_nil.lx": "Only instances have fields.",
+    "field/set_on_num.lx": "Only instances have fields.",
+    "field/set_on_string.lx": "Only instances have fields.",
+    "field/undefined.lx": "Undefined property 'bar'.",
+    "inheritance/inherit_from_function.lx": "Unknown superclass 'foo'.",
+    "inheritance/inherit_from_nil.lx": "Unknown superclass 'Nil'.",
+    "inheritance/inherit_from_number.lx": "Unknown superclass 'Number'.",
+    "method/not_found.lx": "Undefined property 'unknown'.",
+    "super/extra_arguments.lx": "Method 'foo' is incompatible with the superclass method",
+    "super/missing_arguments.lx": "Method 'foo' is incompatible with the superclass method",
+    "super/no_superclass_method.lx": "Undefined property 'doesNotExist'.",
+    "super/reassign_superclass.lx": "Expected Base, found OtherBase.",
+    # ADR-0144: o checker exige narrowing antes de membro/chamada em `Any`. A camada
+    # dinâmica da suíte oficial anota retornos/parâmetros como `Any`, então estes
+    # positivos do livro passam a ser bloqueados; o oráculo do interpretador segue
+    # verificado em `test_official_case` via `Loxia(check_on_run=False)`.
+    "closure/close_over_function_parameter.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "closure/close_over_method_parameter.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "closure/nested_closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "function/nested_call_with_arguments.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "super/bound_method.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "super/closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "super/super_in_closure_in_inherited_method.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "this/closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "this/nested_closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "this/this_in_method.lx": "Can't access a member of `Any`; narrow it with `is` or cast it with `as` first.",
+}
 
 DYNAMIC_FIELD_TESTS = {
     "field/call_function_field.lx",
@@ -246,7 +295,7 @@ def _cases() -> list[pytest.ParameterSet]:
 CASES_PARAMS = _cases()
 
 
-def _execute(path: Path) -> subprocess.CompletedProcess[str]:
+def _execute(path: Path) -> Result:
     source = path.read_text(encoding="utf-8")
     adapted = adapt_source(source)
 
@@ -255,16 +304,26 @@ def _execute(path: Path) -> subprocess.CompletedProcess[str]:
         temporary = Path(file.name)
 
     try:
-        return subprocess.run(
-            [sys.executable, str(ROOT / "main.py"), str(temporary)],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
-        )
+        return run_cli(str(temporary))
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _run_interpreter(source: str) -> tuple[list[str], str, int]:
+    """Roda o fonte adaptado sem o check, para preservar o oráculo de runtime do livro.
+
+    Os casos `CHECK_BLOCKED` são recusados pelo checker antes de executar; o
+    interpretador continua sendo a especificação executável e precisa produzir o
+    stdout/erro que o livro espera.
+    """
+    lox = Loxia(check_on_run=False)
+    lox.use_file("<official>")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        lox.run(source)
+    code = 65 if lox.reporter.had_error else 70 if lox.reporter.had_runtime_error else 0
+    return stdout.getvalue().splitlines(), stderr.getvalue(), code
 
 
 def _without_snippet(stderr: str) -> str:
@@ -282,6 +341,40 @@ def test_official_case(path: Path) -> None:
     expectations = parse_expectations(source)
     result = _execute(path)
     stdout = result.stdout.splitlines()
+
+    name = path.relative_to(CASES).as_posix()
+    if name in CHECK_BLOCKED:
+        # O check bloqueia antes de executar: nada de stdout, exit 65 e a mensagem.
+        assert result.returncode == 65, (
+            f"esperado exit 65, obtido {result.returncode}\nstderr:\n{result.stderr}"
+        )
+        assert CHECK_BLOCKED[name] in result.stderr, (
+            f"erro de check esperado: {CHECK_BLOCKED[name]!r}\nstderr:\n{result.stderr}"
+        )
+        assert stdout == [], f"stdout deveria estar vazio, obtido {stdout!r}"
+        # O check bloqueia, mas o oráculo do livro (stdout/erro de runtime) continua
+        # valendo para o interpretador, que é a especificação executável.
+        interpreter_stdout, interpreter_stderr, interpreter_code = _run_interpreter(
+            adapt_source(source)
+        )
+        if expectations.runtime_error is not None:
+            assert interpreter_code == 70, (
+                f"interpretador: esperado exit 70, obtido {interpreter_code}\n"
+                f"stderr:\n{interpreter_stderr}"
+            )
+            assert expectations.runtime_error in interpreter_stderr, (
+                f"interpretador: runtime error esperado: {expectations.runtime_error!r}\n"
+                f"stderr:\n{interpreter_stderr}"
+            )
+        else:
+            assert interpreter_code == 0, (
+                f"interpretador: esperado exit 0, obtido {interpreter_code}\n"
+                f"stderr:\n{interpreter_stderr}"
+            )
+        assert interpreter_stdout == expectations.stdout, (
+            f"interpretador: stdout esperado {expectations.stdout!r}, obtido {interpreter_stdout!r}"
+        )
+        return
 
     if expectations.runtime_error is not None:
         assert result.returncode == 70, (

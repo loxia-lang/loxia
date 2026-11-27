@@ -7,35 +7,34 @@ LSP-0: full sync, diagnostics e documentSymbol. LSP-1: hover/definition via
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
+import queue
 import re
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, cast
+from typing import IO, TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import unquote, urlparse
 
 from loxia import __version__
-from loxia.builtins_docs import BUILTIN_DOCS
-from loxia.completion import complete as completion_items
-from loxia.completion import declared_type as completion_declared_type
-from loxia.completion import enclosing_context as completion_context
-from loxia.completion import superclass_name as completion_superclass
 from loxia.engine import Loxia
-from loxia.formatter import format_source
-from loxia.rename import semantic_references, semantic_rename, semantic_target
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
 from loxia.symbols import Symbol, SymbolIndex, token_key
+from loxia_core.bundle import bundle_dir
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
     Span,
 )
 from loxia_core.diagnostics.error_reporter import ErrorReporter
-from loxia_core.diagnostics.source import display_path
+from loxia_core.diagnostics.source import SourceMap, display_path
 from loxia_core.frontend.keywords import KEYWORDS
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.stmt import (
     Class,
     EnumDecl,
@@ -56,9 +55,20 @@ from loxia_core.frontend.ty import (
     InterfaceTy,
     Ty,
     UnionTy,
-    display,
 )
+from loxia_core.loader.loader import SOURCE_SUFFIX, ModuleLoader
+from loxia_core.loader.module_cache import ModuleCache
 from loxia_core.semantics.resolver import Resolver
+
+if TYPE_CHECKING:
+    from loxia.rename import WorkspaceCache
+    from loxia_core.semantics.checker import Checker
+
+# Mesmo default de `loxia.formatter.engine`; importar o formatter aqui paga o
+# printer inteiro no startup do LSP, e nenhum handler roda antes de initialize.
+DEFAULT_MAX_WIDTH = 100
+_WORKSPACE_SKIP_DIRS = frozenset({"node_modules"})
+_DISK_FILES_LIMIT = 4096
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
@@ -179,7 +189,61 @@ class Document:
     uri: str
 
 
-def _read_message(stream: IO[bytes]) -> dict[str, Any] | None:
+@dataclass
+class Analysis:
+    """Resultado de uma análise de documento; publicar é decisão do chamador."""
+
+    document: Document
+    version: int
+    lox: Loxia
+    sources: SourceMap
+    diagnostics: tuple[Diagnostic, ...]
+    statements: list[Stmt]
+    checker: Checker | None
+    resolver: Resolver | None
+
+
+class _ByteReader(Protocol):
+    def readline(self) -> bytes: ...
+
+    def read(self, size: int) -> bytes: ...
+
+
+class _RawInput:
+    """Leitor cru do stdin, para a thread daemon não travar o shutdown.
+
+    `BufferedReader.readline()` numa thread daemon segura o lock do buffer e o CPython
+    aborta na finalização (`_enter_buffered_busy`); ler o fd direto evita isso.
+    """
+
+    def __init__(self, fd: int) -> None:
+        self._fd = fd
+        self._buffer = b""
+
+    def readline(self) -> bytes:
+        while True:
+            newline = self._buffer.find(b"\n")
+            if newline >= 0:
+                line = self._buffer[: newline + 1]
+                self._buffer = self._buffer[newline + 1 :]
+                return line
+            chunk = os.read(self._fd, 65536)
+            if not chunk:
+                line, self._buffer = self._buffer, b""
+                return line
+            self._buffer += chunk
+
+    def read(self, size: int) -> bytes:
+        while len(self._buffer) < size:
+            chunk = os.read(self._fd, 65536)
+            if not chunk:
+                break
+            self._buffer += chunk
+        data, self._buffer = self._buffer[:size], self._buffer[size:]
+        return data
+
+
+def _read_message(stream: _ByteReader) -> dict[str, Any] | None:
     headers: dict[str, str] = {}
     while True:
         line = stream.readline()
@@ -290,6 +354,58 @@ def _position_at(source: str, offset: int) -> dict[str, int]:
     line = prefix.count("\n")
     last = prefix.rsplit("\n", 1)[-1]
     return {"line": line, "character": len(last.encode("utf-16-le")) // 2}
+
+
+def _code_point_offset(text: str, line: int, character: int) -> int:
+    """Índice em code points para uma posição LSP (linha, code units UTF-16)."""
+    index = 0
+    remaining = max(0, line)
+    while remaining > 0:
+        newline = text.find("\n", index)
+        if newline < 0:
+            return len(text)
+        index = newline + 1
+        remaining -= 1
+    units = 0
+    while index < len(text) and text[index] != "\n":
+        if units >= character:
+            return index
+        units += len(text[index].encode("utf-16-le")) // 2
+        index += 1
+    return index
+
+
+def _apply_change(document: Document, change: dict[str, Any]) -> None:
+    """Aplica um `TextDocumentContentChangeEvent`; sem `range`, substitui tudo."""
+    text = change.get("text")
+    if not isinstance(text, str):
+        return
+    rng = change.get("range")
+    if not isinstance(rng, dict):
+        document.text = text
+        return
+    start = rng.get("start")
+    end = rng.get("end")
+    if not isinstance(start, dict) or not isinstance(end, dict):
+        document.text = text
+        return
+    start_line = start.get("line")
+    start_character = start.get("character")
+    end_line = end.get("line")
+    end_character = end.get("character")
+    if (
+        not isinstance(start_line, int)
+        or not isinstance(start_character, int)
+        or not isinstance(end_line, int)
+        or not isinstance(end_character, int)
+    ):
+        document.text = text
+        return
+    start_offset = _code_point_offset(document.text, start_line, start_character)
+    end_offset = _code_point_offset(document.text, end_line, end_character)
+    if end_offset < start_offset:
+        start_offset, end_offset = end_offset, start_offset
+    document.text = document.text[:start_offset] + text + document.text[end_offset:]
 
 
 def _module_of(path: Path, root: Path) -> tuple[str, ...] | None:
@@ -475,13 +591,30 @@ class Server:
         self.stdout = stdout
         self.documents: dict[str, Document] = {}
         self.indexes: dict[str, SymbolIndex] = {}
+        # Fonte de verdade dos spans para navegação local (#130): nome de
+        # declaração e nome de tipo saem daqui, não do range do token.
+        self.source_indexes: dict[str, SourceIndex] = {}
+        self.source_files: dict[str, str] = {}
         self.source_maps: dict[str, object] = {}
+        self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
+        # Insumos da última análise: o `SymbolIndex` nasce só na primeira navegação.
+        self.analyses: dict[str, Analysis] = {}
+        self.semantic_cache: WorkspaceCache | None = None
+        # Parse de módulos por conteúdo (ADR-0143): imports intactos não são reparseados.
+        self.parse_cache = ModuleCache()
+        # Texto do disco por (mtime, ctime, inode, tamanho); buffers abertos não entram aqui.
+        self._disk_files: dict[Path, tuple[int, int, int, int, str]] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
+        # Fila da thread leitora e documentos com análise pendente (coalescing).
+        self._messages: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        self._dirty: dict[str, int] = {}
+        self._read_error: BaseException | None = None
         self.root: Path | None = None
         self.shutdown = False
         self.inlay_hints = True
         self.inherited_members = True
+        self.max_width = DEFAULT_MAX_WIDTH
 
     def _apply_settings(self, data: object) -> None:
         if not isinstance(data, dict):
@@ -492,11 +625,26 @@ class Server:
         completion = data.get("completion")
         if isinstance(completion, dict) and isinstance(completion.get("inheritedMembers"), bool):
             self.inherited_members = completion["inheritedMembers"]
+        formatter = data.get("formatter")
+        if isinstance(formatter, dict):
+            max_width = formatter.get("maxWidth")
+            if isinstance(max_width, int) and 20 <= max_width <= 1000:
+                self.max_width = max_width
 
     def run(self) -> int:
+        """Serve JSON-RPC até EOF, coalescendo edições antes de analisar.
+
+        A thread leitora só enfileira mensagens; toda a mutação de estado (documentos,
+        caches, stdout) continua na thread principal. Uma request sempre roda depois de
+        um flush, então ela nunca vê um índice construído para outro texto.
+        """
+        reader = threading.Thread(target=self._read_loop, name="lsp-stdin", daemon=True)
+        reader.start()
         while True:
-            message = _read_message(self.stdin)
+            message = self._messages.get()
             if message is None:
+                if self._read_error is not None:
+                    raise self._read_error
                 return 0
             method = message.get("method")
             if not isinstance(method, str):
@@ -504,9 +652,63 @@ class Server:
             if method == "exit":
                 return 0 if self.shutdown else 1
             if "id" in message:
+                self._flush_dirty()
                 self._request(message, method)
             else:
                 self._notification(method, message.get("params"))
+            if self._messages.empty():
+                self._flush_dirty()
+
+    def _read_loop(self) -> None:
+        stream: _ByteReader = self.stdin
+        with contextlib.suppress(AttributeError, OSError, ValueError):
+            stream = _RawInput(self.stdin.fileno())
+        try:
+            while True:
+                message = _read_message(stream)
+                if message is None:
+                    return
+                self._messages.put(message)
+        except BaseException as error:  # re-raised on the main thread
+            self._read_error = error
+        finally:
+            self._messages.put(None)
+
+    def _mark_dirty(self, uri: str) -> None:
+        document = self.documents.get(uri)
+        if document is not None:
+            self._dirty[uri] = document.version
+
+    def _flush_dirty(self) -> None:
+        """Analisa e publica os documentos pendentes, na ordem em que ficaram sujos.
+
+        A analysis não publica; publicar aqui, uma vez por documento, é o que
+        coalesce a rajada de teclas. O documento editado sai primeiro e os
+        importadores abertos entram na fila em seguida: o loader lê o texto não salvo
+        via `module_overrides` (ADR-0090), então a análise deles já vê a edição.
+        """
+        done: set[str] = set()
+        while self._dirty:
+            uri = next(iter(self._dirty))
+            del self._dirty[uri]
+            if uri in done:
+                continue
+            done.add(uri)
+            document = self.documents.get(uri)
+            if document is None:
+                continue
+            self._publish_analysis(self._analyze(document))
+            if document.path is not None:
+                self._dependents_dirty(document.path, skip_uri=uri)
+
+    def _dependents_dirty(self, path: Path, *, skip_uri: str) -> None:
+        """Marca para recheck os abertos cujo import closure inclui o módulo alterado."""
+        changed = path.resolve()
+        for uri, dependencies in list(self.dependencies.items()):
+            if uri == skip_uri or changed not in dependencies:
+                continue
+            if uri in self.documents:
+                self._dirty[uri] = self.documents[uri].version
 
     # -- dispatch --------------------------------------------------------
 
@@ -724,23 +926,34 @@ class Server:
         elif method == "textDocument/didChange":
             self._change(params)
         elif method == "textDocument/didSave":
-            self._publish(params.get("textDocument"))
+            self._save(params.get("textDocument"))
         elif method == "textDocument/didClose":
-            document = params.get("textDocument")
-            if isinstance(document, dict) and isinstance(document.get("uri"), str):
-                uri = document["uri"]
-                closed = self.documents.pop(uri, None)
-                self.indexes.pop(uri, None)
-                self.dependencies.pop(uri, None)
-                _send(
-                    self.stdout,
-                    _notification(
-                        "textDocument/publishDiagnostics",
-                        {"uri": uri, "diagnostics": []},
-                    ),
-                )
-                if closed is not None and closed.path is not None:
-                    self._recheck_dependents(closed.path, skip_uri=uri)
+            self._close(params)
+
+    def _save(self, document: object) -> None:
+        if isinstance(document, dict) and isinstance(document.get("uri"), str):
+            uri = document["uri"]
+            if uri in self.documents:
+                self._mark_dirty(uri)
+
+    def _close(self, params: dict[str, Any]) -> None:
+        document = params.get("textDocument")
+        if not (isinstance(document, dict) and isinstance(document.get("uri"), str)):
+            return
+        uri = document["uri"]
+        closed = self.documents.pop(uri, None)
+        self._invalidate(uri)
+        self.dependencies.pop(uri, None)
+        self._dirty.pop(uri, None)
+        _send(
+            self.stdout,
+            _notification(
+                "textDocument/publishDiagnostics",
+                {"uri": uri, "diagnostics": []},
+            ),
+        )
+        if closed is not None and closed.path is not None:
+            self._dependents_dirty(closed.path, skip_uri=uri)
 
     # -- documentos ------------------------------------------------------
 
@@ -757,8 +970,8 @@ class Server:
             path=path,
             uri=uri,
         )
-        self.indexes.pop(uri, None)
-        self._publish_by_uri(uri)
+        self._invalidate(uri)
+        self._mark_dirty(uri)
 
     def _change(self, params: dict[str, Any]) -> None:
         document = params.get("textDocument")
@@ -771,55 +984,50 @@ class Server:
         current = self.documents.get(uri)
         if current is None or not changes:
             return
-        change = changes[0]
-        if not isinstance(change, dict) or not isinstance(change.get("text"), str):
-            return
+        for change in changes:
+            if isinstance(change, dict):
+                _apply_change(current, change)
         version = document.get("version", current.version)
-        current.text = change["text"]
         if isinstance(version, int):
             current.version = version
+        self._invalidate(uri)
+        self._mark_dirty(uri)
+
+    def _workspace_cache(self) -> WorkspaceCache:
+        from loxia.rename import WorkspaceCache
+
+        if self.semantic_cache is None:
+            self.semantic_cache = WorkspaceCache()
+        return self.semantic_cache
+
+    def _invalidate(self, uri: str) -> None:
+        """Descarta todo o estado derivado de um documento."""
+        path = _uri_to_path(uri)
+        if path is not None:
+            self._disk_files.pop(path, None)
         self.indexes.pop(uri, None)
-        self._publish_by_uri(uri)
-        if current.path is not None:
-            self._recheck_dependents(current.path, skip_uri=uri)
-
-    def _recheck_dependents(self, path: Path, *, skip_uri: str) -> None:
-        """Recheca documentos abertos cujo import closure inclui o módulo alterado.
-
-        O loader lê o texto não salvo via `module_overrides` (ADR-0090, limitação
-        declarada); a ordem publica o documento alterado primeiro e os importadores
-        depois, para o editor não mostrar um diagnóstico velho.
-        """
-        changed = path.resolve()
-        for uri, dependencies in list(self.dependencies.items()):
-            if uri == skip_uri or changed not in dependencies:
-                continue
-            self.indexes.pop(uri, None)
-            self._publish_by_uri(uri)
-
-    def _publish(self, document: object) -> None:
-        if isinstance(document, dict) and isinstance(document.get("uri"), str):
-            self._publish_by_uri(document["uri"])
-
-    def _publish_by_uri(self, uri: str) -> None:
-        document = self.documents.get(uri)
-        if document is None:
-            return
-        _send(
-            self.stdout,
-            _notification(
-                "textDocument/publishDiagnostics",
-                {
-                    "uri": uri,
-                    "version": document.version,
-                    "diagnostics": self._diagnostics(document),
-                },
-            ),
-        )
+        self.analyses.pop(uri, None)
+        self.source_indexes.pop(uri, None)
+        self.source_files.pop(uri, None)
+        self.source_maps.pop(uri, None)
+        self.module_files.pop(uri, None)
+        self.clean.pop(uri, None)
+        if self.semantic_cache is not None:
+            self.semantic_cache.clear()
 
     # -- diagnóstico -----------------------------------------------------
 
-    def _diagnostics(self, document: Document) -> list[dict[str, object]]:
+    def _analyze(self, document: Document) -> Analysis:
+        """Roda o pipeline e atualiza os caches; não publica.
+
+        Quem publica é o chamador (`_publish_analysis`): o loop coalesce edições e
+        precisa separar "analisar" de "avisar o editor".
+        """
+        # Uma análise nova supera qualquer índice construído para a anterior. O
+        # índice é lazy e, na navegação, é reconstruído a partir desta análise; sem
+        # o pop, um importador rechecado continuaria servindo o tipo antigo.
+        self.indexes.pop(document.uri, None)
+        version = document.version
         lox = Loxia(error_format="json", color="never", max_errors=0)
         if document.path is not None:
             lox.use_file(display_path(str(document.path)), module_root=document.path.parent)
@@ -830,10 +1038,16 @@ class Server:
             for current in self.documents.values()
             if current.path is not None
         }
-        lox.check(document.text, emit=False, module_overrides=overrides)
+        lox.check(
+            document.text,
+            emit=False,
+            module_overrides=overrides,
+            module_cache=self.parse_cache,
+        )
         batch = lox.reporter.batch()
         sources = lox.sources
         self.source_maps[document.uri] = sources
+        self.module_files[document.uri] = lox.module_files
         self.clean[document.uri] = not lox.reporter.had_error
         self.dependencies[document.uri] = frozenset(lox.watched_files)
         checker = lox.last_checker
@@ -845,24 +1059,58 @@ class Server:
             statements = lox.last_recovered_statements
             checker = None
             resolver = self._resolve_recovered(lox, statements)
-        self.indexes[document.uri] = SymbolIndex(
-            statements or [],
-            source=document.text,
+        # O índice de símbolos nasce na primeira navegação (`_index_for`): diagnóstico
+        # limpo e didChange não pagam a caminhada do AST.
+        analysis = Analysis(
+            document=document,
+            version=version,
+            lox=lox,
+            sources=sources,
+            diagnostics=tuple(batch.diagnostics),
+            statements=statements or [],
             checker=checker,
             resolver=resolver,
         )
+        self.analyses[document.uri] = analysis
+        # O índice de spans é a autoridade para nome de declaração/tipo local.
+        # Com erro de sintaxe ele pode não existir: a navegação cai no token.
+        source_index = lox.last_source_index
+        if source_index is None:
+            self.source_indexes.pop(document.uri, None)
+            self.source_files.pop(document.uri, None)
+        else:
+            self.source_indexes[document.uri] = source_index
+            self.source_files[document.uri] = lox._file
 
-        result: list[dict[str, object]] = []
-        for diagnostic in batch.diagnostics:
-            result.append(
-                self._diagnostic(
-                    diagnostic,
-                    document=document,
-                    lox=lox,
-                    sources=sources,
-                )
+        return analysis
+
+    def _diagnostics(self, document: Document) -> list[dict[str, object]]:
+        """Payload de diagnóstico do documento (analisa; não publica)."""
+        return self._payloads(self._analyze(document))
+
+    def _payloads(self, analysis: Analysis) -> list[dict[str, object]]:
+        return [
+            self._diagnostic(
+                diagnostic,
+                document=analysis.document,
+                lox=analysis.lox,
+                sources=analysis.sources,
             )
-        return result
+            for diagnostic in analysis.diagnostics
+        ]
+
+    def _publish_analysis(self, analysis: Analysis) -> None:
+        _send(
+            self.stdout,
+            _notification(
+                "textDocument/publishDiagnostics",
+                {
+                    "uri": analysis.document.uri,
+                    "version": analysis.version,
+                    "diagnostics": self._payloads(analysis),
+                },
+            ),
+        )
 
     def _resolve_recovered(self, lox: Loxia, statements: list[Stmt]) -> Resolver | None:
         """Resolve escopos dos statements recuperados, sem misturar diagnósticos."""
@@ -896,10 +1144,7 @@ class Server:
             uri = document.uri
             if span.file != lox._file:
                 source = _source_for(sources, span.file, document.text)
-                if self.root is not None:
-                    uri = _path_to_uri(self.root / span.file)
-                elif document.path is not None:
-                    uri = _path_to_uri(document.path.parent / span.file)
+                uri = self._uri_for_file(span.file, document)
             rng = _range(span, source)
 
         related = []
@@ -907,10 +1152,7 @@ class Server:
             label_source = _source_for(sources, label.span.file, source)
             label_uri = uri
             if span is not None and label.span.file != span.file:
-                if self.root is not None:
-                    label_uri = _path_to_uri(self.root / label.span.file)
-                elif document.path is not None:
-                    label_uri = _path_to_uri(document.path.parent / label.span.file)
+                label_uri = self._uri_for_file(label.span.file, document)
             related.append(
                 {
                     "location": {
@@ -990,11 +1232,7 @@ class Server:
         if span.file == lox._file:
             return document.uri, document.text
         source = _source_for(sources, span.file, document.text)
-        if self.root is not None:
-            return _path_to_uri(self.root / span.file), source
-        if document.path is not None:
-            return _path_to_uri(document.path.parent / span.file), source
-        return document.uri, source
+        return self._uri_for_file(span.file, document), source
 
     def _rename_target(
         self, index: SymbolIndex, token: Token
@@ -1043,15 +1281,30 @@ class Server:
         ):
             return None
         return {
-            "range": _token_range(token, document.text),
+            "range": self._range_for(document, token),
             "placeholder": token.lexeme,
         }
 
     def _semantic_target(self, document: Document, token: Token) -> object | None:
         if self.root is None or document.path is None:
             return None
+        from loxia.rename import semantic_target, within_root
+
         files = dict(self._workspace_files())
-        return semantic_target(self.root, files, document.path, token)
+        target = semantic_target(
+            self.root,
+            files,
+            document.path,
+            token,
+            cache=self._workspace_cache(),
+            module_cache=self.parse_cache,
+            load_text=self._disk_text,
+        )
+        # Rename só edita arquivos do root: `prepareRename` não pode oferecer um
+        # rename que o servidor vai recusar (std e checkouts de dependência).
+        if target is None or not within_root(self.root, target.declaration_file):
+            return None
+        return target
 
     def _rename(self, message: dict[str, Any]) -> object:
         params = message.get("params")
@@ -1075,12 +1328,23 @@ class Server:
             target = None
         if target is None:
             if self.root is not None and document.path is not None:
+                from loxia.rename import semantic_rename
+
                 files = dict(self._workspace_files())
-                semantic = semantic_rename(self.root, files, document.path, token, new_name)
+                semantic = semantic_rename(
+                    self.root,
+                    files,
+                    document.path,
+                    token,
+                    new_name,
+                    cache=self._workspace_cache(),
+                    module_cache=self.parse_cache,
+                    load_text=self._disk_text,
+                )
                 if isinstance(semantic, str):
                     return semantic
                 if semantic is not None:
-                    return semantic
+                    return self._upgrade_semantic_edits(document, semantic)
             if self._is_top_level(index, token):
                 return self._workspace_rename(document, token, new_name)
             return "Rename is only supported for local variables, parameters and top-level declarations."
@@ -1092,7 +1356,7 @@ class Server:
                 continue
             edits.append(
                 {
-                    "range": _token_range(found, document.text),
+                    "range": self._range_for(document, found),
                     "newText": new_name,
                 }
             )
@@ -1167,6 +1431,29 @@ class Server:
             "variable",
         }
 
+    def _disk_text(self, path: Path) -> str | None:
+        """Texto do disco por (mtime, ctime, inode, tamanho), limitado em bytes.
+
+        Também serve ao rename/references para módulos fora do root (`std`,
+        `[modules].paths`, dependências) e para o manifest/lock: o cache evita
+        reler o mesmo arquivo a cada request.
+        """
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        entry = (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_ino, stat.st_size)
+        cached = self._disk_files.get(path)
+        if cached is not None and cached[:4] == entry:
+            return cached[4]
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        if path in self._disk_files or len(self._disk_files) < _DISK_FILES_LIMIT:
+            self._disk_files[path] = (*entry, text)
+        return text
+
     def _workspace_files(self) -> list[tuple[Path, str]]:
         files: dict[Path, str] = {}
         for uri, document in self.documents.items():
@@ -1175,18 +1462,25 @@ class Server:
                 files[path] = document.text
         if self.root is None:
             return sorted(files.items())
-        try:
-            candidates = self.root.rglob("*.lx")
-        except OSError:
-            candidates = iter(())
-        for path in candidates:
-            if any(part.startswith(".") or part in {"node_modules"} for part in path.parts):
-                continue
-            if path not in files:
-                try:
-                    files[path] = path.read_text(encoding="utf-8")
-                except OSError:
+
+        # `os.walk` poda diretórios ocultos/build antes de descer; `rglob` visitava
+        # `.venv`, `.uv-cache` e `target` e dominava o custo em repos grandes.
+        for directory, dirnames, filenames in os.walk(self.root):
+            dirnames[:] = sorted(
+                name
+                for name in dirnames
+                if not name.startswith(".") and name not in _WORKSPACE_SKIP_DIRS
+            )
+            for name in sorted(filenames):
+                if name.startswith(".") or not name.endswith(SOURCE_SUFFIX):
                     continue
+                path = Path(directory) / name
+                if path in files:
+                    continue
+                text = self._disk_text(path)
+                if text is None:
+                    continue
+                files[path] = text
         return sorted(files.items())
 
     def _workspace_rename(self, document: Document, token: Token, new_name: str) -> object:
@@ -1204,7 +1498,11 @@ class Server:
             parser = Parser(Scanner(text, reporter).scan_tokens(), reporter=reporter)
             statements = parser.parse()
             if reporter.had_error or statements is None:
-                return f"Can't rename across files: parse error in {path.name}."
+                # Um arquivo quebrado no workspace não invalida o rename no alvo; só
+                # os usos nele ficam de fora (#250).
+                if document.path is not None and path.resolve() == document.path.resolve():
+                    return f"Can't rename across files: parse error in {path.name}."
+                continue
             index = SymbolIndex(
                 statements,
                 source=text,
@@ -1471,11 +1769,77 @@ class Server:
         index = self.indexes.get(uri)
         if index is not None:
             return index
-        document = self.documents.get(uri)
-        if document is None:
+        analysis = self.analyses.get(uri)
+        if analysis is None:
+            document = self.documents.get(uri)
+            if document is None:
+                return None
+            analysis = self._analyze(document)
+        index = SymbolIndex(
+            analysis.statements,
+            source=analysis.document.text,
+            checker=analysis.checker,
+            resolver=analysis.resolver,
+        )
+        self.indexes[uri] = index
+        return index
+
+    def _navigation_range_at(
+        self, document: Document, offset: int, lexeme: str
+    ) -> dict[str, object] | None:
+        """Range exato do `NodeSpan` local para um offset/lexema, se houver.
+
+        Só vale para spans `name`/`type` do próprio arquivo e quando o texto do span
+        é exatamente o lexema: o `Foo` de `List[Foo]` não pode virar `List[Foo]`.
+        """
+        index = self.source_indexes.get(document.uri)
+        if index is None:
             return None
-        self._diagnostics(document)
-        return self.indexes.get(uri)
+        span = index.at(offset, file=self.source_files.get(document.uri, ""))
+        if span is None or span.kind not in {"name", "type"}:
+            return None
+        if span.start != offset:
+            return None
+        if index.text_of(span) != lexeme:
+            return None
+        return _offset_span(document.text, span.start, span.end)
+
+    def _navigation_range(self, document: Document, token: Token) -> dict[str, object] | None:
+        return self._navigation_range_at(document, token.offset or 0, token.lexeme)
+
+    def _range_for(self, document: Document, token: Token) -> dict[str, object]:
+        """Range de navegação/edição: `NodeSpan` exato quando existe, senão o token."""
+        return self._navigation_range(document, token) or _token_range(token, document.text)
+
+    def _range_for_at(self, document: Document, offset: int, lexeme: str) -> dict[str, object]:
+        return self._navigation_range_at(document, offset, lexeme) or _offset_range(
+            document.text, offset, lexeme
+        )
+
+    def _upgrade_semantic_edits(
+        self, document: Document, result: dict[str, object]
+    ) -> dict[str, object]:
+        """Promove para `NodeSpan` as edições semânticas que caem neste documento."""
+        changes = result.get("changes")
+        if not isinstance(changes, dict):
+            return result
+        edits = changes.get(document.uri)
+        if not isinstance(edits, list):
+            return result
+        for edit in edits:
+            if not isinstance(edit, dict):
+                continue
+            rng = edit.get("range")
+            if not isinstance(rng, dict):
+                continue
+            start = rng.get("start")
+            token = self._token_at(document, start) if isinstance(start, dict) else None
+            if token is None:
+                continue
+            upgraded = self._navigation_range(document, token)
+            if upgraded is not None:
+                edit["range"] = upgraded
+        return result
 
     def _token_at(self, document: Document, position: object) -> Token | None:
         if not isinstance(position, dict):
@@ -1539,7 +1903,7 @@ class Server:
             if symbol.doc:
                 parts.append(symbol.doc)
         elif ty is not None:
-            parts.append(f"```lox\n{display(ty)}\n```")
+            parts.append(f"```lox\n{display_source_type(ty)}\n```")
         else:
             return None
 
@@ -1569,7 +1933,7 @@ class Server:
             return None
         symbol = index.reference_target(token)
         if symbol is None:
-            return None
+            return self._module_definition(document, token)
 
         target_uri = self._uri_for_token(symbol.token, document)
         target_source = document.text
@@ -1582,6 +1946,44 @@ class Server:
         return {
             "uri": target_uri,
             "range": _token_range(symbol.token, target_source),
+        }
+
+    def _module_definition(self, document: Document, token: Token) -> dict[str, object] | None:
+        """Import/alias fora do `SymbolIndex`: resolve o arquivo do módulo."""
+        if document.path is None:
+            return None
+        statements = parse_for_completion(document.text, len(document.text))
+        if statements is None:
+            return None
+        context = SourceContext(statements, document.path)
+        imported = context.imports.get(token.lexeme)
+        if imported is None:
+            return None
+        module_file = self.module_files.get(document.uri, {}).get(
+            ModuleLoader.display_path(imported.module)
+        )
+        if module_file is None:
+            return None
+        if imported.public is not None:
+            found = context.declaration_with_context(token.lexeme)
+            if found is not None:
+                statement, module_context = found
+                name_token = getattr(statement, "name", None)
+                if isinstance(name_token, Token) and module_context.path is not None:
+                    try:
+                        text = module_context.path.read_text(encoding="utf-8")
+                    except OSError:
+                        text = ""
+                    return {
+                        "uri": _path_to_uri(module_context.path),
+                        "range": _token_range(name_token, text),
+                    }
+        return {
+            "uri": _path_to_uri(module_file),
+            "range": {
+                "start": {"line": 0, "character": 0},
+                "end": {"line": 0, "character": 0},
+            },
         }
 
     # -- referências, tipos e hierarquia ---------------------------------
@@ -1615,10 +2017,20 @@ class Server:
                     continue
                 if not include_declaration and key == declaration:
                     continue
-                locations.append({"uri": document.uri, "range": _token_range(found, document.text)})
+                locations.append({"uri": document.uri, "range": self._range_for(document, found)})
         elif self.root is not None and document.path is not None:
+            from loxia.rename import semantic_references
+
             files = dict(self._workspace_files())
-            references = semantic_references(self.root, files, document.path, token)
+            references = semantic_references(
+                self.root,
+                files,
+                document.path,
+                token,
+                cache=self._workspace_cache(),
+                module_cache=self.parse_cache,
+                load_text=self._disk_text,
+            )
             if references is None:
                 return []
             declaration_path, declaration_offset = references.declaration
@@ -1629,14 +2041,16 @@ class Server:
                     continue
                 text = files.get(path)
                 if text is None:
-                    try:
-                        text = path.read_text(encoding="utf-8")
-                    except OSError:
-                        continue
+                    text = self._disk_text(path)
+                if text is None:
+                    continue
+                local_path = document.path is not None and path.resolve() == document.path.resolve()
                 locations.append(
                     {
                         "uri": _path_to_uri(path),
-                        "range": _offset_range(text, offset, name),
+                        "range": self._range_for_at(document, offset, name)
+                        if local_path
+                        else _offset_range(text, offset, name),
                     }
                 )
 
@@ -1674,13 +2088,23 @@ class Server:
                     continue
                 highlights.append(
                     {
-                        "range": _token_range(found, document.text),
+                        "range": self._range_for(document, found),
                         "kind": 3 if key == declaration else 2,
                     }
                 )
         elif self.root is not None and document.path is not None:
+            from loxia.rename import semantic_references
+
             files = dict(self._workspace_files())
-            references = semantic_references(self.root, files, document.path, token)
+            references = semantic_references(
+                self.root,
+                files,
+                document.path,
+                token,
+                cache=self._workspace_cache(),
+                module_cache=self.parse_cache,
+                load_text=self._disk_text,
+            )
             if references is None:
                 return []
             declaration_path, declaration_offset = references.declaration
@@ -1689,7 +2113,7 @@ class Server:
                     continue
                 highlights.append(
                     {
-                        "range": _offset_range(document.text, offset, name),
+                        "range": self._range_for_at(document, offset, name),
                         "kind": 3
                         if offset == declaration_offset
                         and path.resolve() == declaration_path.resolve()
@@ -1912,6 +2336,8 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return empty
+        from loxia.completion import complete as completion_items
+
         index = self._index_for(uri)
         offset = self._offset_at(document.text, line, character)
         return {
@@ -1958,6 +2384,8 @@ class Server:
         )
         if match is None:
             return None
+        from loxia.builtins_docs import BUILTIN_DOCS
+
         callee = match.group(1).replace(" ", "")
         parts = callee.split(".")
         name = parts[-1]
@@ -2019,6 +2447,10 @@ class Server:
         offset: int,
         uri: str,
     ) -> str | None:
+        from loxia.completion import declared_type as completion_declared_type
+        from loxia.completion import enclosing_context as completion_context
+        from loxia.completion import superclass_name as completion_superclass
+
         imported = context.imports.get(receiver)
         if imported is not None and imported.public is None:
             return context.namespace_signature(receiver, name)
@@ -2097,21 +2529,13 @@ class Server:
             return True
         if document.path is None:
             return True
-        token_path = Path(symbol.token.file)
-        candidates = [token_path]
-        if not token_path.is_absolute() and self.root is not None:
-            candidates.append(self.root / token_path)
+        token_path = self._file_path(symbol.token.file, document)
+        if token_path is None:
+            return False
         try:
-            target = document.path.resolve()
+            return token_path.resolve() == document.path.resolve()
         except OSError:
             return False
-        for candidate in candidates:
-            try:
-                if candidate.resolve() == target:
-                    return True
-            except OSError:
-                continue
-        return False
 
     def _after_name_position(self, document: Document, symbol: Symbol) -> dict[str, int] | None:
         data = document.text.encode("utf-8")
@@ -2139,24 +2563,25 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return []
-        result = format_source(document.text, reporter=ErrorReporter(max_errors=0))
-        if result is None:
+        from loxia.formatter import format_source
+        from loxia.formatter.edits import build_edits
+
+        result = format_source(
+            document.text,
+            reporter=ErrorReporter(max_errors=0),
+            max_width=self.max_width,
+        )
+        if result is None or not result.changed:
             return []
-        lines = document.text.splitlines() or [""]
-        last_line = len(lines) - 1
-        last_text = lines[last_line]
-        last_character = len(last_text.encode("utf-16-le")) // 2
         return [
             {
                 "range": {
-                    "start": {"line": 0, "character": 0},
-                    "end": {
-                        "line": last_line,
-                        "character": last_character,
-                    },
+                    "start": _position_at(document.text, edit.start.offset),
+                    "end": _position_at(document.text, edit.end.offset),
                 },
-                "newText": result.text,
+                "newText": edit.new_text,
             }
+            for edit in build_edits(document.text, result.text)
         ]
 
     def _semantic_tokens(self, message: dict[str, Any]) -> dict[str, object]:
@@ -2206,14 +2631,38 @@ class Server:
             previous_character = character
         return {"data": data}
 
+    def _file_path(self, file: str, document: Document) -> Path | None:
+        """Caminho absoluto de um `token.file` lógico (`std/io.lx`, `lib/x.lx`)."""
+        if document.path is not None and file == display_path(str(document.path)):
+            return document.path
+        mapped = self.module_files.get(document.uri, {}).get(file)
+        if mapped is not None:
+            return mapped
+        path = Path(file)
+        if path.is_absolute():
+            return path
+        candidates: list[Path] = []
+        if self.root is not None:
+            candidates.append(self.root / path)
+        if document.path is not None:
+            candidates.append(document.path.parent / path)
+        if file.startswith("std/"):
+            candidates.append(bundle_dir("std") / path.relative_to("std"))
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0] if candidates else None
+
+    def _uri_for_file(self, file: str, document: Document) -> str:
+        path = self._file_path(file, document)
+        return document.uri if path is None else _path_to_uri(path)
+
     def _uri_for_token(self, token: Token, document: Document) -> str:
         if not token.file or document.path is None:
             return document.uri
         if token.file == display_path(str(document.path)):
             return document.uri
-        if self.root is not None:
-            return _path_to_uri(self.root / token.file)
-        return _path_to_uri(document.path.parent / token.file)
+        return self._uri_for_file(token.file, document)
 
     # -- símbolos --------------------------------------------------------
 

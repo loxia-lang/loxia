@@ -1,8 +1,10 @@
 class A {}
+
 class B(A) {
-  method() {
-    super.nope();
+  fn method() {
+    super.nope()
   }
 }
-B().method();
-# expect runtime error: Undefined property 'nope'.
+
+B().method()
+# expect error: Undefined property 'nope'.

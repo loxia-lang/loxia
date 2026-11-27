@@ -22,7 +22,8 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
-from loxia_core.backend.lower_base import CleanupContext
+from loxia_core.backend.lower_base import CleanupContext, LoopContext
+from loxia_core.backend.lower_bytes import BytesLowering
 from loxia_core.backend.lower_calls import CallLowering
 from loxia_core.backend.lower_class_codegen import ClassCodegenLowering
 from loxia_core.backend.lower_class_layout import ClassLayoutLowering
@@ -41,6 +42,7 @@ from loxia_core.backend.lower_model import (
     _INT,
     _OPERAND_MESSAGES,
     _VOID,
+    ANY_TAG_NIL,
     NUMERIC,
     BackendError,
     Binding,
@@ -50,6 +52,7 @@ from loxia_core.backend.lower_model import (
     Value,
     ValueType,
     _unsupported,
+    merge_callable_metadata,
 )
 from loxia_core.backend.lower_optionals import OptionalLowering
 from loxia_core.backend.lower_range import RangeLowering
@@ -85,7 +88,9 @@ from loxia_core.frontend.expr import (
 )
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     Expression,
@@ -104,6 +109,9 @@ from loxia_core.frontend.stmt import (
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import (
+    NIL as TY_NIL,
+)
+from loxia_core.frontend.ty import (
     Ty,
 )
 
@@ -113,6 +121,7 @@ class Lowerer(
     EnumLowering,
     GenericLowering,
     MathLowering,
+    BytesLowering,
     TupleLowering,
     ContainerLowering,
     RangeLowering,
@@ -131,25 +140,35 @@ class Lowerer(
         *,
         types: dict[Expr, Ty],
         depths: dict[Expr, int],
+        flow_types: dict[Expr, Ty] | None = None,
         generic_instances: Any = None,
         generic_classes: Any = None,
         generic_class_sites: Any = None,
         type_aliases: dict[str, Ty] | None = None,
+        function_types: dict[Any, Any] | None = None,
         source_path: str = "<lox>",
         debug: bool = False,
+        entry: Function | None = None,
     ) -> None:
         self.module: Any = module
+        # `main -> Result` do arquivo de entrada (ADR-0148); `None` para scripts.
+        self.entry = entry
         self.source_path: str = source_path
         self.debug = debug
         self.types = types
+        # Tipo de fluxo (com narrowing) por expressão; `types` guarda a
+        # representação declarada (ADR-0045). O unbox de `Any` usa este mapa.
+        self.flow_types = flow_types if flow_types is not None else types
         self.depths = depths
         self.generic_instances = generic_instances or {}
         self.generic_classes = generic_classes or set()
         self.generic_class_sites = generic_class_sites or {}
         self.type_aliases = type_aliases or {}
+        self._function_types = function_types or {}
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
+        self._extern_values: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
         self._displays: dict[str, Any] = {}
         self.budget = MonomorphizationBudget()
@@ -172,6 +191,8 @@ class Lowerer(
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
         self._cleanup_stack: list[CleanupContext] = []
+        self._loop_stack: list[LoopContext] = []
+        self._emitting_finally: set[int] = set()
         self._handler_exception: Any | None = None
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
@@ -235,6 +256,9 @@ class Lowerer(
             if self._function_ir is self.main:
                 self._drain_pending_generic_classes()
 
+        if self.entry is not None and not self.builder.block.is_terminated:
+            self._call_entry(self.entry)
+
         if not self.builder.block.is_terminated:
             self.builder.ret(llvm_ir.constant(_I32, 0))
         self._seal_blocks(main)
@@ -244,6 +268,36 @@ class Lowerer(
                 continue
             info = self._top_level[id(statement)]
             self._emit_function(info, statement, ())
+
+    def _call_entry(self, entry: Function) -> None:
+        """Chama o `main -> Result` do arquivo de entrada (ADR-0148).
+
+        O entry é uma função de topo sem capturas: o closure tem env nulo e o símbolo
+        `lox.main` já foi declarado em `_predeclare_functions`. `Ok` cai no retorno 0;
+        `Err` delega ao runtime (`error[R1016]: <msg>` + exit 70), com os mesmos bytes
+        do tree-walk.
+        """
+        info = self._top_level.get(id(entry))
+        if info is None:
+            raise _unsupported("Entry point 'main'", entry.name.line)
+
+        self._set_call_site(entry.name)
+        result = self.builder.call(info.ir, [llvm_ir.null_pointer()])
+        is_err = self.builder.call(
+            self._function("lox_enum_variant_index", _INT, [_I8_PTR, _I8_PTR]),
+            [result, self._cstring_ptr("Err")],
+        )
+        failed = self.builder.icmp_signed("!=", is_err, llvm_ir.constant(_INT, 0))
+        error_block = llvm_ir.append_block(self._function_ir, "entry.err")
+        ok_block = llvm_ir.append_block(self._function_ir, "entry.ok")
+        self.builder.cbranch(failed, error_block, ok_block)
+
+        self.builder = llvm_ir.builder(error_block)
+        self.builder.call(self._function("lox_unhandled_result", _VOID, [_I8_PTR]), [result])
+        self.builder.ret(llvm_ir.constant(_I32, 70))
+
+        self.builder = llvm_ir.builder(ok_block)
+        self.builder.ret(llvm_ir.constant(_I32, 0))
 
     # --- opcionais (L2.5) ---
 
@@ -261,6 +315,10 @@ class Lowerer(
                 self._scopes.pop()
         elif isinstance(stmt, Return):
             self._return(stmt)
+        elif isinstance(stmt, Break):
+            self._loop_transfer(stmt, "break")
+        elif isinstance(stmt, Continue):
+            self._loop_transfer(stmt, "continue")
         elif isinstance(stmt, Function):
             if stmt.type_params:
                 return
@@ -323,6 +381,46 @@ class Lowerer(
 
         self.builder = llvm_ir.builder(end_block)
 
+    def _run_cleanups(self, limit: int = 0) -> bool:
+        """Emite os `finally` ativos sem consumir a pilha léxica.
+
+        `limit` é a profundidade do laço alvo: um `break`/`continue` só roda os
+        `finally` abertos dentro dele. O `id` do contexto em emissão evita que um
+        `break`/`return` dentro do próprio `finally` o emita de novo.
+        """
+        for cleanup in reversed(self._cleanup_stack[limit:]):
+            if id(cleanup) in self._emitting_finally:
+                continue
+            if cleanup.frame is not None:
+                self.builder.call(
+                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
+                    [cleanup.frame],
+                )
+            if cleanup.finally_body is not None:
+                # O `finally` é léxico: o corpo do `try` já saiu de escopo. Sem
+                # truncar, o `depth` gravado pelo resolver aponta para o slot errado.
+                saved_scopes = self._scopes
+                self._scopes = self._scopes[: cleanup.scopes_depth]
+                self._emitting_finally.add(id(cleanup))
+                try:
+                    self._lower_finally_body(cleanup.finally_body)
+                finally:
+                    self._scopes = saved_scopes
+                    self._emitting_finally.discard(id(cleanup))
+                if self.builder.block.is_terminated:
+                    return True
+        return False
+
+    def _loop_transfer(self, stmt: Break | Continue, kind: str) -> None:
+        if not self._loop_stack:
+            raise _unsupported(kind, stmt.keyword.line)
+
+        context = self._loop_stack[-1]
+        target = context.break_block if kind == "break" else context.continue_block
+        if self._run_cleanups(context.cleanup_depth):
+            return
+        self.builder.branch(target)
+
     def _while(self, stmt: While) -> None:
         header = llvm_ir.append_block(self._function_ir, "while.cond")
         body = llvm_ir.append_block(self._function_ir, "while.body")
@@ -334,7 +432,11 @@ class Lowerer(
         self.builder.cbranch(condition, body, end)
 
         self.builder = llvm_ir.builder(body)
-        self._stmt(stmt.body)
+        self._loop_stack.append(LoopContext(end, header, len(self._cleanup_stack)))
+        try:
+            self._stmt(stmt.body)
+        finally:
+            self._loop_stack.pop()
         if not self.builder.block.is_terminated:
             self.builder.branch(header)
 
@@ -361,6 +463,8 @@ class Lowerer(
                 self.builder.call(self._function("lox_print_tuple", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.ENUM:
                 self.builder.call(self._function("lox_print_enum", _VOID, [_I8_PTR]), [value.llvm])
+            case ValueType.BYTES:
+                self.builder.call(self._function("lox_print_bytes", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.FUNCTION:
                 self.builder.call(
                     self._function("lox_print_function", _VOID, [_I8_PTR]),
@@ -375,11 +479,17 @@ class Lowerer(
                             [exception.llvm],
                         )
                         return
+                    # O nome concreto vem do descritor: um valor de interface não
+                    # carrega `class_name` estático.
+                    self.builder.call(
+                        self._function("lox_print_instance", _VOID, [_I8_PTR]),
+                        [value.llvm],
+                    )
+                    return
                 display = self._class_display(value.class_name or "?")
-                text = display if value.ty is ValueType.CLASS else f"{display} instance"
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]),
-                    [self._string_literal(text).llvm],
+                    [self._string_literal(display).llvm],
                 )
             case ValueType.ANY:
                 tag = self.builder.extract_value(value.llvm, 0)
@@ -1121,6 +1231,28 @@ class Lowerer(
             )
             return Value(ValueType.BOOL, result)
 
+        if left.ty is ValueType.BYTES and right.ty is ValueType.BYTES:
+            function = self._function("lox_bytes_equal", _I32, [_I8_PTR, _I8_PTR])
+            comparison = self.builder.call(function, [left.llvm, right.llvm])
+            result = self.builder.icmp_signed(
+                "!=" if equal else "==", comparison, llvm_ir.constant(_I32, 0)
+            )
+            return Value(ValueType.BOOL, result)
+
+        if (left.ty is ValueType.FUNCTION and right.ty is ValueType.NIL) or (
+            right.ty is ValueType.FUNCTION and left.ty is ValueType.NIL
+        ):
+            # A sentinela de função não inicializada é `nil`, como no tree-walk.
+            function = left if left.ty is ValueType.FUNCTION else right
+            result = self.builder.call(
+                self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                [function.llvm],
+            )
+            is_nil = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
+            if not equal:
+                is_nil = self.builder.not_(is_nil)
+            return Value(ValueType.BOOL, is_nil)
+
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
             both_nil = left.ty is right.ty
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal)))
@@ -1220,17 +1352,8 @@ class Lowerer(
 
         # O valor é avaliado antes do finally (semântica do tree-walk); o `ret` só
         # acontece depois de desempilhar os frames e rodar os cleanups ativos.
-        while self._cleanup_stack:
-            context = self._cleanup_stack.pop()
-            if context.frame is not None:
-                self.builder.call(
-                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
-                    [context.frame],
-                )
-            if context.finally_body is not None:
-                self._lower_finally_body(context.finally_body)
-                if self.builder.block.is_terminated:
-                    return
+        if self._run_cleanups():
+            return
 
         self._stack_leave()
         if value is None:
@@ -1255,6 +1378,9 @@ class Lowerer(
         else_end = self.builder.block
         else_open = not else_end.is_terminated
 
+        # Os metadados valem para o valor **antes** da coerção: o ramo `nil` deixa
+        # de ser `NIL` ao virar opcional e não pode apagar a função do outro ramo.
+        function, generic, generic_node = merge_callable_metadata(then_value, else_value)
         common = self._merge_branches(then_value, else_value, None)
 
         if then_open:
@@ -1281,7 +1407,15 @@ class Lowerer(
             merged = self.builder.phi(self._storage_llvm_type(common), "cond.value")
             merged.add_incoming(then_value.llvm, then_end)
             merged.add_incoming(else_value.llvm, else_end)
-            return Value(common.ty, merged, common.fn, common.optional)
+            return Value(
+                common.ty,
+                merged,
+                common.fn,
+                common.optional,
+                function=function,
+                generic=generic,
+                generic_node=generic_node,
+            )
 
         if then_open:
             return then_value
@@ -1343,6 +1477,22 @@ class Lowerer(
 
     def _coalesce(self, expr: Logical) -> Value:
         left = self._expr(expr.left)
+        if left.ty is ValueType.ANY:
+            # `Any` carrega o próprio nil na tag: a otimização "não-opcional logo
+            # não-nil" não vale e o lado direito não é morto.
+            return self._coalesce_any(left, expr)
+        if self.types.get(expr.right) is TY_NIL:
+            # `a ?? nil` é o próprio `a`: nil ou o valor, sem mudar a
+            # representação (importante para a sentinela de função).
+            return left
+        if not left.optional and left.ty is ValueType.FUNCTION:
+            # A sentinela de função não inicializada é nil em runtime, então o
+            # slot "não-opcional" não garante o curto-circuito. Envolver no
+            # opcional normaliza sentinela→nil e reusa o caminho abaixo.
+            left = self._some(
+                TypeDesc(left.ty, left.sig, True, left.class_name, left.interface_name),
+                left,
+            )
         if not left.optional:
             # Um valor não-nil é sempre não-nil: o lado direito é morto.
             if left.ty is not ValueType.NIL:
@@ -1350,23 +1500,17 @@ class Lowerer(
             return self._expr(expr.right)
 
         coalesced = self.types.get(expr)
-        if (
-            coalesced is not None
-            and self._type_desc(coalesced, expr.operator.line).ty is ValueType.ANY
-        ):
-            return self._coalesce_any(left, expr)
+        coalesced_desc: TypeDesc | None = None
+        if coalesced is not None:
+            try:
+                coalesced_desc = self._type_desc(coalesced, expr.operator.line)
+            except BackendError:
+                # União de não-escalares (E4001 declarado): o caminho opcional
+                # abaixo ainda tenta coagir o direito e recusa com a mensagem.
+                coalesced_desc = None
+            if coalesced_desc is not None and coalesced_desc.ty is ValueType.ANY:
+                return self._coalesce_any(left, expr)
 
-        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
-        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
-        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
-        self.builder.cbranch(self._optional_tag(left), some, nothing)
-
-        self.builder = llvm_ir.builder(some)
-        payload = self._optional_payload(left)
-        self.builder.branch(end)
-        some_end = self.builder.block
-
-        self.builder = llvm_ir.builder(nothing)
         inner = TypeDesc(
             left.ty,
             left.sig,
@@ -1374,12 +1518,48 @@ class Lowerer(
             left.class_name,
             left.interface_name,
         )
-        try:
-            right = self._coerce(
-                self._expr(expr.right),
-                inner,
-                expr.operator.line,
+        if coalesced_desc is not None and not coalesced_desc.optional:
+            # O tipo comum pode ser o direito (mais largo): `D? ?? C` → `C`.
+            inner = TypeDesc(
+                coalesced_desc.ty,
+                coalesced_desc.fn,
+                False,
+                coalesced_desc.class_name,
+                coalesced_desc.interface_name,
             )
+        result_optional = coalesced_desc is not None and coalesced_desc.optional
+        optional_struct = TypeDesc(inner.ty, inner.fn, True, inner.class_name, inner.interface_name)
+
+        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
+        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
+        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+        self.builder.cbranch(self._optional_tag(left), some, nothing)
+
+        self.builder = llvm_ir.builder(some)
+        # O ramo esquerdo já está presente: para um resultado opcional o próprio
+        # valor opcional serve; senão só o payload interessa.
+        some_value = left.llvm if result_optional else self._optional_payload(left).llvm
+        self.builder.branch(end)
+        some_end = self.builder.block
+
+        self.builder = llvm_ir.builder(nothing)
+        right_value = self._expr(expr.right)
+        try:
+            if result_optional:
+                # `a? ?? b?`: nil à esquerda devolve o `b` (que pode ser nil).
+                if right_value.optional:
+                    right_llvm = right_value.llvm
+                else:
+                    right_llvm = self._some(
+                        optional_struct,
+                        self._coerce(right_value, inner, expr.operator.line),
+                    ).llvm
+            else:
+                right_llvm = self._coerce(
+                    right_value,
+                    inner,
+                    expr.operator.line,
+                ).llvm
         except BackendError:
             raise _unsupported(
                 "Coalesce with different types",
@@ -1390,26 +1570,39 @@ class Lowerer(
 
         self.builder = llvm_ir.builder(end)
         merged = self.builder.phi(
-            self._storage_llvm_type(inner),
+            self._storage_llvm_type(optional_struct if result_optional else inner),
             "coalesce.value",
         )
-        merged.add_incoming(payload.llvm, some_end)
-        merged.add_incoming(right.llvm, nothing_end)
+        merged.add_incoming(some_value, some_end)
+        merged.add_incoming(right_llvm, nothing_end)
+        function, generic, generic_node = merge_callable_metadata(left, right_value)
         return Value(
-            left.ty,
+            inner.ty,
             merged,
-            left.sig,
-            class_name=left.class_name,
+            inner.fn,
+            optional=result_optional,
+            class_name=inner.class_name,
+            function=function,
+            generic=generic,
+            generic_node=generic_node,
+            interface_name=inner.interface_name,
         )
 
     def _coalesce_any(self, left: Value, expr: Logical) -> Value:
         some = llvm_ir.append_block(self._function_ir, "coalesce.some")
         nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
         end = llvm_ir.append_block(self._function_ir, "coalesce.end")
-        self.builder.cbranch(self._optional_tag(left), some, nothing)
+
+        if left.ty is ValueType.ANY:
+            tag = self.builder.extract_value(left.llvm, 0)
+            present = self.builder.icmp_signed("!=", tag, llvm_ir.constant(_INT, ANY_TAG_NIL))
+            some_value = left
+        else:
+            present = self._optional_tag(left)
+            some_value = self._box_value(self._optional_payload(left), expr.operator.line)
+        self.builder.cbranch(present, some, nothing)
 
         self.builder = llvm_ir.builder(some)
-        some_value = self._box_value(self._optional_payload(left), expr.operator.line)
         self.builder.branch(end)
         some_end = self.builder.block
 
@@ -1460,7 +1653,12 @@ class Lowerer(
         right = self._expr(expr.right)
 
         common: TypeDesc | None
-        if left.optional:
+        if left.ty is ValueType.ANY:
+            # O checker tipa o resultado como `Any`; encaixa o direito e funde dois
+            # agregados (o esquerdo já é `{tag, payload}`).
+            right = self._box_value(right, expr.operator.line)
+            common = TypeDesc(ValueType.ANY)
+        elif left.optional:
             common = left.desc
             inner = TypeDesc(left.ty, left.sig, False, left.class_name, left.interface_name)
             if not self._compatible(right.desc, inner):
@@ -1495,7 +1693,16 @@ class Lowerer(
         merged = self.builder.phi(self._storage_llvm_type(common), "logical.value")
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
-        return Value(common.ty, merged, common.fn, common.optional)
+        function, generic, generic_node = merge_callable_metadata(left, right)
+        return Value(
+            common.ty,
+            merged,
+            common.fn,
+            common.optional,
+            function=function,
+            generic=generic,
+            generic_node=generic_node,
+        )
 
     def _truthy(self, value: Value) -> Any:
         if value.optional:
@@ -1521,7 +1728,6 @@ class Lowerer(
                 ValueType.INT
                 | ValueType.FLOAT
                 | ValueType.STRING
-                | ValueType.FUNCTION
                 | ValueType.CLASS
                 | ValueType.INSTANCE
                 | ValueType.RANGE
@@ -1529,9 +1735,18 @@ class Lowerer(
                 | ValueType.MAP
                 | ValueType.TUPLE
                 | ValueType.ENUM
+                | ValueType.BYTES
             ):
-                # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
+                # Só nil e false são falsy: `0`, `0.0` e `""` são truthy.
                 return llvm_ir.constant(_BOOL, 1)
+            case ValueType.FUNCTION:
+                # A sentinela de função não inicializada é nil, logo falsy.
+                result = self.builder.call(
+                    self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                    [value.llvm],
+                )
+                is_nil = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
+                return self.builder.not_(is_nil)
             case ValueType.NIL:
                 return llvm_ir.constant(_BOOL, 0)
 
@@ -1658,23 +1873,29 @@ def lower_program(
     *,
     types: dict[Expr, Ty],
     depths: dict[Expr, int],
+    flow_types: dict[Expr, Ty] | None = None,
     generic_instances: Any = None,
     generic_classes: Any = None,
     generic_class_sites: Any = None,
     type_aliases: dict[str, Ty] | None = None,
+    function_types: dict[Any, Any] | None = None,
     source_path: str = "<lox>",
     debug: bool = False,
+    entry: Function | None = None,
 ) -> Any:
     module = llvm_ir.new_module()
     Lowerer(
         module,
         types=types,
         depths=depths,
+        flow_types=flow_types,
         generic_instances=generic_instances,
         generic_classes=generic_classes,
         generic_class_sites=generic_class_sites,
         type_aliases=type_aliases,
+        function_types=function_types,
         source_path=source_path,
         debug=debug,
+        entry=entry,
     ).lower(statements)
     return module

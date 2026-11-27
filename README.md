@@ -8,14 +8,13 @@
 
 **Loxia** is a small, statically checked language **descended from Lox**, with a tree-walk
 interpreter that serves as the executable specification and an optional **LLVM** backend.
-It is not a toy: the interpreter and the compiled binary are tested for byte-identical
+The interpreter and the compiled binary are tested for byte-identical
 stdout, stderr and exit codes on a declared corpus. The lineage is declared, not a
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
 > **Status:** 1.x, released. The language semantics are frozen; tooling and packaging are
-> still moving. **1.2.0** is the current release, the first PyPI release with the MCP
-> server. The specification is in English; the ADRs and roadmap are in Portuguese
-> (pt-BR). See [Documentation](#documentation).
+> still moving. **1.3.0** is the current release. The specification is in English; the ADRs
+> and roadmap are in Portuguese (pt-BR). See [Documentation](#documentation).
 
 ## Why Loxia
 
@@ -69,9 +68,9 @@ area = 6.0
 | Native backend | L0–L6 + T7: strings, classes, closures, containers, enums, exceptions |
 | Standard library | T1–T3: `json`, `fmt`, `fs`, `io`, `proc`, `sets`, `csv`, `hash`, `property`… |
 | Tooling | formatter, LSP, MCP, test runner, `fix`, `doc`, `explain`, `capabilities` |
-| Packaging | on PyPI (1.1.0 and 1.2.0) |
+| Packaging | on PyPI (1.1.0, 1.2.0 and 1.3.0) |
 
-Current version: **1.2.0**. The detailed, generated status by level is in
+Current version: **1.3.0**. The detailed, generated status by level is in
 [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Install
@@ -98,8 +97,11 @@ The interpreter has no runtime dependencies. The native backend is opt-in: `--em
 development headers (`libgc-dev` on Debian/Ubuntu, `brew install bdw-gc` on macOS).
 
 Linux x86_64 is the supported platform for the native backend. The non-backend suite runs
-on macOS (blocking) and Windows (experimental; known platform failures); the native
-backend is not promised there.
+on Linux (blocking) and Windows (experimental; known platform failures); macOS is not in
+the CI matrix — `macos-latest` was frequently unavailable and its failure blocked the
+required `CI success` job. macOS builds are still supported, but regressions there are
+caught locally (`make test-fast`), not in CI. The native backend is not promised outside
+Linux.
 
 ## Quick start
 
@@ -111,7 +113,7 @@ loxia run hello/src/main.lx
 loxia hello.lx                     # run a file
 loxia check hello.lx               # type-check only
 loxia build hello.lx --emit=exe -o hello
-loxia --version                    # loxia 1.2.0
+loxia --version                    # loxia 1.3.0
 ```
 
 ## CLI
@@ -124,28 +126,35 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
-| `loxia run FILE` | Execute a program | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia run FILE` | Execute a program (type-checks in gradual mode first) | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--json` |
-| `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--json` |
+| `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--lib`, `--json` |
+| `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--lib`, `--json` |
 | `loxia add NAME` | Declare a `path` or `git` dependency in `loxia.toml` | `--path`, `--git`, `--rev`, `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia remove NAME` | Remove a dependency from `loxia.toml` | `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia check FILE` | Type-check without running (`--gradual` turns a missing annotation into a warning) | `--gradual`, `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia fmt FILE` | Format a file (`--check` does not write) | `--check`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia ast FILE` | Print the AST (S-expression; `--format=json` requires `--file-only`) | `--file-only`, `--format=sexp\|json`, `--allow-errors`, `--typed`, `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia fmt PATH...` | Format files and directories recursively (`--check` does not write) | `--check`, `--diff`, `--edits=json` (one file, with `--check`), `--exclude`, `--max-width`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia doc FILE` | Generate Markdown/JSON from `///` | `--stdin`, `--file-name`, `--json`, `--error-format`, `--max-errors`, `--color` |
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
 | `loxia mcp` | MCP server over stdio (tools) | — |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--changed[=REF]`, `--shard=INDEX/TOTAL`, `--native`, `--no-cache`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
+| `loxia test [PATH…]` | Run `*_test.lx` suites (type-checked in gradual mode first) | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--changed[=REF]`, `--shard=INDEX/TOTAL`, `--native`, `--no-cache`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
 
 Global flag: `--version`. Every other flag belongs to a command; run
 `loxia <command> --help` for the authoritative list and the grouped descriptions.
+
+For the self-hosted parser, `loxia ast --file-only --format=json FILE` emits the versioned
+per-file AST contract v2 (`syntax` with statements/tokens/trivia plus optional `typed`)
+without loading modules or mangling names; `--format=json` requires `--file-only`;
+`--typed` adds checker expression types; `--allow-errors` emits the recovered tree
+(`ErrorStmt`/`ErrorExpr`) and still exits 65. The contract and the frozen snapshot are in
+[ADR-0129](docs/adr/0129-oraculo-do-front-end.md).
 
 `loxia new` writes a minimal, deterministic template and runs `git init` unless
 `--no-git` is given (never inside an existing repository); `loxia init` does the same in an
@@ -168,6 +177,8 @@ MCP `2026-07-28` on stdio and exposes:
 - `loxia_run` — run a source in the sandbox profile (no filesystem/process primitives,
   timeout and resource limits);
 - `loxia_ast` — parse and return the S-expression AST;
+- `loxia_format` — format a source or a read-only `.lx` path, returning the text and
+  exact `TextEdit[]` (optional line range and diff; never writes);
 - `loxia_spec` — search the packaged language reference and stdlib;
 - `loxia_explain` and `loxia_version`.
 
@@ -249,7 +260,7 @@ source .lx
    ├─ scanner → tokens
    ├─ parser → AST
    ├─ resolver → lexical depths
-   ├─ checker (--check) → type errors before execution
+   ├─ checker (--check; run checks gradually) → type errors before execution
    ├─ interpreter → effects
    └─ backend (--emit) → LLVM IR → object → cc → native binary
 ```

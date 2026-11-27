@@ -1,14 +1,15 @@
 class Pessoa {
-  var nome: String;
-  init(nome: String) {
-    this.nome = nome;
+  var nome: String
+
+  fn init(nome: String) {
+    this.nome = nome
   }
 
-  falar() -> Nil {
-    print(this.nome);
+  fn falar() -> Nil {
+    print(this.nome)
   }
 }
 
-var p = Pessoa("Ana");
-p.falar();     # expect: Ana
-print(p.nome);  # expect: Ana
+var p = Pessoa("Ana")
+p.falar()      # expect: Ana
+print(p.nome)  # expect: Ana

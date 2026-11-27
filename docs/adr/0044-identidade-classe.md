@@ -1,5 +1,11 @@
 # ADR-0044 — Identidade de classe em runtime (`is`/`as`/`except`)
 
+> **Atualização (2026-11-26):** o rebinding de classe continua aceito apenas pelo escape
+> `Base = OtherBase as Any` (exercitado pela suíte oficial), e objeto de classe **não** é
+> valor de função ([ADR-0150](0150-objeto-de-classe-nao-e-valor-de-funcao.md)). Um `Any`
+> que não guarda classe num slot de classe passou a ser erro de check
+> ([#247](https://github.com/loxia-lang/loxia/issues/247)).
+
 - **Status:** accepted (tree-walk implementado; backend L5 pendente)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)

@@ -12,6 +12,9 @@ from pathlib import Path
 
 import pytest
 
+from loxia_core.loader.gitenv import git_env
+from tests.inprocess import Result, run_cli
+
 ROOT = Path(__file__).resolve().parent.parent
 
 PASS = """
@@ -33,16 +36,21 @@ def run_test(
     *args: str,
     cwd: Path = ROOT,
     env: dict[str, str] | None = None,
-) -> subprocess.CompletedProcess[str]:
-    environment = None if env is None else {**os.environ, **env}
-    return subprocess.run(
-        [sys.executable, "-m", "loxia", "test", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
-    )
+) -> Result:
+    # `--native` compila e executa binários: mantém o processo real para o teste
+    # não herdar cache/handles do pytest (o runner em si já isola cada arquivo).
+    if "--native" in args:
+        environment = None if env is None else {**os.environ, **env}
+        process = subprocess.run(
+            [sys.executable, "-m", "loxia", "test", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=environment,
+        )
+        return Result(returncode=process.returncode, stdout=process.stdout, stderr=process.stderr)
+    return run_cli("test", *args, cwd=cwd, env=env)
 
 
 def project(tmp_path: Path) -> Path:
@@ -247,7 +255,7 @@ def test_jobs_preserva_ordem_e_conteudo(tmp_path: Path) -> None:
     serial = run_test(str(tests), "--json", "--jobs", "1")
     parallel = run_test(str(tests), "--json", "--jobs", "4")
 
-    def strip(result: subprocess.CompletedProcess[str]) -> list[tuple[str, str, str]]:
+    def strip(result: Result) -> list[tuple[str, str, str]]:
         return [
             (item["file"], item["name"], item["status"])
             for item in json.loads(result.stdout)["tests"]
@@ -508,6 +516,7 @@ def _git(cwd: Path, *args: str) -> None:
         check=True,
         capture_output=True,
         text=True,
+        env=git_env(),
     )
 
 
@@ -666,3 +675,127 @@ def test_binary_cache_key_inclui_dependencia_path(
     after = _binary_cache_key([test], ())
 
     assert before != after
+
+
+TYPE_ERROR_TEST = """
+import std.test as t
+fn f(x: Int) -> Int { return x }
+val suite = t.Suite()
+suite.it("tipo", fn() { t.expect(f("a")).toBe(0) })
+suite.done()
+"""
+
+
+def test_precheck_reprova_erro_de_tipo_antes_de_rodar(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 1
+    assert "not ok 1 - <" in result.stdout
+    assert "error[E3001]" in result.stdout
+    assert "Argument 1: Expected Int, found String." in result.stdout
+
+
+def test_precheck_aceita_teste_sem_anotacao(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "pass_test.lx").write_text(PASS, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - passa" in result.stdout
+
+
+GENERIC_TEST = """
+import std.test as t
+fn g(x) { return x }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(g(1)).toBe(1) })
+suite.done()
+"""
+
+
+def test_precheck_aceita_helper_sem_anotacao_em_generico(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "g_test.lx").write_text(GENERIC_TEST, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - a" in result.stdout
+
+
+def test_precheck_native_curto_circuita_antes_do_build(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests), "--native")
+
+    assert result.returncode == 1
+    assert "error[E3001]" in result.stdout
+    assert "native build failed" not in result.stdout
+
+
+LOWERABLE_UNUSED = """
+import std.test as t
+fn helper() -> Int { return 1 + true }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(1).toBe(1) })
+suite.done()
+"""
+
+LOWERABLE_CALLED = """
+import std.test as t
+fn helper() -> Int { return 1 + true }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(helper()).toBe(1) })
+suite.done()
+"""
+
+UNANNOTATED_NATIVE = """
+import std.test as t
+fn double(x) { return x + x }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(double(1)).toBe(2) })
+suite.done()
+"""
+
+
+def test_precheck_adia_lowerable_como_o_run(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "lower_test.lx").write_text(LOWERABLE_UNUSED, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - a" in result.stdout
+
+
+def test_lowerable_executado_falha_no_run(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "lower_test.lx").write_text(LOWERABLE_CALLED, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 1
+    assert "not ok 1" in result.stdout
+
+
+def test_precheck_native_exige_anotacao(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "native_test.lx").write_text(UNANNOTATED_NATIVE, encoding="utf-8")
+
+    result = run_test(str(tests), "--native")
+
+    assert result.returncode == 1
+    assert "E3004" in result.stdout
+    assert "native build failed" not in result.stdout

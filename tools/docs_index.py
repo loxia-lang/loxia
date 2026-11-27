@@ -28,7 +28,18 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from loxia import __version__  # noqa: E402
-from loxia.docs_index import INDEX_SCHEMA_VERSION, DocsIndex, Page, Section  # noqa: E402
+from loxia.docs_index import (  # noqa: E402
+    INDEX_SCHEMA_VERSION,
+    CodeEntry,
+    DocsIndex,
+    Page,
+    Section,
+)
+from loxia_core.diagnostics.codes import (  # noqa: E402
+    CODE_DESCRIPTIONS,
+    CODE_PHASE,
+    Code,
+)
 from tools.docs_common import (  # noqa: E402
     REPOSITORY,
     ROOT,
@@ -272,11 +283,24 @@ def _stdlib_pages() -> list[Page]:
     return pages
 
 
+def _codes() -> tuple[CodeEntry, ...]:
+    """The diagnostic catalog, in code order (the same table as docs/spec/erros.md)."""
+    return tuple(
+        CodeEntry(
+            code=code.value,
+            phase=CODE_PHASE[code].value,
+            description=CODE_DESCRIPTIONS[code],
+        )
+        for code in sorted(Code, key=lambda item: item.value)
+    )
+
+
 def build() -> DocsIndex:
     return DocsIndex(
         schema_version=INDEX_SCHEMA_VERSION,
         loxia_version=__version__,
         pages=tuple([*_spec_pages(), *_stdlib_pages()]),
+        codes=_codes(),
     )
 
 

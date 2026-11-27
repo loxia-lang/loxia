@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 from loxia.engine import Loxia
+from loxia_core.diagnostics.errors import NativeError
 from loxia_core.execution.fs_runtime import FileTable
+from loxia_core.execution.limits import MAX_FS_HANDLES
 
 
 def test_read_utf8_pending_respeita_o_teto_de_bytes(tmp_path: Path) -> None:
@@ -24,6 +26,21 @@ def test_read_utf8_pending_respeita_o_teto_de_bytes(tmp_path: Path) -> None:
         assert table.read(identifier, 2) == "AB"
         assert table.read(identifier, 2) == "CD"
         assert table.read(identifier, 1) is None
+    finally:
+        table.close_all()
+
+
+def test_tabela_de_handles_para_no_limite_do_kernel(tmp_path: Path) -> None:
+    """`fs.open` usa o mesmo número de handles no interpretador e no runtime C."""
+    target = tmp_path / "f.txt"
+    target.write_text("", encoding="utf-8")
+    table = FileTable()
+    for _ in range(MAX_FS_HANDLES):
+        table.open(str(target), "r")
+
+    try:
+        with pytest.raises(NativeError, match="tooManyFiles"):
+            table.open(str(target), "r")
     finally:
         table.close_all()
 
@@ -52,3 +69,155 @@ def test_handles_nao_sobrevivem_entre_execucoes(
     )
 
     assert "closed" in capsys.readouterr().out
+
+
+def test_rename_remove_mkdir_e_stat(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.errors import NativeError
+    from loxia_core.execution.lox_tuple import LoxTuple
+    from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
+
+    mkdir = PRIMITIVE_BY_LOX["fs.mkdir"].py
+    stat = PRIMITIVE_BY_LOX["fs.stat"].py
+    rename = PRIMITIVE_BY_LOX["fs.rename"].py
+    remove = PRIMITIVE_BY_LOX["fs.remove"].py
+
+    directory = tmp_path / "d"
+    mkdir(str(directory))
+    with pytest.raises(NativeError, match="alreadyExists"):
+        mkdir(str(directory))
+
+    target = directory / "a.txt"
+    target.write_text("olá", encoding="utf-8")
+    info = stat(str(target))
+    assert isinstance(info, LoxTuple)
+    size, mtime_ms, is_dir = info.items
+    assert isinstance(size, int)
+    assert isinstance(mtime_ms, int)
+    assert isinstance(is_dir, bool)
+    assert size == 4
+    assert is_dir is False
+    assert mtime_ms > 0
+    directory_info = stat(str(directory))
+    assert isinstance(directory_info, LoxTuple)
+    assert directory_info.items[2] is True
+
+    moved = directory / "b.txt"
+    rename(str(target), str(moved))
+    assert not target.exists()
+    assert moved.exists()
+
+    remove(str(moved))
+    assert not moved.exists()
+    with pytest.raises(NativeError, match="notFound"):
+        stat(str(moved))
+    with pytest.raises(NativeError, match="isDirectory"):
+        remove(str(directory))
+
+
+def test_std_fs_stat_e_write_atomic(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    lox = Loxia()
+    lox.use_file("<fs>", module_root=tmp_path)
+    target = tmp_path / "a" / "b" / "out.txt"
+
+    lox.run(
+        "import std.fs as fs\n"
+        "import std.results as results\n"
+        f'val made = fs.mkdirAll("{target.parent}")\n'
+        "print(results.isOk(made))\n"
+        f'val wrote = fs.writeAtomic("{target}", "olá")\n'
+        "print(results.isOk(wrote))\n"
+        'print(match fs.stat("' + str(target) + '") '
+        "{ Result.Ok(meta) => meta.size, Result.Err(_) => -1 })\n"
+        f'print(fs.exists("{target}.tmp"))\n'
+    )
+
+    assert capsys.readouterr().out == "true\ntrue\n4\nfalse\n"
+
+
+def test_paths_com_nul_nao_derrubam_o_interpretador(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.errors import NativeError
+    from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
+
+    stat = PRIMITIVE_BY_LOX["fs.stat"].py
+    rename = PRIMITIVE_BY_LOX["fs.rename"].py
+    remove = PRIMITIVE_BY_LOX["fs.remove"].py
+    mkdir = PRIMITIVE_BY_LOX["fs.mkdir"].py
+    exists = PRIMITIVE_BY_LOX["fs.exists"].py
+    list_dir = PRIMITIVE_BY_LOX["fs.listDir"].py
+
+    for call in (
+        lambda: stat("nao\0existe"),
+        lambda: rename("a\0x", str(tmp_path / "b")),
+        lambda: remove("a\0x"),
+        lambda: mkdir("a\0x"),
+    ):
+        with pytest.raises(NativeError, match="io: invalid path"):
+            call()
+
+    table = FileTable()
+    with pytest.raises(NativeError, match="io: invalid path"):
+        table.open("a\0x", "r")
+
+    assert exists("a\0x") is False
+    assert list_dir("a\0x") is None
+
+
+def test_read_bytes_cru_e_pending(tmp_path: Path) -> None:
+    target = tmp_path / "bin.dat"
+    target.write_bytes(b"\x00\x01\xff\xfe")
+    table = FileTable()
+    identifier = table.open(str(target), "r")
+    try:
+        assert table.read_bytes(identifier, 2) == b"\x00\x01"
+        assert table.read_bytes(identifier, 2) == b"\xff\xfe"
+        assert table.read_bytes(identifier, 1) is None
+        assert table.read_bytes(identifier, 0) == b""
+        from loxia_core.diagnostics.errors import NativeError
+
+        with pytest.raises(NativeError, match=r"fs\.readBytes"):
+            table.read_bytes(identifier, -1)
+    finally:
+        table.close_all()
+
+
+def test_read_bytes_preserva_pending_de_utf8(tmp_path: Path) -> None:
+    target = tmp_path / "utf8.dat"
+    target.write_bytes("éx".encode())
+    table = FileTable()
+    identifier = table.open(str(target), "r")
+    try:
+        assert table.read(identifier, 1) == ""
+        assert table.read_bytes(identifier, 2) == "é".encode()
+        assert table.read_bytes(identifier, 1) == b"x"
+        assert table.read_bytes(identifier, 1) is None
+    finally:
+        table.close_all()
+
+
+def test_std_fs_read_bytes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    target = tmp_path / "bin.dat"
+    target.write_bytes(b"\x00\xff")
+    lox = Loxia()
+    lox.use_file("<fs>", module_root=tmp_path)
+    lox.run(
+        "import std.fs as fs\n"
+        f'val opened = fs.open("{target}", "r")\n'
+        "val file = match opened { Result.Ok(value) => value, Result.Err(_) => fs.File(0) }\n"
+        'print(match file.readBytes(2) { Result.Ok(value) => value?.toHex() ?? "nil", '
+        "Result.Err(error) => error.kind })\n"
+        'print(match file.readBytes(1) { Result.Ok(value) => value?.toHex() ?? "nil", '
+        "Result.Err(error) => error.kind })\n"
+    )
+    assert capsys.readouterr().out == "00ff\nnil\n"
+
+
+def test_read_bytes_de_diretorio_e_erro_de_host(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.errors import NativeError
+
+    table = FileTable()
+    identifier = table.open(str(tmp_path), "r")
+    try:
+        with pytest.raises(NativeError, match=r"isDirectory: read failed\."):
+            table.read_bytes(identifier, 1)
+    finally:
+        table.close_all()

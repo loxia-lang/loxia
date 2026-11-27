@@ -1,6 +1,6 @@
 class Foo {
-  method() {
-    super.method();
+  fn method() {
+    super.method()
   }
 }
 # expect error: Can't use 'super' in a class with no superclass.

@@ -19,9 +19,10 @@ from loxia_core.loader.lock import Lock, write_lock
 
 PROJECT_VERSION = "0.1.0"
 NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-TEMPORARY_PATHS = ("loxia.toml", "src/main.lx", ".gitignore")
+APP_PATHS = ("loxia.toml", "src/main.lx", ".gitignore")
 _GITIGNORE = ".loxia/\ndist/\n"
 _MAIN = 'print("hello from {name}")\n'
+_LIBRARY = """/// Adds two integers.\nfn add(a: Int, b: Int) -> Int {\n  return a + b\n}\n"""
 _MANIFEST = '[package]\nname = "{name}"\nversion = "{version}"\n'
 
 
@@ -61,12 +62,20 @@ def validate_name(name: str) -> str:
     return name
 
 
+def template_paths(package: str, *, library: bool) -> tuple[str, ...]:
+    """Arquivos do template: app em `src/main.lx`, lib no módulo raiz `<package>.lx`."""
+    if library:
+        return ("loxia.toml", f"{package}.lx", ".gitignore")
+    return APP_PATHS
+
+
 def create(
     target: Path,
     *,
     name: str | None = None,
     git: bool = True,
     require_new: bool = True,
+    library: bool = False,
 ) -> Project:
     """Cria (`new`) ou inicializa (`init`) o projeto; nunca sobrescreve arquivo."""
     target = Path(target)
@@ -84,30 +93,37 @@ def create(
             raise ScaffoldError("Directory does not exist.")
         if not target.is_dir():
             raise ScaffoldError("Not a directory.")
-        conflicts = [relative for relative in TEMPORARY_PATHS if (target / relative).exists()]
+
+    package = validate_name(name) if name is not None else default_name(target)
+    paths = template_paths(package, library=library)
+    if not require_new:
+        conflicts = [
+            relative for relative in (*paths, "loxia.lock") if (target / relative).exists()
+        ]
         if conflicts:
             raise ScaffoldError(
                 "Directory already contains " + ", ".join(f"'{item}'" for item in conflicts) + "."
             )
-
-    package = validate_name(name) if name is not None else default_name(target)
     created_root = require_new
     initialized = False
     try:
         if git and not _inside_repository(target):
             _git_init(target)
             initialized = True
-        (target / "src").mkdir(exist_ok=True)
         (target / "loxia.toml").write_text(
             _MANIFEST.format(name=package, version=PROJECT_VERSION),
             encoding="utf-8",
             newline="\n",
         )
-        (target / "src" / "main.lx").write_text(
-            _MAIN.format(name=package),
-            encoding="utf-8",
-            newline="\n",
-        )
+        if library:
+            (target / f"{package}.lx").write_text(_LIBRARY, encoding="utf-8", newline="\n")
+        else:
+            (target / "src").mkdir(exist_ok=True)
+            (target / "src" / "main.lx").write_text(
+                _MAIN.format(name=package),
+                encoding="utf-8",
+                newline="\n",
+            )
         (target / ".gitignore").write_text(_GITIGNORE, encoding="utf-8", newline="\n")
         write_lock(target / "loxia.lock", Lock())
     except ScaffoldError:
@@ -118,7 +134,7 @@ def create(
         if created_root:
             shutil.rmtree(target, ignore_errors=True)
         raise ScaffoldError("Can't write the project files.") from None
-    files = (*TEMPORARY_PATHS, "loxia.lock")
+    files = (*paths, "loxia.lock")
     return Project(target, package, initialized, files)
 
 

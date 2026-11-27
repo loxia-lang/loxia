@@ -1,16 +1,16 @@
 class A {
-  method() -> Nil {
-    print("A");
+  fn method() -> Nil {
+    print("A")
   }
 }
 
 class B(A) {
-  method() -> Nil {
-    super.method();
-    print("B");
+  fn method() -> Nil {
+    super.method()
+    print("B")
   }
 }
 
-B().method();
+B().method()
 # expect: A
 # expect: B

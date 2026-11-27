@@ -37,11 +37,42 @@ disso.
 
 ## Formatter
 
-`loxia fmt` normaliza, na fase 1: indentação de bloco, espaços no fim, `;` de fim de
-linha, newline final, `fn` canônico em método e trailing comma multiline (params,
-call, lista, mapa e tupla), preservando quebras, strings multilinha, comentários de
-bloco e o conteúdo de comentários. Não faz reflow, não renomeia e não reordena imports.
-`loxia fmt --check` não escreve e retorna 1 se o arquivo mudaria.
+`loxia fmt` é a forma canônica (ADR-0092 para o estilo, ADR-0136 para a engine):
 
-O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md)); o
-dogfood em Lox fica adiado até o repo público/estável.
+- reflowa chamadas, listas, mapas, tuplas, params, enums, cadeias binárias/lógicas/`??`
+  e condicionais para caber em **100 colunas** (`--max-width` 20..1000 é override de
+  ferramenta/editor); strings, imports e comentários nunca são quebrados;
+- decide a linha em branco: exatamente uma entre declarações de topo (`class`, `fn`,
+  `interface`, `enum`, `type alias`), métodos de classe e de interface; `val`/`var` de
+  topo e statements preservam no máximo uma linha do autor; nenhuma depois de `{`/antes
+  de `}`;
+- normaliza `# ` e alinha comentários trailing consecutivos no mesmo indent quando o
+  alinhamento ainda cabe; `///` e `/* */` ficam verbatim (sem reflow);
+- usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém
+  sem) e quebra binárias **depois** do operador;
+- aceita vários arquivos e diretórios recursivos (`loxia fmt std tests/cases`), em ordem
+  determinística; diretórios ocultos e caches (`node_modules`, `.venv`, …) ficam de fora;
+  `--exclude GLOB` (repetível, relativo ao cwd; casa o path e seus ancestrais) tira
+  diretórios/arquivos descobertos; use `**/nome/**` para qualquer profundidade. Um
+  **arquivo** explícito sempre entra; um **diretório** explícito ainda respeita
+  `--exclude`. Com erro de sintaxe em qualquer alvo **nada** é escrito (exit 65,
+  diagnóstico por arquivo); nenhum alvo encontrado é uso (exit 2), path inexistente ou
+  ilegível/não-UTF-8 é 66; `--check` é silencioso (65 > 1 > 0), `--diff` imprime um diff
+  por arquivo; `--json` agrega os diagnósticos num único documento e `--json-lines` num
+  único `start` + `summary`; labels são relativos ao cwd (basename fora dele, com sufixo
+  de diretório se dois colidirem);
+- `fmt --diff` mostra o diff unificado e não escreve; `fmt --check --edits=json` devolve
+  o texto formatado e `TextEdit[]` com posições exatas (line/column 1-based, offset em
+  bytes) para editores e agentes, sem reler o arquivo, e exige um único arquivo resolvido;
+- não remove parênteses, não reordena imports, não normaliza aspas/números, não alinha
+  `=`/`:`; o core não formata range/seleção — o MCP `loxia_format` oferece range por
+  linhas expandindo hunks (ADR-0137).
+
+No repositório, `loxia fmt .` encontra fixtures inválidas de propósito (`tests/cases/errors/`,
+suíte oficial); use `--exclude` (por exemplo `--exclude 'tests/cases/errors/**'`) ou prefira
+o gate `tests/test_formatter_repo.py` (`make check-fast`), que pula parse errors por
+contrato.
+
+O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md),
+[ADR-0136](adr/0136-formatter-2-doc-ir.md)); o dogfood em Lox fica adiado até o repo
+público/estável.

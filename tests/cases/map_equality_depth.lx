@@ -1,16 +1,18 @@
 # Regressão: comparação com contagens diferentes não vaza a profundidade do runtime.
-var a: Map[String, Int] = {"a": 1}
-var b: Map[String, Int] = {"a": 1, "b": 2}
+var a: Map[String, Int] = { "a": 1 }
+var b: Map[String, Int] = { "a": 1, "b": 2 }
 var mismatches = 0
 var i = 0
 while (i < 40) {
-  if (a != b) { mismatches = mismatches + 1 }
+  if (a != b) {
+    mismatches = mismatches + 1
+  }
   i = i + 1
 }
 print(mismatches)
 
-var c: Map[String, Int] = {"x": 1}
-var d: Map[String, Int] = {"x": 1}
+var c: Map[String, Int] = { "x": 1 }
+var d: Map[String, Int] = { "x": 1 }
 print(c == d)
 # expect: 40
 # expect: true

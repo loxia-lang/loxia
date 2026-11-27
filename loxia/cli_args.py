@@ -56,7 +56,7 @@ _COMMAND_SUMMARIES = {
     "check": "checa os tipos sem executar",
     "build": "compila para código nativo (LLVM)",
     "ast": "imprime a AST como S-expression, sem executar",
-    "fmt": "formata um arquivo Loxia",
+    "fmt": "formata arquivos ou diretórios Loxia",
     "doc": "gera referência Markdown/JSON dos comentários `///`",
     "explain": "explica um código de diagnóstico",
     "capabilities": "descreve comandos, formatos e limites",
@@ -85,18 +85,20 @@ _COMMAND_EXAMPLES = {
     "ast": """exemplos:
   loxia ast prog.lx""",
     "fmt": """exemplos:
-  loxia fmt src/main.lx
-  loxia fmt --check src/main.lx
+  loxia fmt src examples
+  loxia fmt --check std tests/cases --exclude 'tests/cases/errors/**'
   loxia fmt --stdin < prog.lx""",
     "doc": """exemplos:
   loxia doc src/main.lx
   loxia doc --json src/main.lx""",
     "new": """exemplos:
   loxia new hello
-  loxia new hello --name hello_world --no-git""",
+  loxia new hello --name hello_world --no-git
+  loxia new minha-lib --lib""",
     "init": """exemplos:
   loxia init
-  loxia init meu-projeto""",
+  loxia init meu-projeto
+  loxia init --lib""",
     "add": """exemplos:
   loxia add acme --path ../acme
   loxia add acme --git https://github.com/acme/acme --rev v1.2.3 --lock
@@ -352,6 +354,11 @@ def _add_scaffold_options(container: argparse._ActionsContainer) -> None:
         action="store_true",
         help="não inicializa um repositório git no projeto",
     )
+    container.add_argument(
+        "--lib",
+        action="store_true",
+        help="cria uma biblioteca (módulo <nome>.lx na raiz, sem src/main.lx)",
+    )
 
 
 def _option_groups(parser: argparse.ArgumentParser) -> _Groups:
@@ -445,6 +452,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="compila para código nativo (ll: IR textual, obj: .o, exe: binário)",
     )
     parser.add_argument(
+        "--gradual",
+        action="store_true",
+        help="com --check: anotação ausente vira aviso (tipo Any)",
+    )
+    parser.add_argument(
+        "--file-only",
+        action="store_true",
+        help="com --dump-ast: transforma só o arquivo, sem loader/mangling",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("sexp", "json"),
+        default="sexp",
+        help="com --dump-ast: S-expression (padrão) ou JSON (exige --file-only)",
+    )
+    parser.add_argument(
+        "--allow-errors",
+        action="store_true",
+        help="com --dump-ast --file-only: emite a árvore recuperada; exit 65",
+    )
+    parser.add_argument(
+        "--typed",
+        action="store_true",
+        help="com --dump-ast --format=json: inclui o overlay de tipos do checker",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         help="caminho de saída do build (padrão: nome do script)",
@@ -516,6 +549,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_timeout(groups.execution)
         _add_watch(groups.execution)
         _add_dependency_options(groups.modules)
+        groups.general.add_argument(
+            "--gradual",
+            action="store_true",
+            help="anotação ausente vira aviso (tipo Any) em vez de erro",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "repl":
         # Sessão interativa (ou stream em pipe): não há arquivo de entrada.
@@ -575,6 +613,27 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_module_options(groups.modules)
         _add_input_options(groups.input)
         _add_dependency_options(groups.modules)
+        groups.general.add_argument(
+            "--file-only",
+            action="store_true",
+            help="transforma só o arquivo, sem loader, módulos ou mangling",
+        )
+        groups.general.add_argument(
+            "--format",
+            choices=("sexp", "json"),
+            default="sexp",
+            help="S-expression (padrão) ou JSON versionado (exige --file-only)",
+        )
+        groups.general.add_argument(
+            "--allow-errors",
+            action="store_true",
+            help="com --file-only: emite a árvore recuperada (ErrorStmt/ErrorExpr); exit 65",
+        )
+        groups.general.add_argument(
+            "--typed",
+            action="store_true",
+            help="com --format=json: inclui o overlay de tipos do checker",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "fmt":
         _add_diagnostics_options(groups.diagnostics)
@@ -585,7 +644,37 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help="não escreve; exit 1 se mudaria",
         )
-        parser.add_argument("script", nargs="?", help="script Loxia")
+        groups.general.add_argument(
+            "--max-width",
+            type=int,
+            default=100,
+            metavar="N",
+            help="largura máxima do código em colunas (20..1000; padrão 100)",
+        )
+        groups.general.add_argument(
+            "--diff",
+            action="store_true",
+            help="mostra um diff unificado; não escreve",
+        )
+        groups.general.add_argument(
+            "--edits",
+            choices=("json",),
+            default=None,
+            help="com --check: emite TextEdit[] em JSON; não escreve",
+        )
+        groups.general.add_argument(
+            "--exclude",
+            action="append",
+            default=[],
+            metavar="GLOB",
+            help="padrão (relativo ao cwd) a ignorar em diretórios; repetível",
+        )
+        parser.add_argument(
+            "paths",
+            nargs="*",
+            metavar="PATH",
+            help="arquivos ou diretórios .lx; diretórios são recursivos",
+        )
     elif command == "doc":
         # `--json` do doc é a referência em JSON, não o formato de erro: por isso as
         # opções de diagnóstico são declaradas à parte em vez de `_add_diagnostics_options`.
@@ -790,6 +879,21 @@ def _validate(
             parser.error("--stdin cannot be combined with a script")
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
+    ast_format = getattr(args, "format", "sexp")
+    file_only = getattr(args, "file_only", False)
+    if command == "ast":
+        if getattr(args, "allow_errors", False) and not file_only:
+            parser.error("--allow-errors requires --file-only")
+        if getattr(args, "typed", False) and ast_format != "json":
+            parser.error("--typed requires --format=json")
+        if getattr(args, "typed", False) and not file_only:
+            parser.error("--typed requires --file-only")
+        if getattr(args, "typed", False) and getattr(args, "allow_errors", False):
+            parser.error("--typed cannot be combined with --allow-errors")
+        if ast_format == "json" and not file_only:
+            parser.error("--format=json requires --file-only")
+    elif file_only or ast_format != "sexp":
+        parser.error("--file-only/--format are only supported by ast")
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
         parser.error(f"{command} requires a script (or --stdin)")
     if command == "build":
@@ -812,12 +916,28 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--timeout is only supported by run/check")
     if args.watch and not args.check:
         parser.error("--watch requires --check")
+    if args.gradual and not args.check:
+        parser.error("--gradual requires --check")
     if args.watch and args.stdin:
         parser.error("--watch cannot be combined with --stdin")
     if args.watch and not args.script:
         parser.error("--watch requires a script")
     if args.watch and args.timeout:
         parser.error("--timeout cannot be combined with --watch")
+    if args.file_only and not args.dump_ast:
+        parser.error("--file-only requires --dump-ast")
+    if args.format != "sexp" and not args.dump_ast:
+        parser.error("--format is only supported with --dump-ast")
+    if args.allow_errors and not args.file_only:
+        parser.error("--allow-errors requires --file-only")
+    if args.typed and args.format != "json":
+        parser.error("--typed requires --format=json")
+    if args.typed and not args.file_only:
+        parser.error("--typed requires --file-only")
+    if args.typed and args.allow_errors:
+        parser.error("--typed cannot be combined with --allow-errors")
+    if args.format == "json" and not args.file_only:
+        parser.error("--format=json requires --file-only")
     if args.stdin and args.script:
         if args.dump_ast or args.check or args.emit:
             parser.error("--stdin cannot be combined with a script")

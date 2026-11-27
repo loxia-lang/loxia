@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from loxia.engine import Loxia
+from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.expr import Get, Variable
@@ -210,7 +211,8 @@ def test_function_type_checks_callback_body(
     assert "Argument 1: Expected Int, found String." in captured.err
 
 
-def test_function_type_accepts_class_as_constructor() -> None:
+def test_class_object_is_not_a_function_value() -> None:
+    """ADR-0150: objeto de classe não é valor de função (sem coerção implícita)."""
     lox = check(
         """
         class Animal {
@@ -227,6 +229,64 @@ def test_function_type_accepts_class_as_constructor() -> None:
 
         val a: Animal = criar(Animal);
         print(a.nome);
+        """
+    )
+
+    assert lox.reporter.had_error is True
+
+
+def test_class_object_in_a_variable_is_callable() -> None:
+    """ADR-0150: guardar a classe sem anotação de `fn` continua funcionando."""
+    lox = check(
+        """
+        class Animal {
+          var nome: String;
+
+          init(nome: String) {
+            this.nome = nome;
+          }
+        }
+
+        val criar = Animal;
+        val a: Animal = criar("Rex");
+        print(a.nome);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_class_slot_rejects_a_plain_any() -> None:
+    """#247: só um objeto de classe convertido com `as Any` reatribui um slot."""
+    lox = check(
+        """
+        class C {
+          var n: Int = 1;
+        }
+
+        var K = C;
+        val a: Any = 42;
+        K = a;
+        """
+    )
+
+    assert lox.reporter.had_error is True
+
+
+def test_class_slot_accepts_a_class_object_cast_to_any() -> None:
+    """ADR-0044: `Base = OtherBase as Any` continua válido (suíte oficial)."""
+    lox = check(
+        """
+        class A {
+          var n: Int = 1;
+        }
+
+        class B {
+          var n: Int = 2;
+        }
+
+        var K = A;
+        K = B as Any;
         """
     )
 
@@ -1460,6 +1520,509 @@ def test_narrowing_field_invalidations(source: str, capsys: pytest.CaptureFixtur
     assert "Expected a string, a list or a map, found" in captured.err
 
 
+def test_narrowing_write_of_a_subpath_keeps_the_parent_type() -> None:
+    # Escrever `h.x.n` não troca a classe do objeto em `h.x` (ADR-0141).
+    lox = check(
+        """
+        class C {
+          var n: Int = 1
+        }
+        class H {
+          var x: Any = nil
+        }
+        val h = H()
+        h.x = C()
+        if (h.x is C) {
+          h.x.n = 5
+          print(h.x.n)
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_write_of_another_path_keeps_the_refinement() -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          var apelido: String?;
+          init(nome: String?, apelido: String?) {
+            this.nome = nome;
+            this.apelido = apelido;
+          }
+        }
+        val p = P("Ana", "A")
+        if (p.nome != nil) {
+          p.apelido = nil
+          print(len(p.nome))
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_assignment_of_another_variable_keeps_the_refinement() -> None:
+    # `q` é outra raiz; a escrita em `q` não mexe no refino de valor de `x`.
+    lox = check(
+        """
+        var x: String? = "a"
+        var q: String? = nil
+        if (x != nil) {
+          q = "b"
+          print(len(x))
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_write_same_shape_through_another_root_still_drops(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Sem aliasing, `q.nome = nil` pode ser o mesmo objeto de `p.nome`: conservador.
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        val p = P("a")
+        val q = P("b")
+        if (p.nome != nil) {
+          q.nome = nil
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_write_of_a_different_field_through_an_alias_keeps_the_refinement() -> None:
+    # Mesmo objeto (`q = p`), mas o campo escrito tem outro nome: o slot é outro.
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          var apelido: String?;
+          init(nome: String?, apelido: String?) {
+            this.nome = nome;
+            this.apelido = apelido;
+          }
+        }
+        val p = P("a", "b")
+        val q = p
+        if (p.nome != nil) {
+          q.apelido = nil
+          print(len(p.nome))
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_write_through_a_list_alias_drops_the_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `p` também está em `xs[0]`: escrever pelo índice é o mesmo slot (soundness).
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        val p = P("a")
+        val xs: List[P] = [p]
+        if (p.nome != nil) {
+          xs[0].nome = nil
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_write_through_an_alias_of_an_ancestor_drops_the_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `val q = p.a`: escrever `p.a.n` substitui um ancestral de `q.n.m`.
+    lox = check(
+        """
+        class C {
+          var m: Any = nil;
+          fn init(v: Any) { this.m = v; }
+          fn id() -> Int { return 7; }
+        }
+        class Mid {
+          var n: C;
+          fn init(n: C) { this.n = n; }
+        }
+        class Root {
+          var a: Mid;
+          fn init(a: Mid) { this.a = a; }
+        }
+        val p = Root(Mid(C(C(nil))))
+        val bad = C(5)
+        val q = p.a
+        if (q.n.m is C) {
+          p.a.n = bad
+          print(q.n.m.id())
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `q.n.m` (was `C`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
+def test_narrowing_write_through_a_deep_alias_drops_the_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # `val a = A(b)` põe o mesmo objeto em outra raiz; a escrita em `a.b.c.n` alcança
+    # `b.c.n` (o caminho escrito é sub-caminho contíguo do refinado).
+    lox = check(
+        """
+        class C {
+          var n: String?;
+          init(n: String?) { this.n = n; }
+        }
+        class B {
+          var c: C;
+          init(c: C) { this.c = c; }
+        }
+        class A {
+          var b: B;
+          init(b: B) { this.b = b; }
+        }
+        val b = B(C("x"))
+        val a = A(b)
+        if (b.c.n != nil) {
+          a.b.c.n = nil
+          print(len(b.c.n))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_of_a_nilable_member_reports_the_dropped_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # O erro de membro (E3001) também carrega a proveniência do refino derrubado.
+    lox = check(
+        """
+        class C {
+          var n: Int = 1;
+        }
+        class P {
+          var alvo: C?;
+          init(alvo: C?) { this.alvo = alvo; }
+          clear() -> Nil { this.alvo = nil; }
+          peek() -> Int {
+            if (this.alvo != nil) {
+              this.clear()
+              return this.alvo.n
+            }
+            return 0
+          }
+        }
+        print(P(C()).peek())
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Only instances have properties." in captured.err
+    assert "the refinement of `this.alvo` (was `C`)" in captured.err
+
+
+def test_narrowing_write_with_dynamic_index_still_drops(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        val xs: List[Int?] = [1, nil]
+        var i = 0
+        if (xs[0] != nil) {
+          xs[i] = nil
+          print(xs[0] + 1)
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Operands must be numbers." in captured.err
+
+
+def test_narrowing_write_in_another_list_over_drops_by_design(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Precisão declarada (ADR-0141): sem análise de alias, escrever `ys[0]` também derruba
+    # o refino de `xs[0]` — mesmo índice literal, listas que podem ser a mesma. O caso é
+    # escopo da análise de alias/escape adiada no ADR-0107; aqui ele fica fixado como
+    # conservador, não como promessa de precisão. Se a fatia 2 entrar, este teste muda.
+    lox = check(
+        """
+        val xs: List[String?] = ["a"]
+        val ys: List[String?] = ["b"]
+        if (xs[0] != nil) {
+          ys[0] = nil
+          print(len(xs[0]))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+    assert "the refinement of `xs[0]` (was `String`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
+def test_narrowing_a_field_of_this() -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+          tamanho() -> Int {
+            if (this.nome != nil) {
+              return len(this.nome)
+            }
+            return 0
+          }
+        }
+        print(P("abc").tamanho())
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_of_this_field_is_dropped_by_a_call(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+          clear() -> Nil { this.nome = nil; }
+          peek() -> Int {
+            if (this.nome != nil) {
+              this.clear()
+              return len(this.nome)
+            }
+            return 0
+          }
+        }
+        print(P("abc").peek())
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_pure_native_in_an_expected_context_keeps_the_field_refinement() -> None:
+    # `val n: Int = len(...)` passa por `_check`, que antes invalidava como chamada
+    # de usuário (divergia de `visit_call_expr`, ADR-0144).
+    lox = check(
+        """
+        class C {
+          var n: Int = 1
+        }
+        class H {
+          var x: Any = nil
+        }
+        val h = H()
+        h.x = C()
+        if (h.x is C) {
+          val n: Int = len("ab")
+          h.x.n = 5
+          print(h.x.n)
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_dropped_refinement_names_the_call_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        fn clear(p: P) -> Nil {
+          p.nome = nil;
+        }
+
+        val p = P("a")
+        if (p.nome != nil) {
+          clear(p)
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `p.nome` (was `String`) was dropped by the call on line 12" in (
+        captured.err
+    )
+    assert "re-narrow with `is`/`as` or bind it to a local" in captured.err
+
+
+def test_dropped_refinement_names_the_assignment_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var n: Int = 1;
+        }
+        var s: Any = C()
+        if (s is C) {
+          s = nil
+          print(s.n)
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `s` (was `C`) was dropped by the assignment on line 7" in (
+        captured.err
+    )
+
+
+def test_dropped_refinement_names_capture_invalidation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var src: String? = "a"
+        fn touch() -> Nil {
+          src = nil;
+        }
+        if (src != nil) {
+          touch()
+          print(len(src))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "was dropped by the call that may reassign a captured variable on line 7" in (
+        captured.err
+    )
+
+
+def test_dropped_refinement_names_the_iteration_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class It {
+          var i: Int = 0;
+          fn iter() -> It { return this; }
+          fn next() -> Int? {
+            if (this.i < 2) {
+              this.i = this.i + 1;
+              return this.i;
+            }
+            return nil;
+          }
+        }
+        class C {
+          var n: Int = 1;
+        }
+        class H {
+          var x: Any = nil;
+        }
+        val h = H()
+        h.x = C()
+        val it = It()
+        if (h.x is C) {
+          for y in it {
+            print(h.x.n)
+          }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "was dropped by the iteration over a user type" in captured.err
+
+
+def test_dropped_refinement_names_the_write_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+        val p = P("a")
+        val q = P("b")
+        if (p.nome != nil) {
+          q.nome = nil
+          print(len(p.nome))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `p.nome` (was `String`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
+def test_dropped_index_refinement_renders_the_literal_path(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        val m: Map[String, String?] = {"k": "v"}
+        if (m["k"] != nil) {
+          m["k"] = nil
+          print(len(m["k"]))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert 'the refinement of `m["k"]` (was `String`)' in captured.err
+
+
 def test_storage_type_ignores_narrowing() -> None:
     source = """
     val x: Int? = 1
@@ -1864,9 +2427,15 @@ def test_is_narrows_any_to_list() -> None:
     assert lox.reporter.had_error is False
 
 
-def test_is_rejects_function_types(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_lambda_records_function_types_for_runtime_narrowing() -> None:
+    lox = check("val a: fn(Int) -> Int = fn(x) => x * 2\nval b = fn(x: Int) -> Int => x\n")
+
+    assert lox.reporter.had_error is False
+    assert lox.last_checker is not None
+    assert len(lox.last_checker.function_types) == 2
+
+
+def test_is_accepts_function_types() -> None:
     lox = check(
         """
         fn f(x: Any) -> Bool {
@@ -1874,10 +2443,36 @@ def test_is_rejects_function_types(
         }
         """
     )
+
+    assert lox.reporter.had_error is False
+
+
+def test_as_accepts_function_types_from_any() -> None:
+    lox = check(
+        """
+        fn dobro(x: Int) -> Int { return x * 2; }
+        val f: Any = dobro;
+        val g = f as fn(Int) -> Int;
+        print(g(2));
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_as_rejects_incompatible_function_types(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn texto(x: String) -> String { return x; }
+        val g = texto as fn(Int) -> Int;
+        """
+    )
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
-    assert "is doesn't support this type yet." in captured.err
+    assert "Can't cast fn(String) -> String to fn(Int) -> Int." in captured.err
 
 
 def test_is_result_is_bool() -> None:
@@ -2446,7 +3041,6 @@ def test_enum_match_and_result() -> None:
             "enum Cor { Vermelho, Verde }\nprint(match Cor.Vermelho { _ => 1, Cor.Verde => 2 })",
             "Unreachable match arm.",
         ),
-        ("print(match 1 { _ => 1 })", "match requires an enum value"),
         (
             "enum Cor { Vermelho }\nprint(match Cor.Vermelho { Cor.Verde => 1 })",
             "Unknown variant 'Verde'.",
@@ -2480,6 +3074,82 @@ print(x is E[Int])""",
     ],
 )
 def test_enum_match_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
+def test_literal_match() -> None:
+    lox = check(
+        """
+        val i = match 2 { 1 => "one", 2 => "two", _ => "many" }
+        val s = match "b" { "a" => 1, "b" => 2, _ => 3 }
+        val b = match true { false => 0, true => 1, _ => 2 }
+        val n = match nil { nil => 1, _ => 2 }
+        val neg = match -1 { -1 => 1, 0 => 2, _ => 3 }
+        print(i)
+        print(s)
+        print(b)
+        print(n)
+        print(neg)
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("print(match 1 { 1 => 1 })", "Non-exhaustive match; add a '_' arm."),
+        (
+            'print(match 1 { "x" => 1, _ => 2 })',
+            "Pattern of type String doesn't match Int.",
+        ),
+        ("print(match 1 { 1 => 1, 1 => 2, _ => 3 })", "Unreachable match arm."),
+        (
+            "enum C { A }\nprint(match C.A { C.A => 1, 1 => 2, _ => 3 })",
+            "Literal patterns only match Int, String, Bool or nil",
+        ),
+        (
+            "enum C { A }\nprint(match 1 { C.A => 1, _ => 2 })",
+            "Enum variant patterns don't match Int",
+        ),
+        (
+            "print(match true { 1 => 1, _ => 2 })",
+            "Pattern of type Int doesn't match Bool.",
+        ),
+        (
+            "print(match 1 { true => 1, _ => 2 })",
+            "Pattern of type Bool doesn't match Int.",
+        ),
+        (
+            "print(match false { false => 1, false => 2, _ => 3 })",
+            "Unreachable match arm.",
+        ),
+        (
+            'print(match "a" { "a" => 1, "a" => 2, _ => 3 })',
+            "Unreachable match arm.",
+        ),
+        (
+            "print(match nil { nil => 1, nil => 2, _ => 3 })",
+            "Unreachable match arm.",
+        ),
+        (
+            "val x: Int? = 1\nprint(match x { _ => 1 })",
+            "match requires an enum, Int, String, Bool or nil value",
+        ),
+        (
+            "val x = 1 as Any\nprint(match x { _ => 1 })",
+            "match requires an enum, Int, String, Bool or nil value",
+        ),
+    ],
+)
+def test_literal_match_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -2641,18 +3311,6 @@ print(I)""",
             "Interface 'I' is a type, not a value.",
         ),
         (
-            "interface I { m() -> Int }\n"
-            "class C implements I { fn m() -> Int { return 1 } }\n"
-            "print(C() is I)",
-            "Interface types aren't supported in 'is' yet.",
-        ),
-        (
-            "interface I { m() -> Int }\n"
-            "class C implements I { fn m() -> Int { return 1 } }\n"
-            "print(C() as I)",
-            "Interface types aren't supported in 'as' yet.",
-        ),
-        (
             "fn f() -> Int { { interface I { m() -> Int } } return 1 }",
             "Interfaces must be declared at top level.",
         ),
@@ -2684,6 +3342,67 @@ def test_interface_errors(source: str, message: str, capsys: pytest.CaptureFixtu
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_coalesce_common_type_is_the_wider_side(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(
+        "interface I { fn m() -> Int }\n"
+        "class C implements I {\n"
+        "  fn m() -> Int { return 1 }\n"
+        "  fn onlyC() -> Int { return 2 }\n"
+        "}\n"
+        "val maybe: I | Nil = C()\n"
+        "val as_c: C = maybe ?? C()\n"
+        "print((maybe ?? C()).onlyC())"
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected C, found I." in captured.err
+    assert "Interface 'I' has no method 'onlyC'." in captured.err
+
+
+def test_coalesce_keeps_the_nil_from_a_nilable_right(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check("val a: String? = nil\nval b: String? = nil\nval c: String = a ?? b")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected String, found String | Nil." in captured.err
+
+
+def test_coalesce_common_type_accepts_the_wider_target() -> None:
+    lox = check(
+        "interface I { fn m() -> Int }\n"
+        "class C implements I { fn m() -> Int { return 1 } }\n"
+        "class D(C) {}\n"
+        "val maybe: I | Nil = C()\n"
+        "val as_i: I = maybe ?? C()\n"
+        "val narrow: D? = nil\n"
+        "val as_c: C = narrow ?? C()"
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_interface_is_and_as_are_accepted() -> None:
+    lox = check(
+        "interface I { fn m() -> Int { return 1 } }\n"
+        "class C implements I { fn m() -> Int { return 1 } }\n"
+        "print(C() is I)\n"
+        "print((C() as I).m())"
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_interface_as_from_class_that_does_not_implement_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check("interface I { fn m() -> Int }\nclass C {}\nprint(C() as I)")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Can't cast C to I." in captured.err
 
 
 @pytest.mark.parametrize(
@@ -3126,3 +3845,208 @@ def test_nil_nao_e_tipo_de_armazenamento(capsys: pytest.CaptureFixture[str]) -> 
         captured = capsys.readouterr()
         assert lox.reporter.had_error is True, source
         assert "of type Nil are not supported; use `Any`." in captured.err
+
+
+def test_logical_right_operand_is_narrowed_by_the_left() -> None:
+    lox = check(
+        "fn id(x: Int) -> Int { return x }\n"
+        "fn f(c: Int?) -> Int {\n"
+        "  if (c != nil and id(c) == 1) { return c }\n"
+        "  return 0\n"
+        "}\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_cast_from_a_union_to_one_of_its_members_is_explicit() -> None:
+    lox = check("val x: Int | String = 1\nprint(x as Int)\n")
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_class_used_before_its_declaration_sees_the_methods() -> None:
+    lox = check(
+        "fn f() -> Int {\n  val p = P()\n  return p.m()\n}\n"
+        "class P {\n  fn m() -> Int { return 1 }\n}\n"
+        "print(f())\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+ANY_ESCAPES = [
+    "fn f(x: Int) -> Int { return x }\nval a: Any = 1\nprint(f(a))\n",
+    "fn f() -> Int {\n  val a: Any = 1\n  return a\n}\n",
+    "var x: Int = 0\nval a: Any = 1\nx = a\n",
+    "val a: Any = 1\nval xs: List[Int] = [a]\n",
+    "val a: Any = 1\nval xs: List[Int] = [1]\nxs[0] = a\n",
+    'val a: Any = "k"\nval m: Map[String, Int] = {}\nprint(m[a])\n',
+    'val a: Any = "k"\nval m: Map[String, Int] = {}\nval v: Any = 1\nm[a] = v\n',
+    'val a: Any = 1\nval m: Map[String, Int] = {}\nm["k"] = a\n',
+]
+
+
+@pytest.mark.parametrize("source", ANY_ESCAPES)
+def test_any_escape_suggests_an_explicit_cast(source: str) -> None:
+    lox = check(source)
+
+    diagnostic = next(
+        item for item in lox.reporter.batch().diagnostics if item.code is Code.TYPE_MISMATCH
+    )
+    assert diagnostic.help == "Use an explicit `as` cast to narrow `Any` before using it here."
+
+
+MATCH_INFERENCE = [
+    'val r: Result[Int, String] = match 1 {\n  0 => Result.Ok(1)\n  _ => Result.Err("e")\n}\n',
+    "fn f(x: Int) -> Result[Int, String] {\n  return match x {\n    0 => Result.Ok(0)\n"
+    "    _ => Result.Ok(x)\n  }\n}\nprint(f(2))\n",
+    "val g: fn(Int) -> Result[Int, String] = fn(x) => match x {\n  0 => Result.Ok(1)\n"
+    '  _ => Result.Err("e")\n}\nprint(g(0))\n',
+]
+
+
+@pytest.mark.parametrize("source", MATCH_INFERENCE)
+def test_expected_type_reaches_match_arms(source: str) -> None:
+    lox = check(source)
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_match_arm_still_checks_against_the_expected_type() -> None:
+    lox = check(
+        'val r: Result[Int, String] = match 1 {\n  0 => Result.Ok("x")\n  _ => Result.Err("e")\n}\n'
+    )
+
+    assert lox.reporter.had_error is True
+
+
+def test_enum_constructor_infers_from_a_union_context() -> None:
+    lox = check("val r: Result[Int, String]? = Result.Ok(1)\n")
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_match_in_argument_position_uses_the_parameter_type() -> None:
+    lox = check(
+        "fn id(r: Result[Int, String]) -> Result[Int, String] { return r }\n"
+        "print(match id(match 1 {\n"
+        "  0 => Result.Ok(5)\n"
+        '  _ => Result.Err("e")\n'
+        "}) {\n"
+        "  Result.Ok(v) => v\n"
+        "  Result.Err(_e) => 0\n"
+        "})\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_each_bad_match_arm_reports_at_its_own_span() -> None:
+    lox = check(
+        "val r: Result[Int, String] = match 1 {\n"
+        "  0 => Result.Err(2)\n"
+        "  1 => Result.Err(3)\n"
+        '  _ => Result.Err("e")\n'
+        "}\n"
+    )
+
+    errors = [item for item in lox.reporter.batch().diagnostics if item.code is Code.TYPE_MISMATCH]
+    assert len(errors) == 2
+    assert errors[0].span != errors[1].span
+
+
+def test_any_match_arm_does_not_duplicate_the_outer_error() -> None:
+    lox = check(
+        'val r: Result[Int, String] = match 1 {\n  0 => (1 as Any)\n  _ => Result.Err("e")\n}\n'
+    )
+
+    errors = [item for item in lox.reporter.batch().diagnostics if item.code is Code.TYPE_MISMATCH]
+    assert len(errors) == 1
+
+
+def test_enum_constructor_argument_uses_the_parameter_type() -> None:
+    lox = check(
+        "fn h(r: Result[Int, String]) -> Int {\n"
+        "  return match r {\n"
+        "    Result.Ok(v) => v\n"
+        "    Result.Err(_e) => 0\n"
+        "  }\n"
+        "}\n"
+        "print(h(Result.Ok(1)))\n"
+        'print(h(Result.Err("e")))\n'
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_argument_checks_the_payload() -> None:
+    lox = check('fn h(r: Result[Int, String]) -> Int { return 0 }\nprint(h(Result.Ok("x")))\n')
+
+    assert lox.reporter.had_error is True
+
+
+def test_enum_constructor_argument_accepts_a_nullable_parameter() -> None:
+    lox = check("fn opt(r: Result[Int, String]?) -> Int { return 0 }\nprint(opt(Result.Ok(1)))\n")
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_argument_disambiguates_a_union_by_name() -> None:
+    lox = check(
+        "enum Other {\n  Z(Int)\n}\n"
+        "fn f(r: Result[Int, String] | Other) -> Int { return 0 }\n"
+        "print(f(Result.Ok(1)))\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_argument_with_a_variadic_parameter() -> None:
+    lox = check(
+        "fn h(a: Int, ...rs: Result[Int, String]) -> Int { return a }\nprint(h(1, Result.Ok(2)))\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_rejects_a_union_without_its_enum() -> None:
+    lox = check("enum Other {\n  Z(Int)\n}\nval r: Other? = Result.Ok(1)\n")
+
+    assert lox.reporter.had_error is True
+
+
+def test_generic_function_with_a_function_return_reports_unbound_vars() -> None:
+    lox = check("fn make[T]() -> fn(T) -> Int { return fn(x) => 1 }\nprint(make())\n")
+
+    assert lox.reporter.had_error is True
+
+
+def test_optional_value_is_not_unified_with_a_generic_parameter() -> None:
+    lox = check(
+        "fn first[T](xs: List[T]) -> Int { return len(xs) }\n"
+        "val ys: List[Int]? = nil\n"
+        "print(first(ys))\n"
+    )
+
+    assert lox.reporter.had_error is True

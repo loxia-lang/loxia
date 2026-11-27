@@ -10,9 +10,11 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
+# Crate Rust do motor de regex (ADR-0131); o vendor é versionado, o target não.
+native/regex/target/
 
-# Contexto local para agentes de IA (não versionado de propósito)
-AGENTS.md
+# Notas locais do mantenedor (não versionadas)
+NOTAS.local.md
 IDEIAS-REDDIT.md
 
 dist/

@@ -11,17 +11,27 @@ fn show(result: Result[Map[String, Any], RpcFailure]) -> String {
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}")))
 print(show(decode("{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}")))
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":null,\"result\":[1,2]}")))
-print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"error\":{\"code\":-32601,\"message\":\"nope\",\"data\":{\"x\":1}}}")))
+print(
+  show(
+    decode(
+      "{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"error\":{\"code\":-32601,\"message\":\"nope\",\"data\":{\"x\":1}}}",
+    ),
+  ),
+)
 print(show(decode("{")))
 print(show(decode("[{\"jsonrpc\":\"2.0\",\"method\":\"x\"}]")))
 print(show(decode("{\"id\":1,\"method\":\"x\"}")))
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1.5,\"method\":\"x\"}")))
-print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":1,\"error\":{\"code\":1,\"message\":\"x\"}}")))
+print(
+  show(
+    decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":1,\"error\":{\"code\":1,\"message\":\"x\"}}"),
+  ),
+)
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"x\"}")))
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"x\",\"params\":3}")))
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"x\",\"result\":null}")))
 print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":1}}")))
-print(encode(request(7, "initialize", {"capabilities": {}})))
+print(encode(request(7, "initialize", { "capabilities": {} })))
 print(encode(notification("exit")))
 print(encode(success("abc", nil)))
 print(encode(failure(nil, -32700, "Parse error")))

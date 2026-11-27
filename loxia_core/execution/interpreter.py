@@ -6,6 +6,8 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import Frame, Trace
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.errors import (
+    BreakSignal,
+    ContinueSignal,
     LoxRaise,
     LoxRuntimeError,
     NativeError,
@@ -20,6 +22,7 @@ from loxia_core.execution.limits import (
     TRACE_TAIL,
     ensure_recursion_budget,
 )
+from loxia_core.execution.lox_bytes import bytes_method, bytes_module
 from loxia_core.execution.lox_callable import LoxCallable
 from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumObject, LoxEnumValue
@@ -48,7 +51,7 @@ from loxia_core.execution.primitives import (
     PrimitiveCallable,
     is_sandbox_denied,
 )
-from loxia_core.execution.type_test import matches_type
+from loxia_core.execution.type_test import matches_type, same_rep
 from loxia_core.execution.values import stringify
 from loxia_core.frontend.destructuring import (
     DestructurePattern,
@@ -61,6 +64,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -71,6 +75,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -87,9 +92,12 @@ from loxia_core.frontend.expr import (
 from loxia_core.frontend.expr import Visitor as ExprVisitor
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     ForIn,
     Function,
@@ -114,6 +122,7 @@ from loxia_core.frontend.ty import (
     ClassTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     TupleTy,
@@ -151,9 +160,16 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         # Tuplas leves no caminho feliz; `Frame` só é materializado ao capturar o trace.
         self._frames: list[tuple[str, str, int, int]] = []
         self._call_site: Token | None = None
+        # Ponto de entrada (ADR-0148): o nó do `main` e o closure que ele gerou. O
+        # lookup é pelo nó, não pelo global: `var main = ...` no topo não pode trocar
+        # a função chamada na borda.
+        self._entry_node: Function | None = None
+        self._entry_function: LoxFunction | None = None
         self.globals = Environment()
         self.environment = self.globals
         self._type_aliases: dict[str, Ty] = {}
+        self.function_types: dict[Any, FnTy] = {}
+        self._fn_assignable: Callable[[FnTy, FnTy], bool] | None = None
         self.locals: dict[Expr, int] = {}
         self.interfaces: dict[str, LoxInterface] = {}
         self._current_exception: object | None = None
@@ -191,17 +207,30 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             LoxExceptionClass("RuntimeError", exception_class),
             mutable=False,
         )
+        self.globals.define(
+            "BytesError",
+            LoxEnumObject(
+                "BytesError",
+                {"InvalidHex": 1, "InvalidBase64": 1, "InvalidUtf8": 1},
+            ),
+            mutable=False,
+        )
+        self.globals.define("Bytes", bytes_module(), mutable=False)
 
-    def interpret(self, statements: list[Stmt]) -> None:
+    def interpret(self, statements: list[Stmt], entry: Function | None = None) -> None:
         self._call_depth = 0
         self._frames.clear()
         self._call_site = None
+        self._entry_node = entry
+        self._entry_function = None
         for statement in statements:
             if isinstance(statement, TypeAlias):
                 self._type_aliases[statement.name.lexeme] = statement.target
         try:
             for statement in statements:
                 self._execute(statement)
+            if self._entry_function is not None:
+                self._finish_entry()
         except LoxRaise as raised:
             error = LoxRuntimeError(
                 raised.token,
@@ -216,6 +245,25 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             self.reporter.runtime_error(e)
         finally:
             self.close_handles()
+
+    def _finish_entry(self) -> None:
+        """Chama o `main` do entry e aplica a borda `Result` (ADR-0148).
+
+        `Ok` termina em 0 sem imprimir nada; `Err(msg)` vira `error[R1016]: msg` no
+        stderr e exit 70. O `Err` só conta se for o **retorno** do entry: um `Err`
+        descartado no topo continua sendo um valor comum.
+        """
+        function = self._entry_function
+        assert function is not None
+        value = function.call(self, [])
+        if not isinstance(value, LoxEnumValue):
+            return
+        if value.enum != "Result" or value.variant != "Err":
+            return
+
+        payload = value.payload[0] if value.payload else None
+        message = payload if isinstance(payload, str) else stringify(payload)
+        self.reporter.entry_error(message)
 
     def close_handles(self) -> None:
         """Fecha handles ambientais de uma execução (I3/ADR-0119)."""
@@ -323,6 +371,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return True
         if a is None or b is None:
             return False
+
+        if isinstance(a, bytes) or isinstance(b, bytes):
+            return isinstance(a, bytes) and isinstance(b, bytes) and a == b
 
         if isinstance(a, LoxList) or isinstance(b, LoxList):
             if not isinstance(a, LoxList) or not isinstance(b, LoxList):
@@ -553,6 +604,22 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_index_expr(self, expr: Index) -> object:
         ob = self._evaluate(expr.object)
 
+        if isinstance(ob, bytes):
+            index = self._evaluate(expr.index)
+            if not numeric.is_int(index):
+                raise LoxRuntimeError(
+                    expr.bracket,
+                    "Bytes index must be an integer.",
+                    code=Code.RUNTIME_OPERANDS,
+                )
+            if index < 0 or index >= len(ob):
+                raise LoxRuntimeError(
+                    expr.bracket,
+                    f"Bytes index {index} out of bounds for length {len(ob)}.",
+                    code=Code.INDEX_OUT_OF_BOUNDS,
+                )
+            return ob[index]
+
         if isinstance(ob, LoxList):
             index = self._evaluate(expr.index)
             return ob.get(index, expr.bracket)
@@ -605,6 +672,31 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
 
+    def _runtime_type(self, ty: Ty) -> Ty:
+        """`ClassTy(I)` do parser é interface no runtime, inclusive dentro de containers."""
+        if isinstance(ty, ClassTy):
+            if not ty.args and ty.name in self.interfaces:
+                return InterfaceTy(ty.name)
+            if not ty.args and isinstance(self.globals.values.get(ty.name), LoxEnumObject):
+                return EnumTy(ty.name)
+            return ty
+        if isinstance(ty, ListTy):
+            return ListTy(self._runtime_type(ty.element))
+        if isinstance(ty, MapTy):
+            return MapTy(self._runtime_type(ty.key), self._runtime_type(ty.value))
+        if isinstance(ty, TupleTy):
+            return TupleTy(tuple(self._runtime_type(item) for item in ty.items))
+        if isinstance(ty, UnionTy):
+            return UnionTy(tuple(self._runtime_type(member) for member in ty.members))
+        if isinstance(ty, FnTy):
+            return FnTy(
+                tuple(self._runtime_type(param) for param in ty.params),
+                self._runtime_type(ty.ret),
+                ty.min_params,
+                ty.variadic,
+            )
+        return ty
+
     def _expand_type_aliases(self, ty: Ty, seen: frozenset[str] = frozenset()) -> Ty:
         if isinstance(ty, ClassTy):
             if ty.name in self._type_aliases and ty.name not in seen:
@@ -643,7 +735,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self._type_aliases[stmt.name.lexeme] = stmt.target
 
     def visit_is_expr(self, expr: Is) -> object:
-        test_type = self._expand_type_aliases(expr.test_type)
+        test_type = self._runtime_type(self._expand_type_aliases(expr.test_type))
         if isinstance(test_type, ClassTy) and test_type.args:
             raise LoxRuntimeError(
                 expr.operator,
@@ -658,11 +750,20 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
 
         value = self._evaluate(expr.left)
-        return matches_type(value, test_type, self._class_for_type)
+        return matches_type(
+            value,
+            test_type,
+            self._class_for_type,
+            self._fn_assignable,
+            same_rep,
+        )
+
+    def set_fn_assignable(self, assignable: Callable[[FnTy, FnTy], bool] | None) -> None:
+        self._fn_assignable = assignable
 
     def visit_as_expr(self, expr: As) -> object:
         value = self._evaluate(expr.left)
-        target = self._expand_type_aliases(expr.target_type)
+        target = self._runtime_type(self._expand_type_aliases(expr.target_type))
 
         if isinstance(target, ClassTy) and target.args:
             raise LoxRuntimeError(
@@ -710,7 +811,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "as doesn't support union types yet; narrow first.",
                 code=Code.RUNTIME_CAST,
             )
-        elif matches_type(value, target, self._class_for_type):
+        elif matches_type(
+            value,
+            target,
+            self._class_for_type,
+            self._fn_assignable,
+            same_rep,
+        ):
             return value
 
         raise LoxRuntimeError(
@@ -1028,10 +1135,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_match_expr(self, expr: Match) -> object:
         value = self._evaluate(expr.scrutinee)
-        if not isinstance(value, LoxEnumValue):
+        if not self._is_match_value(value):
             raise LoxRuntimeError(
                 expr.keyword,
-                "match requires an enum value.",
+                "match requires an enum, Int, String, Bool or nil value.",
                 code=Code.INVALID_VALUE,
             )
 
@@ -1039,7 +1146,17 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             pattern = arm.pattern
             if isinstance(pattern, WildcardPattern):
                 return self._evaluate(arm.body)
+            if isinstance(pattern, LiteralPattern):
+                if self._literal_matches(value, pattern.value):
+                    return self._evaluate(arm.body)
+                continue
             assert isinstance(pattern, VariantPattern)
+            if not isinstance(value, LoxEnumValue):
+                raise LoxRuntimeError(
+                    expr.keyword,
+                    "match requires an enum value.",
+                    code=Code.INVALID_VALUE,
+                )
             if value.key != pattern.enum.lexeme or value.variant != pattern.variant.lexeme:
                 continue
 
@@ -1054,15 +1171,35 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         raise LoxRuntimeError(expr.keyword, "No match arm matched.", code=Code.INVALID_VALUE)
 
+    @staticmethod
+    def _is_match_value(value: object) -> bool:
+        return (
+            value is None or isinstance(value, (bool, str, LoxEnumValue)) or numeric.is_int(value)
+        )
+
+    @staticmethod
+    def _literal_matches(value: object, expected: object) -> bool:
+        if expected is None:
+            return value is None
+        if isinstance(expected, bool):
+            return isinstance(value, bool) and value == expected
+        if isinstance(expected, int):
+            return numeric.is_int(value) and value == expected
+        return isinstance(value, str) and value == expected
+
     def visit_interface_stmt(self, stmt: Interface) -> None:
         defaults: dict[str, LoxFunction] = {}
         for method in stmt.methods:
             if method.abstract:
                 continue
-            defaults[method.name.lexeme] = LoxFunction(method, self.environment, False)
+            defaults[method.name.lexeme] = LoxFunction(
+                method, self.environment, False, self.function_types.get(method)
+            )
 
         self.interfaces[stmt.name.lexeme] = LoxInterface(
-            stmt.display_name or stmt.name.lexeme, defaults
+            stmt.display_name or stmt.name.lexeme,
+            defaults,
+            canonical=stmt.name.lexeme,
         )
 
     def visit_class_stmt(self, stmt: Class) -> None:
@@ -1077,7 +1214,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                     "Superclass must be a class.",
                     code=Code.INVALID_VALUE,
                 )
-
             superclass = candidate
 
         interfaces: list[LoxInterface] = []
@@ -1099,7 +1235,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         methods: dict[str, LoxFunction] = {}
         for method in stmt.methods:
-            function = LoxFunction(method, self.environment, method.name.lexeme == "init")
+            function = LoxFunction(
+                method,
+                self.environment,
+                method.name.lexeme == "init",
+                self.function_types.get(method),
+            )
             methods[method.name.lexeme] = function
 
         fields: dict[str, FieldInfo] = {}
@@ -1140,6 +1281,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if expr.optional and ob is None:
             return None
+
+        if isinstance(ob, bytes):
+            return bytes_method(ob, expr.name)
 
         if isinstance(ob, LoxInstance):
             if expr.name.lexeme == "site" and ob.is_instance_of("Exception"):
@@ -1235,11 +1379,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_function_stmt(self, stmt: Function) -> None:
         self._reject_immutable_redeclaration(stmt.name)
 
-        function = LoxFunction(stmt, self.environment, False)
+        function = LoxFunction(stmt, self.environment, False, self.function_types.get(stmt))
         self.environment.define(stmt.name.lexeme, function)
+        if stmt is self._entry_node:
+            self._entry_function = function
 
     def visit_lambda_expr(self, expr: Lambda) -> object:
-        return LoxFunction(expr, self.environment, False)
+        return LoxFunction(expr, self.environment, False, self.function_types.get(expr))
 
     def visit_for_in_stmt(self, stmt: ForIn) -> None:
         iterable = self._evaluate(stmt.iterable)
@@ -1247,7 +1393,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         for value in self._iterate(stmt.name, iterable):
             environment = Environment(self.environment)
             environment.define(stmt.name.lexeme, value, mutable=False)
-            self.execute_block([stmt.body], environment)
+            try:
+                self.execute_block([stmt.body], environment)
+            except ContinueSignal:
+                continue
+            except BreakSignal:
+                break
 
     def _iterate(self, name: Token, iterable: object) -> Iterator[object]:
         if isinstance(iterable, LoxRange):
@@ -1257,6 +1408,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 stop = iterable.end
             return iter(range(iterable.start, stop, iterable.step))
         if isinstance(iterable, str):
+            return iter(iterable)
+        if isinstance(iterable, bytes):
             return iter(iterable)
         if isinstance(iterable, LoxList):
             return self._iterate_list(name, iterable)
@@ -1390,6 +1543,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         self.environment.define(stmt.name.lexeme, val, stmt.mutable)
 
+    def visit_error_expr(self, expr: ErrorExpr) -> object:
+        raise LoxRuntimeError(expr.start, expr.message or "Invalid syntax.")
+
     def visit_variable_expr(self, expr: Variable) -> object:
         return self.look_up_variable(expr.name, expr)
 
@@ -1434,6 +1590,20 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         return self._evaluate(expr.right)
 
+    def visit_error_stmt(self, stmt: ErrorStmt) -> None:
+        raise LoxRuntimeError(stmt.start, stmt.message or "Invalid syntax.")
+
     def visit_while_stmt(self, stmt: While) -> None:
         while self._is_truthy(self._evaluate(stmt.condition)):
-            self._execute(stmt.body)
+            try:
+                self._execute(stmt.body)
+            except ContinueSignal:
+                continue
+            except BreakSignal:
+                break
+
+    def visit_break_stmt(self, stmt: Break) -> None:
+        raise BreakSignal(stmt.keyword)
+
+    def visit_continue_stmt(self, stmt: Continue) -> None:
+        raise ContinueSignal(stmt.keyword)

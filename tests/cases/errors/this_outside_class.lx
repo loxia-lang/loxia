@@ -1,2 +1,2 @@
-print(this);
+print(this)
 # expect error: Can't use 'this' outside of a class.

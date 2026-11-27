@@ -1,0 +1,64 @@
+# Escrita não derruba o refino de tipo do pai nem o de outro caminho (ADR-0141).
+class C {
+  var n: Int = 1
+
+  fn m() -> Int {
+    return 7
+  }
+}
+
+class H {
+  var x: Any = nil
+  var y: Int = 0
+}
+
+val h = H()
+h.x = C()
+
+# Escrever o sub-campo `n` mantém `h.x` como `C` (a classe do objeto não muda).
+if (h.x is C) {
+  h.x.n = 5
+  print(h.x.n)    # expect: 5
+  print(h.x.m())  # expect: 7
+}
+
+# Escrever outro caminho da mesma raiz mantém `h.x`.
+if (h.x is C) {
+  h.y = 1
+  print(h.x.n) # expect: 5
+}
+
+# Escrever em outro caminho do objeto mantém o refino de valor.
+class P {
+  var alvo: C? = nil
+  var outro: Int = 0
+
+  fn init(alvo: C?) {
+    this.alvo = alvo
+  }
+}
+
+val p = P(C())
+if (p.alvo != nil) {
+  p.outro = 2
+  print(p.alvo.n) # expect: 1
+}
+
+# O mesmo caminho pela raiz `this` também refina e é derrubado pela escrita nele.
+class Conta {
+  var alvo: C? = nil
+
+  fn init(alvo: C?) {
+    this.alvo = alvo
+  }
+
+  fn ler() -> Int {
+    if (this.alvo != nil) {
+      return this.alvo.n
+    }
+    return -1
+  }
+}
+
+print(Conta(C()).ler())  # expect: 1
+print(Conta(nil).ler())  # expect: -1

@@ -39,29 +39,32 @@ in both engines; if they diverge, the bug is in the backend.
 The corpus is the entire conformance corpus, **annotated and classified by level** in
 `tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),
 `PENDING` (the `--check` passes, the backend still refuses with **65** and the message
-`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the
-`--check`). A case only enters `LEVELS` when the three channels match; promotion is
-monotonic and the differential test never compares against a hand-written expectation. The
-`PENDING` list is public: it is the honest record of what is missing, not a secret.
+`... is not supported by the backend yet.`), `NEGATIVE` (fails on purpose in the `--check`)
+or `COMPILE_ERRORS` (also fails on purpose in the `--check`, but is never executed: it is
+covered by the structured diagnostics snapshot). A case only enters `LEVELS` when the three
+channels match; promotion is monotonic and the differential test never compares against a
+hand-written expectation. The `PENDING` list is public: it is the honest record of what is
+missing, not a secret.
 
 <!-- levels:start -->
 | Level | Cases that compile and agree (I1) |
 | --- | --- |
 | `l0` | 4 |
-| `l1` | 3 |
-| `l2` | 14 |
+| `l1` | 7 |
+| `l2` | 20 |
 | `l2.5` | 4 |
 | `l3` | 14 |
 | `l4` | 12 |
 | `l5` | 30 |
-| `l6` | 61 |
+| `l6` | 133 |
 | `k0` | 2 |
 | `t1` | 6 |
-| `t2` | 17 |
-| `t3` | 6 |
+| `t2` | 22 |
+| `t3` | 7 |
+| `t4` | 3 |
 | `t7` | 3 |
 
-**176 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
+**267 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **7 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**
@@ -75,6 +78,34 @@ or the same memory consumption. The same observable result includes **stderr byt
 so the runtime stack trace is also identical in both engines
 ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 
+#### Engine layers: core, ambient and native-only
+
+I1 covers **core**: features whose semantics both engines implement and that are in the
+corpus. Two other layers are declared, and neither promises equivalence
+([ADR-0128](../adr/0128-contrato-de-motores.md)):
+
+| Layer | Promise | Runs on | Refusal |
+| --- | --- | --- | --- |
+| **core** | I1 + I3, in the corpus | interpreter and native | — |
+| **ambient** | outside I1/I3; fixed-input tests | wherever the host allows | denied by `--sandbox` when it is a host capability |
+| **native-only** | no equivalence promise; binary semantics only | `--emit=exe` | **the interpreter refuses at compile time** |
+
+The three labels are a **projection of two independent axes**: determinism (`ambient`) and
+engine support (`native_only`). A capability may be native-only and ambient at the same time
+(a thread) or native-only and deterministic (pure SIMD); the label only decides the display,
+never the promise.
+
+A native-only capability is **refused**, never silently different:
+
+```
+error[E3021]: `sqlite.createFunction` is not supported by the interpreter; build with `--emit=exe`.
+```
+
+The refusal is a compilation error (exit 65), points at the call site and happens before any
+execution. `loxia check` is engine-agnostic and accepts every layer; `run`/REPL refuse
+native-only, and `build` only refuses the declared backend gap (`E4001`, I4). The layer of
+every public primitive is published by `loxia capabilities --json`.
+
 #### Stack budget ([ADR-0077](../adr/0077-limite-de-pilha.md))
 
 The binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and
@@ -85,7 +116,7 @@ exception constructors do not count. Constructor + `init` count as two activatio
 
 - The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the
   declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.
-- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a
+- The tree-walk raises `sys.setrecursionlimit` to 500,000 (internal budget, not a
   contract).
 - Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5
   outermost + elision), with no address/time in the output.
@@ -108,6 +139,11 @@ environment.
   is not deterministic: false roots depend on the stack and on ASLR. What is stable is the
   channel, the message and the exit code. Programs that print before overflowing do not have the
   stdout prefix covered by I1.
+- **Native module allocations are outside this cap.** The Rust regex engine allocates outside
+  Boehm: its contract is per compiled program (`size_limit` 10 MiB, `max_prog_size` 100,000
+  and `delegate_dfa_size_limit` 2 MiB in `Mode.Full`; ADR-0131 §2.1), not a total byte budget.
+  A variable lookbehind whose reverse DFA needs more than the 2 MiB cache fails with the
+  stable `size` kind instead of growing. Close regex handles to release the memory.
 
 #### Monomorphization budget ([ADR-0063](../adr/0063-orcamento-monomorfizacao.md))
 
@@ -185,6 +221,13 @@ reused ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)); the output is sor
 by `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path
 is always relative. The JSON carries `schema_version`.
 
+The entry point `main -> Result[T, String]` follows the same contract
+([ADR-0148](../adr/0148-ponto-de-entrada-main-result.md)): `Ok` exits 0, and `Err(msg)`
+prints `error[R1016]: <msg>` to stderr and exits 70, identical in the tree-walk and in the
+binary. The message has no position, PID, timestamp or absolute path — it is the `String`
+returned by the program, byte for byte. The differential corpus covers it in L6
+(`tests/cases/entry_main_err.lx`).
+
 ### I4 — Clean `--check` ⇒ it compiles
 
 Every program that passes `--check` compiles. The **only** acceptable refusal in lowering is the
@@ -221,6 +264,10 @@ and stdlib decisions. What is still aspirational is marked.
 4. **Optional types, not ceremony** — annotate only where it helps; in `--check` local
    inference already exists and parameters/return remain signed. Inferring a parameter without
    an annotation was postponed; see [ADR-0020](../adr/0020-assinaturas-explicitas.md).
+   `--gradual` — and the `loxia test` pre-check — makes a missing annotation a warning with
+   `Any`, so unannotated programs are still checked for everything else. `run` checks
+   gradually and blocks a real type error before executing;
+   missing annotations stay silent there ([ADR-0142](../adr/0142-check-por-fases.md)).
 5. **Fail early and clearly** — spans, caret and stack trace exist today
    ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
    [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
@@ -254,6 +301,9 @@ and stdlib decisions. What is still aspirational is marked.
   exist they will not be a public contract in the first version.
 - **Timing.** Nothing promises when a `nil`/object is freed, nor finalization order —
   precisely so as not to break I1.
+- **Native-only capabilities under `run`/REPL.** They are refused at compile time
+  (`E3021`); there is no interpreted fallback and no promise that the interpreter can run
+  every program ([ADR-0128](../adr/0128-contrato-de-motores.md)).
 - **Programs above the memory budget** in the binary (default hard cap of 512 MiB and
   I1 up to 64 MiB of live memory) and **above 10,000 Lox calls** (R1015 is the limit).
 

@@ -55,6 +55,7 @@ class Code(StrEnum):
     FIELD_CONFLICT = "E2007"
     SELF_REFERENCE = "E2008"
     IMMUTABLE_FIELD = "E2009"
+    INVALID_LOOP_CONTROL = "E2010"
 
     # Checker
     SEMANTIC_ERROR = "E3000"
@@ -78,6 +79,13 @@ class Code(StrEnum):
     RETURN_PATH = "E3018"
     MATH_ARGUMENT = "E3019"
     TYPE_ARGUMENTS = "E3020"
+    INTERPRETER_UNSUPPORTED = "E3021"
+    TOOLCHAIN_MISSING = "E3022"
+    MATCH_EXHAUSTIVENESS = "E3023"
+    UNREACHABLE_MATCH = "E3024"
+    ANY_ACCESS = "E3025"
+    INVALID_ENTRY_POINT = "E3026"
+    DUPLICATE_DECLARATION = "E3027"
 
     # Backend
     BACKEND_UNSUPPORTED = "E4001"
@@ -101,6 +109,7 @@ class Code(StrEnum):
     FIELD_NOT_INITIALIZED = "R1013"
     INVALID_VALUE = "R1014"
     RUNTIME_STACK_OVERFLOW = "R1015"
+    UNHANDLED_RESULT = "R1016"
 
     # CLI/execução
     CLI_TIMEOUT = "C0001"
@@ -137,6 +146,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.FIELD_CONFLICT: Phase.RESOLVER,
     Code.SELF_REFERENCE: Phase.RESOLVER,
     Code.IMMUTABLE_FIELD: Phase.RESOLVER,
+    Code.INVALID_LOOP_CONTROL: Phase.RESOLVER,
     Code.SEMANTIC_ERROR: Phase.CHECKER,
     Code.TYPE_MISMATCH: Phase.CHECKER,
     Code.ARITY_MISMATCH: Phase.CHECKER,
@@ -158,6 +168,13 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.RETURN_PATH: Phase.CHECKER,
     Code.MATH_ARGUMENT: Phase.CHECKER,
     Code.TYPE_ARGUMENTS: Phase.CHECKER,
+    Code.INTERPRETER_UNSUPPORTED: Phase.CHECKER,
+    Code.TOOLCHAIN_MISSING: Phase.CHECKER,
+    Code.MATCH_EXHAUSTIVENESS: Phase.CHECKER,
+    Code.UNREACHABLE_MATCH: Phase.CHECKER,
+    Code.ANY_ACCESS: Phase.CHECKER,
+    Code.INVALID_ENTRY_POINT: Phase.CHECKER,
+    Code.DUPLICATE_DECLARATION: Phase.CHECKER,
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
@@ -177,6 +194,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.FIELD_NOT_INITIALIZED: Phase.RUNTIME,
     Code.INVALID_VALUE: Phase.RUNTIME,
     Code.RUNTIME_STACK_OVERFLOW: Phase.RUNTIME,
+    Code.UNHANDLED_RESULT: Phase.RUNTIME,
     Code.CLI_TIMEOUT: Phase.CLI,
     Code.DEPENDENCY_STATE: Phase.CLI,
     Code.SCAFFOLD_STATE: Phase.CLI,
@@ -212,9 +230,10 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.FIELD_CONFLICT: "field conflict (duplicate or with a method)",
     Code.SELF_REFERENCE: "local read in its own initializer",
     Code.IMMUTABLE_FIELD: "assignment to a `val` field",
-    Code.SEMANTIC_ERROR: "generic semantic error (checker fallback)",
+    Code.INVALID_LOOP_CONTROL: "`break`/`continue` outside a loop",
+    Code.SEMANTIC_ERROR: "reserved generic semantic error (no checker path emits it)",
     Code.TYPE_MISMATCH: "type mismatch",
-    Code.ARITY_MISMATCH: "call arity",
+    Code.ARITY_MISMATCH: "arity (calls, destructuring or pattern binding)",
     Code.UNDEFINED_NAME: "undefined name (variable, property or field)",
     Code.MISSING_ANNOTATION: "missing annotation",
     Code.UNKNOWN_TYPE: "unknown type, class or superclass",
@@ -233,6 +252,13 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.RETURN_PATH: "missing return on some path",
     Code.MATH_ARGUMENT: "`math.*` argument",
     Code.TYPE_ARGUMENTS: "type arguments (generic/enum/class arity)",
+    Code.INTERPRETER_UNSUPPORTED: "not supported by the interpreter",
+    Code.TOOLCHAIN_MISSING: "capability requires the Rust toolchain (cargo) at run/build",
+    Code.MATCH_EXHAUSTIVENESS: "non-exhaustive match",
+    Code.UNREACHABLE_MATCH: "unreachable match arm",
+    Code.ANY_ACCESS: "dynamic access on `Any` requires narrowing (`is`/`as`)",
+    Code.INVALID_ENTRY_POINT: "entry point `main` signature (parameters, generics, return type)",
+    Code.DUPLICATE_DECLARATION: "duplicate top-level declaration (function, class or enum)",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",
@@ -252,6 +278,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.FIELD_NOT_INITIALIZED: "field not initialized",
     Code.INVALID_VALUE: "invalid value (map key, superclass, …)",
     Code.RUNTIME_STACK_OVERFLOW: "call depth above the limit",
+    Code.UNHANDLED_RESULT: "unhandled `Err` returned by the entry point",
     Code.CLI_TIMEOUT: "execution timeout exceeded",
     Code.DEPENDENCY_STATE: "lockfile or dependency state (missing, stale, not fetched)",
     Code.SCAFFOLD_STATE: "project scaffolding (existing target, conflict, git)",

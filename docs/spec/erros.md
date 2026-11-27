@@ -53,7 +53,9 @@ Backend internal errors (`E4002`) are prefixed with `internal lowering error:` o
 the backend yet.`). C compiler failures are sanitized so temporary paths are not leaked.
 
 - `human` (default) shows header + snippet; `short` shows only the header; `json` shows
-  the v1 envelope; `--json-lines` emits `start`/`diagnostic`/`summary` per line. Flags:
+  the v1 envelope; `--json-lines` emits `start`/`diagnostic`/`summary` per line. Em `fmt`
+  com vários alvos, `--json` agrega num único envelope (com o total no `summary`) e
+  `--json-lines` num único `start` + um único `summary`. Flags:
   `--error-format=human|short|json`, `--json`, `--color=auto|always|never` (respects
   `NO_COLOR`) and `--max-errors N` (default 20; `0` = unlimited).
 - **Warnings** (`W1xxx`, today `W1001` local never read) have `severity: warning`, exit 0 and
@@ -221,9 +223,15 @@ behavior preservation
 ## Codes
 
 Codes identify **families**, not messages; they are never reused and the catalog is
-closed (emitting a code outside this list does not compile). The checker's long tail uses
-`E3000` until it is refined into more specific codes. The per-phase tables below are
-**generated** from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.
+closed (emitting a code outside this list does not compile). `E3000` stays reserved for
+generic semantic errors, but every checker diagnostic now names a specific family; a new
+checker error must pass an explicit code. The per-phase tables below are **generated**
+from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.
+
+Family choice follows the cause: a value that cannot have members is `E3001`, while a
+missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E3007`
+(operator), while `as` is `E3013` (cast); `init` return values are `E3017` in the checker
+(the resolver's `E2003` covers the same source when it runs first).
 
 | Range | Phase | Meaning |
 | --- | --- | --- |
@@ -272,6 +280,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `E2007` | field conflict (duplicate or with a method) |
 | `E2008` | local read in its own initializer |
 | `E2009` | assignment to a `val` field |
+| `E2010` | `break`/`continue` outside a loop |
 | `W1001` | local declared and never read (warning) |
 | `W1002` | import declared and never used (warning) |
 
@@ -279,9 +288,9 @@ closed (emitting a code outside this list does not compile). The checker's long 
 
 | Code | Family |
 | --- | --- |
-| `E3000` | generic semantic error (checker fallback) |
+| `E3000` | reserved generic semantic error (no checker path emits it) |
 | `E3001` | type mismatch |
-| `E3002` | call arity |
+| `E3002` | arity (calls, destructuring or pattern binding) |
 | `E3003` | undefined name (variable, property or field) |
 | `E3004` | missing annotation |
 | `E3005` | unknown type, class or superclass |
@@ -300,6 +309,13 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `E3018` | missing return on some path |
 | `E3019` | `math.*` argument |
 | `E3020` | type arguments (generic/enum/class arity) |
+| `E3021` | not supported by the interpreter |
+| `E3022` | capability requires the Rust toolchain (cargo) at run/build |
+| `E3023` | non-exhaustive match |
+| `E3024` | unreachable match arm |
+| `E3025` | dynamic access on `Any` requires narrowing (`is`/`as`) |
+| `E3026` | entry point `main` signature (parameters, generics, return type) |
+| `E3027` | duplicate top-level declaration (function, class or enum) |
 
 ### Backend
 
@@ -329,6 +345,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `R1013` | field not initialized |
 | `R1014` | invalid value (map key, superclass, …) |
 | `R1015` | call depth above the limit |
+| `R1016` | unhandled `Err` returned by the entry point |
 
 ### CLI
 
@@ -371,13 +388,15 @@ Messages in the `Expect … .` pattern; the most common ones:
 | `Expect ';' after expression.` | bare expression without `;` on the same line |
 | `Expect ';' after variable declaration.` | `var`/`val` without `;` on the same line |
 | `Expect ';' after return value.` | `return` followed by another statement on the same line (before `}` or a new line, the `;` is optional) |
-| `Expect ';' after loop condition.` | `for` without `;` in the condition |
-| `Expect ')' after for clauses.` | `for` without `)` |
+| `Expect ';' after 'break'.` | `break` followed by another statement on the same line |
+| `Expect ';' after 'continue'.` | `continue` followed by another statement on the same line |
 | `Expect ')' after if condition.` | `if`/`elif` without `)` |
 | `Expect ')' after condition.` | `while` without `)` |
 | `Expect ')' after arguments.` | call without `)` |
 | `Expect ')' after expression.` | grouping without `)` |
-| `Expect '(' after ...` | `for`, `if`, `while`, function/method declaration |
+| `Expect '(' after ...` | `if`, `while`, function/method declaration |
+| `C-style 'for' was removed; use \`for x in range(n)\` or a \`while\` loop.` | `for (init; cond; incr)` |
+| `Float patterns are not supported; use Int, String, Bool or nil.` | `match x { 1.5 => ... }` |
 | `Expect '{' before function body.` / `method body.` | function without `{` |
 | `Expect '{' before class body.` | class without `{` |
 | `Expect '}' after block.` / `after class body.` | block/class without `}` |
@@ -416,6 +435,8 @@ Messages in the `Expect … .` pattern; the most common ones:
 | `Can't read local variable in its own initializer.` | `{ var a = a; }` |
 | `Can't return from top-level code.` | `return` outside a function |
 | `Can't return a value from an initializer.` | `return value;` inside `init` |
+| `Can't use 'break' outside of a loop.` | `break` outside `while`/`for-in` (including inside a lambda in a loop) |
+| `Can't use 'continue' outside of a loop.` | `continue` outside `while`/`for-in` |
 | `Can't use 'this' outside of a class.` | `this` outside a method |
 | `A class can't inherit from itself.` | `class A(A)` |
 | `Can't use 'super' outside of a class.` | `super.m` outside a class |
@@ -477,12 +498,29 @@ The immutability message appears in **two phases**: compilation for locals/param
 
 ## Type checker (`--check`)
 
+Strict `--check` requires parameter and return annotations. `--gradual` (and, by default,
+the pre-check of `loxia test`) turns the missing-annotation code (`E3004`) into a
+**warning** and uses `Any` for that binding: the program is still checked for everything
+else and can run; real type errors keep exit 65. In gradual mode `Any` is consistent with
+every type (an unannotated value can feed a typed parameter, and a generic instantiated
+without evidence gets `Any`), because there is no lowering; strict `--check` still requires
+`as` for `Any → T`; when a concrete type is expected and the value is `Any`, the
+diagnostic suggests the explicit `as` cast. The `loxia test` pre-check always runs
+([ADR-0142](../adr/0142-check-por-fases.md)). The expected type is also propagated into
+`match` arms, so generic enum constructors infer their arguments there.
+
+`loxia run` also checks, in gradual mode, **before executing**: a real type error blocks
+with exit 65, a missing annotation stays silent (`Any`), and an error the interpreter would
+raise anyway (`lowerable`, e.g. `1 + true`) is deferred and becomes the same `Rxxxx`/exit 70
+as before. There is no escape flag: `run` always checks. The REPL
+checks each snippet and only warns, so an interactive snippet never blocks.
+
 | Message | When |
 | --- | --- |
 | `Expected X, found Y.` | assignment/argument/return/field with an incompatible type |
 | `Unknown type 'X'.` / `Unknown superclass 'X'.` | annotation with a nonexistent name |
-| `Parameter 'x' needs a type annotation.` | parameter without a type in `--check` |
-| `Function 'f' needs a return type annotation.` | function without a return in `--check` |
+| `Parameter 'x' needs a type annotation.` | parameter without a type in strict `--check` (warning under `--gradual`) |
+| `Function 'f' needs a return type annotation.` | function without a return in strict `--check` (warning under `--gradual`) |
 | `Field 'x' needs a type annotation.` | field without a type and without an initializer |
 | `Can't infer type of 'x'; add an annotation.` | `var` without initializer and without a type |
 | `Can only call functions and classes.` | call of a non-callable value |
@@ -529,6 +567,12 @@ The immutability message appears in **two phases**: compilation for locals/param
 | `as doesn't support union types yet; narrow first.` | `1 as Int \| String` |
 | `as doesn't support this type yet.` | `x as fn(Int) -> Int` |
 | `math.abs() expects numbers.` | `math.abs("1")` |
+| `Non-exhaustive match; missing X.` | enum `match` without an arm for every variant |
+| `Non-exhaustive match; add a '_' arm.` | literal `match` without `_` |
+| `Unreachable match arm.` | wildcard after all variants, or repeated variant/literal |
+| `Pattern of type X doesn't match Y.` | `match 1 { "x" => ... }` |
+| `Literal patterns only match Int, String, Bool or nil; use an enum variant pattern.` | literal in an enum `match` |
+| `Enum variant patterns don't match X; use a literal pattern or '_'.` | variant pattern in a literal `match` |
 
 ## How to test
 

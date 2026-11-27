@@ -19,7 +19,7 @@ Scanner ───────────────► list[Token]
    │                    Resolver ────────► Interpreter.locals: {Expr: depth}
    │                       │                (binding scope errors)
    │                       ▼
-   │                    Checker ─────────► type errors (only in `--check`)
+   │                    Checker ─────────► type errors (`--check`; `run` checa gradual)
    │                       │
    ▼                       ▼
    └──────────────────► Interpreter ──────► effects (print, variables, objects)
@@ -29,8 +29,9 @@ Scanner ───────────────► list[Token]
 ```
 
 Each phase depends only on the previous one. The **resolver** is mandatory: without it, the
-interpreter does not know the distance of local variables. The **checker** is opt-in
-(`--check`) and does not run on the normal path; types are erased before execution.
+interpreter does not know the distance of local variables. The **checker** is strict under
+`--check` and runs on the normal path in gradual mode (`run` blocks a real type error,
+missing annotations are silent); types are erased before execution.
 
 On the backend path (`--emit`, [ADR-0031](../adr/0031-backend-nativo.md)) the checker is
 **mandatory**: lowering consumes concrete types. What has no representation yet
@@ -43,29 +44,35 @@ Packages by phase (dependency only downward):
 
 | Package | Phase |
 | --- | --- |
-| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`) and `ast_printer` |
-| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`) and gradual `checker` |
+| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`), `ast_printer` (debug) and `ast_json` (oracle, ADR-0129) |
+| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo), `type_ops`/`decl_table` (split do ADR-0141) and gradual `checker` |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
+| [`loxia_core/loader/`](../../loxia_core/loader) | module loader, manifest, lock and dependency resolution (ADR-0073/0104) |
 | [`loxia_core/backend/`](../../loxia_core/backend) | lowering and LLVM emission (opt-in via `--emit`) |
 
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
+| [`loxia_core/bundle.py`](../../loxia_core/bundle.py) | resources shipped with the package: resolves `std/`, `bundled/`, `runtime/` and `native/` in the clone and in the wheel (ADR-0088) |
+| [`loxia_core/native_build.py`](../../loxia_core/native_build.py) | builds the Rust regex crate on demand (ADR-0131): finds `cargo`, caches the `cdylib` under `$XDG_CACHE_HOME/loxia`, always `--locked --offline` |
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI entry point: picks a subcommand or compatibility mode and dispatches to `HANDLERS` |
 | [`loxia/cli_args.py`](../../loxia/cli_args.py) | CLI surface: `COMMANDS`, `build_parser`/`_build_subcommand_parser`, option groups, per-command help and `_validate*` |
 | [`loxia/cli_commands.py`](../../loxia/cli_commands.py) | subcommand runners (`run`, `check`, `build`, `fmt`, `doc`, `lock`, `fetch`, `capabilities`, ...), timeout/watch and the `HANDLERS` table |
 | [`loxia/engine.py`](../../loxia/engine.py) | `Loxia` engine: parse + modules, resolver, checker, execution, `build` and diagnostic flushing |
 | [`loxia/scaffold.py`](../../loxia/scaffold.py) | `loxia new`/`init` (ADR-0106): minimal deterministic template, name normalization, `git init` and empty lock |
+| [`loxia/fixer.py`](../../loxia/fixer.py) | `loxia fix`: applies only `safe` fixes, with reparse/check per round (ADR-0093) |
+| [`loxia/manifest_edit.py`](../../loxia/manifest_edit.py) | scoped `loxia.toml` editing for `loxia add`/`remove` (ADR-0118) |
+| [`loxia/test_selection.py`](../../loxia/test_selection.py) | test selection by change (`--changed`) and by shard (`--shard`) |
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
-| [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
+| [`loxia/formatter/`](../../loxia/formatter/) | formatter: `doc.py`, `comments.py`, `printer.py` and `engine.py` are the Doc IR pipeline (ADR-0136); `edits.py` turns the result into deterministic `TextEdit[]` for `--diff`/`--edits=json`/LSP; `targets.py` resolves multiple paths/directories and `--exclude` for `loxia fmt` |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090/ADR-0114): JSON-RPC stdio, diagnostics (tags), documentSymbol, hover/definition/references/highlight, typeDefinition/implementation, type hierarchy, completion/signature/inlay hints/formatting/semantic tokens, codeAction/fix-all, rename, file rename imports, workspace/symbol, unsaved module overlays and settings |
 | [`loxia/docs_index.py`](../../loxia/docs_index.py) | generated documentation index loader/search (ADR-0111); `loxia/_spec/index.json` is produced by `tools/docs_index.py` |
 | [`loxia/mcp.py`](../../loxia/mcp.py) | MCP stdio modern-only (2026-07-28) over the CLI, sandboxed `run`, tools and CLI parity (ADR-0112) |
 | [`tools/docs_index.py`](../../tools/docs_index.py) | generates the index and `site/public/llms.txt`; `tools/docs_common.py` shares slugs/URLs with the Starlight generator |
 | [`loxia/source_symbols.py`](../../loxia/source_symbols.py) | original-AST symbol resolution for the LSP: imports, members with superclass/interfaces, callable signatures and source type display |
-| [`loxia/rename.py`](../../loxia/rename.py) | semantic cross-file rename from the loader-resolved AST: mangled tokens, imports/aliases and type annotations |
+| [`loxia/rename.py`](../../loxia/rename.py) | semantic cross-file rename from the loader-resolved AST: real module paths (std/deps outside the root), mangled tokens, imports/aliases, type annotations and the content-addressed `WorkspaceCache` ([ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)) |
 | [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, inherited members, enums and native members |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | LSP-1 `SymbolIndex`: declarations, references, checker types and inferred declaration metadata |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | English docs for builtins/primitives for `docs/stdlib/builtins.md` |
@@ -77,11 +84,14 @@ Packages by phase (dependency only downward):
 | [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py) | expression nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | statement nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recovery; optional `;` at end of line; `elif`, `fn` and `[T]` |
-| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of expression spans (offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/frontend/destructuring.py`](../../loxia_core/frontend/destructuring.py) | destructuring patterns (`val (a, (b, c)) = t`), recursive (ADR-0069) |
+| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of node/type spans (expressions, declarations, annotations, exact type/declaration names; offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/frontend/trivia.py`](../../loxia_core/frontend/trivia.py) | scanner side table for comments/whitespace, normalized round-trip and deterministic attachment (ADR-0134) |
 | [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py) | module loader (ADR-0073/0100): file = module, folder = namespace, inlining, import cycles and isolation |
 | [`loxia_core/loader/manifest.py`](../../loxia_core/loader/manifest.py) | `loxia.toml`: discovery, `[package]` (name/version), `[dependencies]` specs and `[modules].paths` |
 | [`loxia_core/loader/lock.py`](../../loxia_core/loader/lock.py) | `loxia.lock` (ADR-0104): strict parse and canonical rendering (sorted, relative posix paths, no timestamp) |
 | [`loxia_core/loader/deps.py`](../../loxia_core/loader/deps.py) | dependency resolution: `.lx` tree hash, lock generation, `--frozen` verification, `fetch`, git mirror/checkout cache and `C0002` |
+| [`loxia_core/loader/gitenv.py`](../../loxia_core/loader/gitenv.py) | clean environment for the `git` calls Loxia spawns (product and tests) |
 | [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | single boundary with `llvmlite` (module, target machine, object file) |
 | [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | lowering coordination: program, statements, expressions, arithmetic and control flow |
 | [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | types, values, bindings and field/class layouts (ABI from ADR-0048) |
@@ -94,6 +104,14 @@ Packages by phase (dependency only downward):
 | [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py) | descriptor, vtable, constructor (top-level and local), bound methods, `super`, `is`/`as` |
 | [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py) | field reads/writes, bitmap and `get`/`set` |
 | [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py) | calls, callable classes, methods and short-circuiting `?.` |
+| [`loxia_core/backend/lower_bytes.py`](../../loxia_core/backend/lower_bytes.py) | `Bytes`: method calls, static namespace and `for-in` (ADR-0125) |
+| [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py) | lists (L6): boxed runtime, literals, index, methods, `len` and equality |
+| [`loxia_core/backend/lower_enums.py`](../../loxia_core/backend/lower_enums.py) | enums, `Result` and `match` (L6i, ADR-0061) |
+| [`loxia_core/backend/lower_exceptions.py`](../../loxia_core/backend/lower_exceptions.py) | L6j exceptions: try/raise/finally with the setjmp/longjmp ABI (ADR-0062) |
+| [`loxia_core/backend/lower_generics.py`](../../loxia_core/backend/lower_generics.py) | monomorphization of generic functions (T7) |
+| [`loxia_core/backend/lower_math.py`](../../loxia_core/backend/lower_math.py) | `math.*`, `Int.parse` and `Float.parse` (L6) |
+| [`loxia_core/backend/lower_range.py`](../../loxia_core/backend/lower_range.py) | `Range` and `for-in` (L6): runtime pointer, direct iteration lowering |
+| [`loxia_core/backend/lower_tuples.py`](../../loxia_core/backend/lower_tuples.py) | tuples (L6): boxed runtime, index, equality, destructuring and `len` |
 | [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) | `--emit=ll|obj|exe` and linking with the system `cc` |
 | [`runtime/lox_runtime.h`](../../runtime/lox_runtime.h) | types, limits and internal prototypes of the C runtime (one header common to the units) |
 | [`runtime/core.c`](../../runtime/core.c) | initialization, Boehm GC, stack, panic and exceptions |
@@ -103,20 +121,32 @@ Packages by phase (dependency only downward):
 | [`runtime/numeric.c`](../../runtime/numeric.c) | guards for `//`/`%`/division, `**`, shifts, `math.*` and parse |
 | [`runtime/kernel.c`](../../runtime/kernel.c) | kernel 13.2 (ADR-0071): `args`, `io.*`, `fs.*`, `os.*`, `time.*` |
 | [`runtime/proc.c`](../../runtime/proc.c) | processes/streams (ADR-0095): `posix_spawnp`, pipes, `poll(2)` and handles |
+| [`runtime/regex.c`](../../runtime/regex.c) | `regex_engine.*` adapters over the Rust ABI (ADR-0131); compiled and linked only when the program uses the primitive |
+| [`native/regex/`](../../native/regex) | Rust engine (ADR-0131): `regex` + `fancy-regex`, C ABI in `include/lox_regex.h`, vendored crates and offline builds |
+| [`bundled/regex.lx`](../../bundled/regex.lx) | public Lox API over the native module: imported by the short name (`import regex`), reserved and never shadowed by the project (ADR-0126) |
 | [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | primitive ABI, **generated** from `primitives.py` by `runtime/gen_kernel.py` |
 | [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | lexical scopes, static validations, `depth` |
 | [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execution; `globals`, `environment`, `locals` |
 | [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py) | chained scopes (`values` + `enclosing`) |
 | [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py) | single `stringify` |
 | [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py) | `Int`/`Float`, promotion, wrapping, `//`, `**` and bits |
+| [`loxia_core/numeric_bounds.py`](../../loxia_core/numeric_bounds.py) | i64 bounds (`INT_MIN`/`INT_MAX`) shared by the scanner and the numeric model; leaf module (no `loxia_core` imports) |
 | [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py) | types (`Ty`), `TyVar`, `GenericFnTy`, unions, `T?`, `FnTy` and helpers |
-| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | gradual static checker (`--check`) |
+| [`loxia_core/semantics/flow.py`](../../loxia_core/semantics/flow.py) | refinement key, state merge, `LoopContext` and the per-node flow policy (ADR-0141) |
+| [`loxia_core/semantics/type_ops.py`](../../loxia_core/semantics/type_ops.py) | type algebra: assignment, unification, substitution (ADR-0141) |
+| [`loxia_core/semantics/decl_table.py`](../../loxia_core/semantics/decl_table.py) | classes/enums/interfaces registry and hierarchy lookups (ADR-0141) |
+| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | gradual static checker (`--check`; flow lives in `flow`, types in `type_ops`) |
 | [`loxia_core/execution/type_test.py`](../../loxia_core/execution/type_test.py) | dynamic type test for `x is T` |
 | [`loxia_core/execution/lox_range.py`](../../loxia_core/execution/lox_range.py) | lazy `Range` (start, end, step) |
 | [`loxia_core/execution/lox_tuple.py`](../../loxia_core/execution/lox_tuple.py) | immutable `LoxTuple` (tuples) |
 | [`loxia_core/execution/lox_exception.py`](../../loxia_core/execution/lox_exception.py) | `Exception`/`RuntimeError` and exception values |
 | [`loxia_core/execution/lox_list.py`](../../loxia_core/execution/lox_list.py) | mutable `List`: elements, `version`, `push`/`pop`, index |
 | [`loxia_core/execution/lox_map.py`](../../loxia_core/execution/lox_map.py) | mutable `Map`: entries, `version`, `get`/`has`/`remove`/`keys`/`values` |
+| [`loxia_core/execution/bytes_api.py`](../../loxia_core/execution/bytes_api.py) | `Bytes` signatures and methods (ADR-0125) |
+| [`loxia_core/execution/lox_bytes.py`](../../loxia_core/execution/lox_bytes.py) | `Bytes` value and surface in the interpreter (ADR-0125) |
+| [`loxia_core/execution/lox_enum.py`](../../loxia_core/execution/lox_enum.py) | enum and variant values (ADR-0041) |
+| [`loxia_core/execution/fs_runtime.py`](../../loxia_core/execution/fs_runtime.py) | `fs.open` handles for files (1-based; 0 is never valid) |
+| [`loxia_core/execution/proc_runtime.py`](../../loxia_core/execution/proc_runtime.py) | `proc.*` handles: processes and streams (1-based; 0 = failure) |
 | [`loxia_core/diagnostics/error_reporter.py`](../../loxia_core/diagnostics/error_reporter.py) | collection/printing of diagnostics |
 | [`loxia_core/diagnostics/errors.py`](../../loxia_core/diagnostics/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
 | [`loxia_core/execution/lox_callable.py`](../../loxia_core/execution/lox_callable.py) | `min_arity`/`max_arity`/`call` Protocol |
@@ -126,6 +156,7 @@ Packages by phase (dependency only downward):
 | [`loxia_core/execution/lox_interface.py`](../../loxia_core/execution/lox_interface.py) | nominal interface (defaults bound to the environment) |
 | [`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py) | instance (fields + bound methods) |
 | [`loxia_core/execution/natives/len.py`](../../loxia_core/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
+| [`loxia_core/execution/natives/chars.py`](../../loxia_core/execution/natives/chars.py) | `chars`: splits a string into one-code-point strings |
 | [`loxia_core/execution/natives/repr.py`](../../loxia_core/execution/natives/repr.py) | `repr(x)` |
 | [`loxia_core/execution/natives/range.py`](../../loxia_core/execution/natives/range.py) | `range(a, b, step)` |
 | [`loxia_core/execution/natives/str.py`](../../loxia_core/execution/natives/str.py) | `str(x)` |
@@ -134,10 +165,90 @@ Packages by phase (dependency only downward):
 | [`loxia_core/execution/natives/math.py`](../../loxia_core/execution/natives/math.py) | deterministic `math.*` (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
 | [`loxia_core/execution/natives/modules.py`](../../loxia_core/execution/natives/modules.py) | assembly of native namespaces |
 | [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py) | S-expression dump (debug/tests) |
+| [`loxia_core/frontend/ast_json.py`](../../loxia_core/frontend/ast_json.py) | versioned AST JSON (tokens + spans + node fields) for the per-file oracle (ADR-0129) |
+| [`tools/oracle_snapshot.py`](../../tools/oracle_snapshot.py) | freezes AST/formatter/diagnostics over `std/`, `tests/cases/` and `examples/` (ADR-0129) |
 
 `loxia_core` is a normal package (`__init__.py`). Imports are always absolute and point to
 the phase package (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
 import wrap_int`). The program runs from the repository root.
+
+### Front-end baseline (2026-11-23)
+
+`make frontend-bench` roda [`tools/frontend_bench.py`](../../tools/frontend_bench.py) sem
+subprocesso e sem CI: no corpus de 2026-11-23 (349 arquivos, 320 parseáveis, 62 500 tokens,
+2 663 statements), parse ~528 ms e `format_source` ~973 ms (mediana de 5), com pico de
+~3,1 MiB no `tracemalloc` para parse+format. O formatter v2 (ADR-0136) constrói Doc IR e
+deriva offsets de início com uma caminhada memoizada de primeiro token, sem construir o
+`SourceIndex` completo (antes: ~1 267 ms e ~3,7 MiB); é ferramenta offline, não caminho
+quente. O port em Lox/nativo tem orçamento próprio (512 MiB/10k chamadas) e será medido na
+fase D.
+
+### `SourceIndex` budget (2026-11-24)
+
+`uv run python bench/source_index.py` mede a construção do índice sem subprocesso e sem
+CI (issue #130). No corpus de 2026-11-24 (369 arquivos, 338 parseáveis, 31 casos de erro de
+sintaxe pulados): **36 827 spans** — 2 928 nomes de tipo, 3 295 nomes de declaração —,
+**~625 ms no total**, mediana **0,589 ms/arquivo**, p95 **7,939 ms/arquivo** e
+`SourceIndex.at()` a **~13,9 µs/consulta** para os spans de navegação (`name`/`type`).
+O custo dos nomes extras é ~41% sobre a caminhada do AST (os nomes de tipo sozinhos são
+~0%); o parse fica fora da medição.
+O baseline local é [`bench/source_index_baseline.json`](../../bench/source_index_baseline.json)
+e a regra é **≤ 2×** o total/mediana ao comparar antes/depois. `at()` continua O(n); o
+interval index só entra se o benchmark mostrar regressão — o guard determinístico é
+[`tests/test_source_index_budget.py`](../../tests/test_source_index_budget.py), sem timing.
+
+O caminho end-to-end do servidor é medido por
+[`bench/lsp.py`](../../bench/lsp.py) (`make bench-lsp`), que sobe `main.py lsp` e mede
+startup, didOpen, hover, definition, references (frio/quente), highlight, rename, completion,
+documentSymbol, didChange, didChange num arquivo de ~650 linhas e uma rajada de 5 didChange,
+com baseline [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de
+**1,5×**. Mediana de 2026-11-26, pós-[ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)
+(workspace de ~50 arquivos, cada um importando `std.lists`): startup ~94 ms, didOpen
+~35 ms, references cross-file **~0,32 s** na primeira consulta (`workspace_build`),
+**~43 ms** após uma edição, ~1,8 ms no cache quente e ~2,9 ms para um símbolo de `std`;
+`workspace_scan` ~0,4 ms; didChange ~10 ms, didChange em ~650 linhas ~48 ms e rajada de
+5 didChange ~11 ms; as requisições locais ficam abaixo de 2 ms. O fixture antigo (módulos sem imports) escondia o closure e foi trocado: por isso
+`references_cold` e `workspace_build` só são comparáveis a partir desta baseline. O orçamento é **≤12 ms** no workspace
+do bench e **~0,06 ms/linha** (163 linhas ~20 ms, 323 ~30 ms); acima de ~1000 linhas fica
+**fora** até o parse incremental (#113).
+
+O `didChange` coalesce a rajada: uma thread leitora só enfileira mensagens e a thread
+principal analisa uma vez quando a fila esvazia ou antes de servir um request, publicando só
+a última versão (versões intermediárias podem ser puladas). O parse de módulo é reusado por
+conteúdo (`ModuleCache`, LRU de 256 entradas/8 MiB de fonte) e o `SymbolIndex` nasce só na
+primeira navegação, como o `SourceIndex`. O piso do arquivo grande é o parse da entrada
+(~27 ms) mais a reescrita de imports, que só o parse incremental (#113) muda.
+
+A descoberta usa `os.walk` com poda de diretórios ocultos e `node_modules`, e cache de
+leitura por `mtime`/`ctime`/inode/tamanho. O `WorkspaceCache` tem três camadas endereçadas
+por conteúdo ([ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)): o workspace
+(fingerprint dos textos + digest dos insumos fora do root — módulos externos, manifest e
+lock), a análise/contribuição de cada arquivo e a contribuição de cada **módulo importado**,
+compartilhada entre importadores (o prefixo `mod$` não depende de quem importa). Editar um
+arquivo descarta o workspace e refaz só a análise dele. `references`/`rename` aceitam
+símbolo de `std`/`[modules].paths` (antes o token era atribuído a um arquivo inexistente no
+root e a coleta estourava) e o rename recusa editar fora do root. Orçamento: uma workspace
+por vez, ≤2048 arquivos, ≤512 módulos e ≤200k tokens em contribuições de módulo; acima disso o workspace
+é servido sem retenção por arquivo. Medido com `bench/lsp_workspace.py` (emenda #249):
+build frio **0,40 s** em 50 arquivos (era 2,45 s) e **3,75 s** em 500 (era 24,5 s);
+rebuild depois de editar **14 ms** e **136 ms**; retido 4,1 MB e 33,6 MB (pico
+5,9/36,4 MB). A análise é loader-only (`Loxia.load_modules`, uma engine por build) e as
+declarações saem de uma varredura sintática, não do `SymbolIndex`; um arquivo com erro de
+sintaxe ou de módulo é pulado em vez de abortar o workspace (#250), e o erro de módulo não é
+memoizado (a causa pode estar fora do root). Descoberta quente de 555
+arquivos 8,4 ms, fingerprint 0,7 ms e 5.000 arquivos 51,6 ms. O custo frio residual é
+O(arquivos * closure) (~7,5 ms/arquivo com `std` importado, dominado pela reescrita do
+closure no loader). Os custos internos (descoberta,
+build frio, rebuild e retenção) saem de `bench/lsp_workspace.py`, que gera os workspaces
+sintéticos em processo e reproduz a tabela do ADR-0151. O `SourceIndex` é construído na
+primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam a caminhada
+do AST; um diagnóstico com nota de proveniência constrói o índice.
+
+Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`
+→ `SourceIndex(extra_spans=...)`), como a trivia do ADR-0134: o AST e o JSON v2 não mudam.
+`NodeSpan.kind` distingue `node`, `name` e `type`; o LSP só troca o range do token pelo
+span exato quando o texto do span é o lexema, então `Foo` em `List[Foo]` nunca vira a
+anotação inteira.
 
 ## Visitor
 
@@ -391,7 +502,7 @@ from the call site.
 The `;` is optional at the end of the line/EOF in any execution (`_end_statement`); it is only
 mandatory when there is another statement on the same line.
 
-## Native backend (L0–L5 + T7)
+## Native backend (L0–L6 + T7)
 
 The IR is intentionally small: `Int` is `i64`, `Float` is `double`, `Bool` is `i1`, `nil`
 has no value (it only affects `print`). `+ - *` become instructions (with `sitofp` in the
@@ -439,12 +550,19 @@ prefixes the fields and resolves `super` through the class where the method was 
 class `is`/`as` and empty local classes work. `?.` with an optional receiver already works;
 general local classes and `nil_aware` (union/`Any`) stay in L6.
 
-`String` is `{byte_len, cp_len, data}`; literals become constant globals (UTF-8 bytes +
-header), concatenation allocates on the collected heap (Boehm GC,
+`String` is `{byte_len, cp_len, flat, cp_offsets, hash, left, right}`; literals become
+constant globals (UTF-8 bytes + header), concatenation allocates a rope node on the collected
+heap (Boehm GC,
 [ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)) and `len` returns `cp_len` (code
-points). Equality is `memcmp`; `print` is an `fwrite`. Interpolation concatenates the parts,
+points). `lox_str_bytes` flattens a rope on first observation and caches the buffer;
+equality is `memcmp` of the flat bytes and `print` is an `fwrite`. Interpolation concatenates the parts,
 converting scalars with `lox_str_from_int/double/bool` and `lox_str_nil`; `repr` quotes and
 escapes with `lox_str_quote`.
+
+`List` escolhe o armazenamento no lowering: quando a anotação (ou o tipo publicado pelo
+checker) declara `Int`/`Float`/`Bool`/`String`, o literal cria uma lista tipada (um i64 por elemento, buffer atômico exceto para ponteiros);
+o runtime promove para `LoxValue` boxeado no primeiro push de tag diferente. `Map` mantém as
+entradas em ordem de inserção e um índice open-addressing para lookup O(1).
 
 The generated `main` returns `0` on success; success/failure is never the return value of a
 user function. Before emitting `.ll`, `.o` or an executable, the driver runs the LLVM
@@ -477,6 +595,24 @@ essentials for anyone who opens the file directly.
 `runtime/gen_kernel.py`) and included by `kernel.c`: divergent table and C definition break
 the compilation, not the test. `tests/test_primitives_gen.py` polices the freshness of the
 generated file.
+
+The table also carries the **budget**
+([ADR-0123](../adr/0123-orcamento-do-kernel-por-grupo.md)): a primitive's group is its
+namespace (`io.*`, `fs.*`, `process.*` → `proc`) or `core` when there is no prefix.
+`GROUP_BUDGET` caps each group and `KERNEL_BUDGET` caps the total (core 5, io 8, fs 11,
+os 2, proc 10, time 2, digest 2; total 40). `tests/test_primitives.py` fails when a group
+or the total overflows, and `loxia capabilities --json` publishes the table with the group
+and the budget. Native modules keep their own `NATIVE_MODULE_BUDGET`, outside the 40
+([ADR-0126](../adr/0126-modulo-nativo-embutido-sqlite.md)).
+
+Each primitive also carries its **layer** ([ADR-0128](../adr/0128-contrato-de-motores.md)),
+derived from two independent axes: `ambient` (determinism) and `native_only` (engine). The
+label is a projection (`native-only` > `ambient` > `core`). A native-only capability is
+refused by the interpreter **before execution**: `loxia/engine.py` runs
+`loxia_core/semantics/layers.py` after the resolver and reports `E3021` at the call site
+(exit 65). `PrimitiveCallable.call` keeps a runtime backstop with the same message for the
+case an alias or shadowing hides the call from the static pass. `loxia check` stays
+engine-agnostic; `build` only refuses the backend gap (`E4001`, I4).
 
 The differential test (`tests/test_backend.py`) compiles, runs and compares stdout, stderr
 and exit code with the interpreter — the oracle is always the tree-walk.

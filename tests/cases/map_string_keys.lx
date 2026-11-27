@@ -1,0 +1,21 @@
+# Chaves String por conteúdo (hash), com atualização no lugar e chave concatenada.
+val m: Map[String, Int] = {}
+m["alpha"] = 1
+m["beta"] = 2
+m["gamma"] = 3
+print(m["beta"])
+print(m.has("delta"))
+m["alpha"] = 10
+print(m)
+print(len(m))
+val chave = "al" + "pha"
+print(m[chave])
+print(m.remove("beta"))
+print(m)
+# expect: 2
+# expect: false
+# expect: {"alpha": 10, "beta": 2, "gamma": 3}
+# expect: 3
+# expect: 10
+# expect: 2
+# expect: {"alpha": 10, "gamma": 3}

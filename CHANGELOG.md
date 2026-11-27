@@ -5,6 +5,330 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-27
+
+Loxia 1.3.0 fecha o ciclo aberto depois da 1.2.0. O destaque de linguagem é o ponto de
+entrada `fn main() -> Result[T, String]` ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md)),
+que transforma o retorno em exit 0/70 nos dois motores. O runtime ganhou valores de função
+com assinatura em runtime (`is`/`as fn(...)`), campos `Any` no backend, `break`/`continue`,
+`match` com padrões literais, `Bytes` e o módulo nativo `regex`. O checker fechou as
+violações de I1/I4 no acesso dinâmico a `Any`; o LSP ficou várias vezes mais rápido no
+build frio do workspace e no recheck por edição. As entradas de **Mudado (quebra)** mudam
+programas existentes — inclusive o formatter 2.0 e o AST JSON v2 — e a próxima major
+continua sendo a 2.0.
+
+- **LSP: análise do workspace sem checker e arquivo inválido não bloqueia**
+  ([#249](https://github.com/loxia-lang/loxia/issues/249),
+  [#250](https://github.com/loxia-lang/loxia/issues/250), emenda ao
+  [ADR-0151](docs/adr/0151-cache-de-analise-por-arquivo-no-lsp.md)): o build frio do
+  workspace deixou de rodar resolver/checker e `SymbolIndex` por arquivo (o caminho agora é
+  loader-only, uma engine por build, declarações por varredura sintática e sem
+  `Path.resolve()` por token). Build frio 2,45 s → **0,40 s** em 50 arquivos e 24,5 s →
+  **3,75 s** em 500; rebuild 55/160 ms → **14/136 ms**; `bench/lsp.py`: `references_cold`
+  2314 → **321 ms** e `references_after_change` 83 → **42,5 ms**. Um `.lx` que não parseia
+  é pulado em vez de abortar references/rename do workspace inteiro (usos nele ficam de
+  fora); erro de módulo também pula, mas não é memoizado (a causa pode estar fora do root).
+### Adicionado
+- **Ponto de entrada `main -> Result` e a borda de exit 70** ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md),
+  [#142](https://github.com/loxia-lang/loxia/issues/142)): o `fn main` de topo do arquivo de
+  entrada com retorno `Result[T, String]` (sem parâmetros nem genéricos; alias vale) roda uma
+  vez **depois** dos statements de topo. `Ok(...)` sai 0 sem imprimir o payload; `Err(msg)`
+  imprime `error[R1016]: <msg>` em stderr e sai 70, com os mesmos bytes no tree-walk e no
+  binário. Só o retorno do `main` conta (um `Err` descartado continua valor comum); `try` não
+  captura a borda e exceção que escapa mantém `R1010`/70. Módulos importados e o REPL nunca
+  têm entry; `main` sem `Result` (ex.: `fn main() -> Nil` + `main()`) segue função comum.
+  Assinatura quase-Result é `E3026` e declaração de topo com valor (função, classe ou enum)
+  duplicada — `main` incluída — é `E3027` (exit 65). Casos
+  `entry_main_{ok,err,order,try,alias,nil}.lx` (L6, três canais),
+  `tests/cases/errors/entry_main_*.lx`, `duplicate_function.lx`,
+  `duplicate_class_function.lx` e `tests/test_entry_point.py`.
+- **Valores de função com assinatura em runtime** ([ADR-0147](docs/adr/0147-valores-de-funcao-assinatura-runtime.md)): `is fn(D) -> R`/`as fn(D) -> R` comparam a assinatura real do closure com a alvo (aridade, variádico, parâmetros/retorno) pela subtipagem do checker **e** por representação de máquina igual (ABI-compatible); `fn(Any) -> Int` não passa como `fn(Int) -> Int`, `fn(I) -> Int` passa como `fn(C) -> Int`. `if (x is fn(...))` estreita; falha em runtime é `R1011` nos dois motores; chamadas estáticas sem custo. Caso diferencial `fn_any.lx` (funções, lambdas, bound methods, defaults, containers, variádicos, tipos aninhados, enums, default de interface, classes/interfaces e opcionais) e testes unitários de cast estático incompatível, representação/ABI recursiva e REPL. Valores nativos, objetos de classe (#219) e funções genéricas ficam fora. `??` de função opcional presente funciona (#225); nil explícito em variável global de função opcional é o [#226](https://github.com/loxia-lang/loxia/issues/226).
+- **Follow-up do converge**: default em chamada dinâmica deixa de gerar lixo (`fn(Int, Int = ...)` não passa como `fn(Int)`; `is` false/`as` `R1011`), a assinatura real do closure usa o `FnTy` do checker (containers/variádicos/aninhados/enums), a ABI de funções aninhadas é recursiva no tree-walk, enum em `FnTy` funciona no tree-walk e o REPL publica `function_types`. Casos `fn_defaults_cast.lx`, `fn_signature_cast.lx`, testes em `test_type_test.py`/`test_cli.py`/`test_checker.py` (lambda publica o `FnTy` nos caminhos `_lambda_type`/T4); `make check` e o ratchet de cobertura verdes.
+- **Payload `Any` na stdlib** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md),
+  [#215](https://github.com/loxia-lang/loxia/issues/215)): `std.jsonrpc.RpcFailure` guarda
+  `data: Any` e `errorOf(message)` devolve a falha tipada; `failure(id, code, message, data = nil)`
+  inclui `data` no envelope quando não é `nil`, preservando código/mensagem e a ordem de
+  inserção. `errorOf` devolve `nil` para `error` ausente/malformado (e `data` ausente e
+  `null` são indistinguíveis). `std.test.Expectation` deixou de ser genérico e guarda `Any`,
+  então `expect(x)` aceita valor dinâmico e as mensagens usam `repr`. Casos diferenciais
+  `std_jsonrpc_data.lx` e `std_test_any.lx` (`L6`).
+
+### Mudado (quebra)
+- **Objeto de classe deixa de ser valor de função** ([ADR-0150](docs/adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md),
+  [#219](https://github.com/loxia-lang/loxia/issues/219)): `ClassObjectTy` não é mais
+  atribuível a `fn(...)` em nenhuma posição. `val f: fn(String) -> Animal = Animal`, um
+  objeto de classe num `Map[String, fn(...)]` e um objeto de classe passado como argumento
+  de tipo `fn(...)` viram erro de check com remediação — antes o binário lia o descritor
+  como closure (segfault com `--check` limpo) e `f is fn(...)` respondia `false`. O que
+  funciona continua: `val f = Animal; f(...)`, `Animal == Animal`, `print(Animal)` e a
+  fábrica explícita `fn(args) -> Animal { return Animal(args) }`; identidade entre classes
+  é `==`. `Type[C]`, `is`/`as fn` para objeto de classe e construção dinâmica ficam
+  adiados com gatilho ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)). O rebinding
+  `Base = OtherBase as Any` continua, mas só a partir de um objeto de classe convertido
+  explicitamente: um `Any` arbitrário num slot de classe vira erro de check
+  ([#247](https://github.com/loxia-lang/loxia/issues/247)) — antes o binário guardava o
+  payload (que não era descritor) e os motores divergiam. Casos
+  `class_object_value.lx` (L6), `errors/class_object_to_fn.lx`,
+  `errors/class_object_in_fn_map.lx`, `errors/class_object_from_any.lx` e
+  `tests/test_checker.py`.
+- **`fn main() -> Result[T, String]` vira o ponto de entrada** ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md)):
+  antes era uma função comum; agora roda automaticamente depois dos statements de topo e o
+  `Err` devolvido vira `error[R1016]` + exit 70. Um `main` quase-Result (parâmetros, genérico
+  ou `E ≠ String`) passa a ser erro de check `E3026`; uma declaração de topo com valor
+  (função, classe ou enum) duplicada — `main` incluída — passa a `E3027` (antes o tree-walk
+  a executava e o `--emit` morria em `E4002`). Um programa que já tinha esse `main` e o chamava explicitamente passa a rodá-lo
+  duas vezes; `fn main() -> Nil` e o idioma `main()` explícito **não** mudam.
+- **`std.test` e `std.jsonrpc` deixam o genérico/`Map` cru**: `Expectation[T]` virou
+  `Expectation` (campo `Any`) e `errorOf` passou de `Map[String, Any]?` para `RpcFailure?`.
+  As chamadas `expect(x).toBe(y)` continuam iguais; quebra quem anotava `Expectation[Int]` ou
+  consumia o `Map` cru de `errorOf`. `decode` continua `Ok` para resposta de erro válida.
+- **Acesso dinâmico em `Any` exige estreitamento** ([ADR-0144](docs/adr/0144-any-dinamico-exige-estreitamento.md)): membro (`a.x`, `a.m()`), escrita (`a.x = v`), chamada (`a()`) e índice (`a[i]`) em um valor `Any` agora são erro `E3025`; estreite com `if (a is C)` ou `(a as C)`. Antes o checker aceitava e o binário divergia (`R1014`/`R1001`/`R1000`) ou morria em `E4002` — violação de I1/I4. O backend passa a desembrulhar o box no uso estreitado. Operações de valor (aritmética, comparação, igualdade, `is`/`as`, `print`/`str`, `??` e `and`/`or`) seguem dinâmicas. Breaking: programas check-limpos que acessavam `Any` assim passam a sair 65.
+- **`loxia run` checa antes de executar** ([ADR-0142](docs/adr/0142-check-por-fases.md),
+  fase 2): `run` agora checa os tipos no modo gradual e bloqueia erro de tipo (exit 65);
+  anotação ausente é silenciosa (`Any`) e erro que o interpretador levantaria (ex.:
+  `1 + true`) continua saindo 70. 22 casos golden e 26 da suíte oficial passam a erro de
+  compilação. Não há escape: `--no-check` (run e test) foi removido e agora é erro de
+  argumento. O REPL checa por snippet e só avisa. Breaking: programas que hoje executam
+  podem ser recusados.
+- **`for` C-style removido** ([ADR-0138](docs/adr/0138-remocao-for-c-style.md)): o
+  `for (init; cond; incr)` foi removido; use `for x in 0..n`/`for x in range(a, b, passo)`
+  ou `while`. O erro é dirigido (`C-style 'for' was removed; ...`) e o `for` continua
+  existindo apenas para `for-in`. É uma mudança breaking: a próxima major é 2.0.
+- **Formatter 2.0** ([ADR-0136](docs/adr/0136-formatter-2-doc-ir.md),
+  [#109](https://github.com/loxia-lang/loxia/issues/109)): `loxia fmt` agora reflowa
+  chamadas, coleções, params e cadeias binárias na largura de 100 colunas
+  (`--max-width` 20..1000), decide linhas em branco e normaliza/alinhamento comentários
+  trailing. Comentários continuam preservados (`#`, `///`,
+  `/* */`), agora por nó e não por heurística de linha. É uma mudança de saída: o
+  `chore/reformat` aplica o estilo ao repositório em PR separado.
+
+- **AST JSON v2** ([ADR-0129](docs/adr/0129-oraculo-do-front-end.md),
+  [#107](https://github.com/loxia-lang/loxia/issues/107)): o envelope agora separa
+  `syntax` (statements, tokens e trivia) de `typed` (opcional, com `--typed`), tem
+  `$defs` por kind e rejeita campos desconhecidos. `schema/ast-v1.json` foi removido;
+  não há camada de compatibilidade.
+
+- **`std.timex` em milissegundos** ([ADR-0122](docs/adr/0122-contrato-de-data-e-instante.md),
+  [#78](https://github.com/loxia-lang/loxia/issues/78)): `iso`, `parts`, `parseIso` e `addDays`
+  passam a receber/devolver ms, a mesma unidade de `time.now()`. A migração é `x * 1000`; não
+  há aliases em segundos. A formatação continua truncando para o segundo (`iso`) ou expondo
+  `.mmm` (`isoMillis`).
+
+### Mudado
+- **LSP: recheck por edição** ([ADR-0143](docs/adr/0143-lsp-didchange-coalescing-e-reuso.md),
+  [#191](https://github.com/loxia-lang/loxia/issues/191)): `didChange` coalesce a rajada de
+  teclas (uma análise por lote, publica só a última versão), reusa o parse dos módulos
+  importados por conteúdo (LRU de 256 entradas/8 MiB; falha nunca é cacheada) e constrói o
+  `SymbolIndex` só na primeira navegação. `didChange` 34,2 → 10,1 ms; rajada de 5 changes
+  172,9 → 10,1 ms; arquivo de ~650 linhas 75,5 → 48,5 ms. O diagnóstico de documento
+  assentado não muda (conteúdo nem ordem) e toda request enxerga o texto atual; o
+  `textDocumentSync` continua full (`1`). Orçamento medido: `didChange` ≤12 ms no workspace
+  do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
+
+- **LSP: cache de análise por arquivo e módulos fora do root**
+  ([ADR-0151](docs/adr/0151-cache-de-analise-por-arquivo-no-lsp.md),
+  [#195](https://github.com/loxia-lang/loxia/issues/195)): `references`/`rename` num
+  símbolo de `std` ou de `[modules].paths` deixam de derrubar o servidor (`KeyError` →
+  exit 1); as referências incluem módulos fora do root e o rename recusa editá-los
+  (`prepareRename` devolve `null`). O fingerprint do workspace passa a cobrir módulos
+  externos, `loxia.toml` e lock. A análise do workspace é cacheada em três camadas
+  (workspace, arquivo e módulo compartilhado entre importadores) e editar um arquivo
+  refaz só a análise dele: rebuild de ~50 arquivos 2,45 s → **55 ms** e de 500 arquivos
+  24,5 s → **160 ms**, retendo 4,1 MB e 33,8 MB. O fixture do `bench/lsp.py` agora importa
+  `std.lists` (references frio ~2,3 s) e reporta `references_std`, `workspace_scan` e
+  `workspace_build`, com baseline regravado.
+
+### Adicionado
+- **`??` em união de interface/container com `Nil`** ([#221](https://github.com/loxia-lang/loxia/issues/221)):
+  o checker usa o tipo comum entre o lado não-nulo e o direito (`I | Nil ?? C` → `I`), e o
+  lowering preserva o tipo de interface no phi; antes o `--emit` recusava a união
+  (`E4001`) e o uso direto `(y ?? C()).m()` perdia o despacho. Caso
+  `tests/cases/interface_union_optional.lx` (L6, diferencial).
+- **`is`/`as` para interface** ([ADR-0146](docs/adr/0146-is-as-interface.md), issue
+  [#213](https://github.com/loxia-lang/loxia/issues/213)): um `Any` que guarda uma instância
+  que implementa uma interface agora estreita para a interface (`if (x is I)`,
+  `(x as I).m()`), inclusive método default, interface herdada, `List[I]`/`Map[K, I]` e
+  interface importada de módulo. A checagem em runtime usa a
+  tabela de interfaces do descritor de classe (a mesma do despacho), sem tag ou ABI nova;
+  `as` de uma classe que não implementa `I` é erro de checker e `Any`/união são checados em
+  runtime. Casos `tests/cases/any_interface.lx` (L6, diferencial),
+  `errors/any_interface_cast.lx` e `errors/interface_cast_static.lx`.
+- **Campo `Any` no backend** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md), issue [#196](https://github.com/loxia-lang/loxia/issues/196)): um campo `Any` (ou união de escalares) ocupa duas palavras inline (`{tag, payload}`) e aceita qualquer valor — incluindo containers, instância, enum e função — com `is`/`as`/`==`/`??`/`print`. O layout usa dois contadores (`index` do bitmap e `slot` absoluto em palavras), herança preserva o prefixo e classes sem `Any` mantêm o layout antigo. Acesso continua exigindo narrowing (`E3025`). Casos `tests/cases/any_field_*.lx` (L6, diferencial).
+- **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
+  mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com
+  `finally` executado antes do salto e sem atravessar função/lambda. `break`/`continue`
+  fora de laço é `E2010`. As duas palavras passam a ser reservadas (orçamento de keywords
+  27→29); código que as usava como identificador precisa renomear.
+- **`match` com padrões literais** ([ADR-0140](docs/adr/0140-match-literais.md)): `match`
+  aceita `Int` (inclusive negativo), `String`, `Bool` e `nil`, além de variantes de enum;
+  fora de enum o `_` é obrigatório. `Float`, guards, `|`, ranges e match estrutural
+  continuam fora. Sem keyword nova; o orçamento não muda.
+- **`loxia_format` no MCP** ([#110](https://github.com/loxia-lang/loxia/issues/110)):
+  tool read-only que aceita `source` ou `path` `.lx`, `max_width`, `check`, `diff` e
+  `range`/`lines`; devolve o texto formatado + `TextEdit[]` exatos (aplicar os edits
+  reproduz o texto), com range por linhas expandindo hunks. O envelope
+  `fmt --check --edits=json` ganhou o campo `text`.
+- **Bench do LSP** (`bench/lsp.py`, `make bench-lsp`): mede o servidor real sobre stdio —
+  startup, didOpen, hover, definition, references, highlight, rename, completion,
+  documentSymbol e didChange — com baseline em `bench/lsp_baseline.json`. Roda local, não
+  no CI; a tolerância é 1,5×.
+- **Navegação LSP por `NodeSpan`** ([#130](https://github.com/loxia-lang/loxia/issues/130)):
+  `documentHighlight`, `references` e `rename` passam a usar o span exato de nome de
+  declaração e de tipo **já resolvido** no mesmo arquivo (inclusive o `Foo` dentro de
+  `List[Foo]`); o `semantic_*` continua valendo para cross-file. A resolução não muda:
+  uma anotação de tipo declarada no próprio arquivo segue sem target de rename/references
+  (#130 é autoridade de range, não novo rename). Os nomes de tipo são uma side table do
+  parser (`Parser.type_spans` → `Loxia.last_type_spans` → `SourceIndex(extra_spans=...)`),
+  então o AST e o JSON v2 não mudam. `bench/source_index.py` mede o índice no corpus e
+  `tests/test_source_index_budget.py` guarda o inventário sem timing.
+- **Formatter mais barato** ([#152](https://github.com/loxia-lang/loxia/issues/152)):
+  o formatter deriva offsets de início com uma caminhada memoizada de primeiro token em
+  vez de construir o `SourceIndex` completo; no corpus, `format_source` caiu de ~1,27 s
+  para ~0,97 s e o pico de memória de ~3,7 MiB para ~3,1 MiB, sem mudar um byte da saída.
+- **`fmt` com múltiplos alvos** ([#151](https://github.com/loxia-lang/loxia/issues/151)):
+  `loxia fmt PATH...` aceita arquivos e diretórios recursivos (ordem determinística,
+  diretórios ocultos/caches ignorados por padrão) e `--exclude GLOB` repetível para
+  fixtures inválidas. Com vários alvos, um erro de sintaxe não escreve nenhum arquivo
+  (exit 65, diagnóstico com o path), nenhum alvo é exit 2, path inexistente é 66 e
+  `--json`/`--json-lines` agregam um único `start`/`summary`; `--edits=json` exige um
+  único arquivo resolvido.
+- **Edits estruturados do `fmt`** ([ADR-0136](docs/adr/0136-formatter-2-doc-ir.md),
+  [#109](https://github.com/loxia-lang/loxia/issues/109)): `loxia fmt --diff` mostra um
+  diff unificado sem escrever e `loxia fmt --check --edits=json` devolve `TextEdit[]` com
+  intervalos exatos (line/column 1-based, offset 0-based em bytes UTF-8), prontos para
+  aplicar sem reler o arquivo. O LSP `textDocument/formatting` passa a devolver hunks
+  UTF-16 em vez do arquivo inteiro, e honra `loxia.formatter.maxWidth`
+  (`initializationOptions`/`didChangeConfiguration`, 20..1000, default 100).
+
+- **Trivia do front-end** ([ADR-0134](docs/adr/0134-trivia-side-table.md),
+  [#108](https://github.com/loxia-lang/loxia/issues/108)): o scanner passa a gravar
+  comentários e espaços numa side table sem alterar tokens/AST; `render` prova round-trip
+  do texto normalizado e `TriviaTable` define attachment para o formatter/LSP.
+
+- **`regex` nativo** ([ADR-0131](docs/adr/0131-regex-motor-rust-dois-modos.md),
+  [#118](https://github.com/loxia-lang/loxia/issues/118)): módulo embutido `regex`
+  (`import regex`) com motor Rust — linear por padrão (`compile`) e `Mode.Full`
+  (`compileFull`, backrefs/lookaround com limite de backtracking). `Regex`, `Match`,
+  `RegexError`, `tryCompile`/`tryCompileFull`, `find`/`findFrom`/`findAll`,
+  `replace`/`replaceAll`/`split`, offsets em code points e substituição `$0`..`$9`/`$name`.
+  Roda nos dois motores; exige o toolchain Rust (`E3022` sem `cargo`; `check` não
+  exige). `tools/check_pr_title.lx` passa a ser o primeiro check de CI escrito em Loxia.
+
+- **`loxia new --lib`**: scaffold de biblioteca com o módulo `<nome>.lx` na raiz (sem
+  `src/main.lx`), `loxia.toml`, lock e `.gitignore`; `init --lib` funciona em diretório
+  existente e não sobrescreve o módulo. Fecha a lacuna do
+  [ADR-0124](docs/adr/0124-fmt-self-host-e-pacotes-por-repo.md).
+
+- **Oráculo do front-end** ([ADR-0129](docs/adr/0129-oraculo-do-front-end.md)): `loxia ast
+  --file-only` transforma um único arquivo, sem loader nem mangling; `--format=json`
+  (obrigatoriamente com `--file-only`) emite o contrato v1 com tokens, spans half-open e
+  campos de fonte. `tests/oracle/frontend.json` congela AST, bytes do formatter e
+  diagnósticos do corpus; `make oracle`/`make oracle-update`.
+
+- **`Bytes` (fase 79a)** ([ADR-0125](docs/adr/0125-bytes-tipo-binario.md),
+  [#79](https://github.com/loxia-lang/loxia/issues/79)): tipo de valor imutável para dados
+  binários, distinto de `String`; `len` em bytes, `b[i] -> Int`, igualdade estrutural,
+  `str`/`repr` em `0x<hex>`, `is`/`as`, `Any`, `List` e `Bytes?`. Namespace `Bytes`
+  (`empty`, `fromList`, `fromText`, `fromHex`, `fromBase64`) e métodos (`slice`, `concat`,
+  `toList`, `toText`, `toHex`, `toBase64`), com `BytesError` global
+  (`InvalidHex`/`InvalidBase64`/`InvalidUtf8`). Hex aceita ambas as
+  caixas; base64 é canônico; `toText` é UTF-8 estrito. Backend com tag 13
+  (`runtime/bytes.c`), boxe em `Any`/`List`, `Bytes?`, `is`/`as` e `for byte in b`
+  produzindo `Int`. Referência de método permanece lacuna declarada no backend (PENDING).
+
+- **`Bytes` (fase 79c)**: `std.bytes` (`Builder` incremental sobre `List[Int]`,
+  `ChunkBuilder` para blocos, `compare` lexicográfico, encoders `u16be/le`, `u32be/le`,
+  `u64be/le` e decoders `readU16/32/64be/le` com `Int?`), `fs.readBytes`/`File.readBytes`
+  (binário cru, grupo `fs` 11) e `digest.sha256Bytes`/`std.hash.sha256Bytes` (32 bytes
+  crus, grupo `digest` 2). O kernel fecha em **40** primitivas.
+
+- **`std.timex` v2**: `date` com validação (`Result[(Int, Int, Int), TimeError]`),
+  `isLeapYear`, `daysInMonth`, `weekday` (ISO 1..7), `dayOfYear`, `addMonths`/`addYears` com
+  clamp de calendário, `diffDays` (dias civis), `isoMillis`, `isoDate`, `isoIn`/`partsIn`
+  (offset explícito `-720..840`) e parse de `YYYY-MM-DD`, fração de 1–3 dígitos, offset
+  `±HH:MM` e `t`/`z` minúsculos (RFC 3339). `TimeError.kind` ganha `invalidDate`.
+
+### Corrigido
+- **Função opcional global, sentinela de função nil e metadados de `??` no backend** ([#226](https://github.com/loxia-lang/loxia/issues/226), [#225](https://github.com/loxia-lang/loxia/issues/225)): ler uma função opcional global nil deixava de ser `nil` e virava `R1003 Undefined variable` (o guard de closure tratava o ponteiro nulo como slot indefinido); o guard agora só vale para slots obrigatórios. `??`, condicional e `and`/`or` passam a preservar `function`/`generic`/`generic_node` quando o ramo não-nulo é a mesma função, então defaults de parâmetro continuam funcionando nesse caminho. Chamada indireta que omite default com callees distintos é recusada com a lacuna declarada (não com erro interno `zip`/E4002). Um slot `fn` não-opcional sem inicializador passa a usar a sentinela `lox_uninitialized_function`: imprime/compara como `nil`, boxa como nil em `Any` e falha em chamada/`as` com `R1001`/`R1011` no site, igual ao tree-walk (antes o binário dava `R1003`/`R1000` e o `as` de função opcional nil errava o código e a coluna). Casos `tests/cases/fn_optional_global.lx`, `fn_uninitialized.lx`, `errors/fn_uninitialized_{call,cast}.lx`, `errors/fn_optional_cast_nil.lx`, `errors/optional_class_cast_nil.lx` e `errors/fn_defaults_optional_cast.lx` (L6, diferenciais), mais `test_i4_lacunas_declaradas`.
+- **Nome concreto de instância guardada como interface** (achado no raio do [ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)): `print`, `str` e interpolação de um valor de interface liam `? instance` no binário (o tipo estático de interface não carrega o nome da classe); agora o nome vem do descritor, então `Impl`/`Sub` batem com o tree-walk. Caso `tests/cases/interface_instance_print.lx` (L6, diferencial).
+- **`loxia_explain` enxerga códigos novos sem reiniciar o servidor** ([#218](https://github.com/loxia-lang/loxia/issues/218)): o catálogo de diagnóstico agora é gerado no índice do pacote (`loxia/_spec/index.json`, campo `codes`) e resolvido a cada chamada, com o enum do processo como fallback. Antes, o enum importado no start do MCP ficava congelado e um código recém-adicionado respondia `unknown diagnostic code` até reiniciar. O índice também deixou de ser cacheado, então `loxia_version` reporta a versão de docs em disco; código realmente desconhecido passa a informar a versão do servidor e pedir restart.
+- **Acesso a membro/índice em `Any` no backend** ([ADR-0144](docs/adr/0144-any-dinamico-exige-estreitamento.md)): `if (a is C) { a.m() }` e `a[i]` com `List`/`Map` deixam de divergir (o binário emitia `R1014`/`R1000`); `a.m()` sem estreitamento deixa de passar no check. Casos `tests/cases/any_narrowing.lx` e `tests/cases/errors/any_*.lx`.
+
+- **`??`, `and` e `or` sobre `Any`** (achado no raio de explosão do
+  [#196](https://github.com/loxia-lang/loxia/issues/196)): `a ?? 0` com `Any` nil devolvia o
+  próprio `nil` no binário — o lowering tratava "não-opcional" como "nunca nil", mas o box de
+  `Any` carrega a tag `NIL`. `a and b`/`a or b` com `Any` morriam em `E4002` (violação de I4).
+  Agora `??` checa a tag e o curto-circuito encaixa o lado direito no box; casos
+  `tests/cases/any_coalesce_nil.lx` e `tests/cases/any_logical.lx`.
+- **Campo `Any`/união no backend** ([#196](https://github.com/loxia-lang/loxia/issues/196)):
+  o layout do campo passa a vir da anotação, não do tipo do inicializador. `var x: Any = 1`
+  deixava de ser `Any`: o campo virava um slot `Int`, o checker publicava `Any` e aceitava
+  `c.x = "s"`, então o `--emit` morria em `E4002` (`Can't use STRING where INT is expected`).
+  Com o [ADR-0145](docs/adr/0145-campo-any-slot-largo.md), o campo `Any` passou a ser
+  suportado (ver **Adicionado**); o tree-walk e o binário agora imprimem o mesmo valor.
+  Regressão em `tests/test_backend.py` (união) e casos `tests/cases/any_field_*.lx`.
+- **Diagnóstico de tipo importado** ([#222](https://github.com/loxia-lang/loxia/issues/222)):
+  mensagens de cast (`E3013`/`R1011`) e `display` de tipos mostram o nome local
+  (`Named`) em vez do nome canônico do loader (`mod$lib$Named`). O tree-walk e o binário
+  já concordavam; era só a mensagem. Teste em `tests/test_modules.py`.
+- **Refino de campo após nativa pura**: `print`/`len`/`str`/`repr`/`chars`/`range` e métodos
+  de `List`/`Map` não derrubam mais o narrowing de campo/índice. Antes, um `if (c.x is T)`
+  seguido de `print(...)` fazia o uso seguinte de `c.x` cair em `E3025` sem motivo; chamadas
+  de usuário e escritas continuam invalidando (som, sem análise de aliasing). Caso em
+  `tests/cases/any_narrowing.lx` ([#216](https://github.com/loxia-lang/loxia/issues/216)
+  cobre a precisão restante).
+- **`match` com variável local/parâmetro**: o resolver abria escopo para todo braço, mas o
+  interpretador só cria ambiente para braços de variante; um braço wildcard/literal que
+  referenciasse um local caía com `KeyError` (violação de I1). O resolver agora espelha o
+  interpretador (`tests/cases/match_arm_local.lx`).
+- **`Any` e inferência em `match`**: `Expected T, found Any` agora sugere o `as` explícito;
+  o tipo esperado é propagado aos braços de `match`, então `Result.Ok(1)` infere `E` no
+  contexto (`tests/cases/result_match_inference.lx`). O construtor de enum em argumento de
+  chamada também infere do parâmetro (`tests/cases/result_call_arg_inference.lx`).
+- **Códigos de diagnóstico do checker** ([#111](https://github.com/loxia-lang/loxia/issues/111),
+  [#100](https://github.com/loxia-lang/loxia/issues/100)): todo erro do checker passa a emitir
+  um código estável; `E3000` deixa de ser fallback para argumento, propriedade, índice, match,
+  destructuring e `raise`. `E3023`/`E3024` cobrem match não exaustivo e braço inalcançável;
+  `E3002` passa a descrever aridade de chamada, destructuring e pattern. Um teste novo garante
+  que o checker não volte a usar `E3000`.
+- **`build_edits` em linhas repetidas** ([#158](https://github.com/loxia-lang/loxia/issues/158)):
+  o diff por linhas deixou de ser quadrático em fontes com muitas blank lines; usa
+  `SequenceMatcher(autojunk=True)` e refina blocos de tamanho igual até 2048 linhas.
+  O padrão de 65 KB caiu de >75 s para ~4 ms (1 MB ~68 ms), com edits determinísticos e
+  `apply_edits(source, edits) == formatted` coberto por teste.
+- **Build sem cargo e erro rebaixável**: um erro que vira panic site (`print(1 + true)`,
+  `print(f())` antes da declaração) bloqueava o `--emit` com exit 65 e **sem diagnóstico**
+  quando o toolchain Rust não estava instalado; o gate do regex consultava `had_error`, que
+  já estava verdadeiro pelo erro deferido. Agora o build só recusa sem cargo se houver uso
+  real de `regex` (`E3022`); os demais casos compilam e o panic fica no ponto. Regressão em
+  `tests/test_layers.py`.
+- **`RegexError.offset`** ([#121](https://github.com/loxia-lang/loxia/issues/121)): o erro de
+  sintaxe reporta o byte do primeiro erro nos dois modos (`"("` → `0`, `"a(b"` → `1`) em vez
+  de `-1`, inclusive quando o `fancy-regex` compila um fragmento delegado. Padrão que estoura
+  o limite por programa vira o kind estável `size`; erro de análise (recursão à esquerda,
+  lookbehind não constante) vira `engine`, não `syntax`.
+- **Memória do regex no modo Full** ([#122](https://github.com/loxia-lang/loxia/issues/122)):
+  `compileFull` passa a explicitar os limites de sub-regex/cache e ganha um teto de instruções
+  (`max_prog_size`), que rejeita a expansão de subrotinas recursivas e o cache estrito de
+  lookbehind variável com o kind `size`. A decisão registrada é que a memória do motor Rust
+  fica fora do heap Boehm: o limite é por programa, não um orçamento total.
+- **`Bytes` é truthy no backend**: `if (b)`, `not b` e `and`/`or` sobre `Bytes` deixam de
+  falhar no lowering; só `nil`/`false` são falsy, como no tree-walk.
+- **Namespace nativo sombreado**: `val Bytes = ...`, `val fs = ...`, `val Int = ...` e
+  equivalentes locais não são mais despachados como namespace global no backend.
+- **Localização de panic de `Bytes`**: erros de `Bytes.fromList` apontam para o `(` da
+  chamada (como o `NativeError` do tree-walk) e erros de método (`slice`, `concat`) usam o
+  token do nome, em vez de linha/coluna 0.
+
+### Corrigido
+- **Precisão de escrita, `this.campo` e proveniência do refino** ([#216](https://github.com/loxia-lang/loxia/issues/216), emenda ao [ADR-0141](docs/adr/0141-soundness-de-fluxo-do-checker.md)): escrever num sub-caminho (`h.x.n = 5`) deixou de derrubar o refino de tipo do pai (`h.x: C`) — atribuir um campo não troca a classe do objeto — e escrever num caminho com outro campo no fim não derruba o refino (`p.outro`/`q.outro` × `p.nome`); o mesmo slot (campo ou índice literal) atingido por outra raiz e uma raiz que é objeto do caminho escrito (`val q = p.a` + `p.a.n = ...`) continuam caindo, por alias, e índice dinâmico cai inteiro. `this.campo` passou a estreitar como qualquer campo (com a invalidação conservadora em chamada). Quando um refino derrubado é usado, `E3025`/`E3007` agora citam quem o derrubou (chamada, escrita, atribuição, captura ou iteração), a linha e o tipo anterior, com a saída `is`/`as` ou local. De quebra, chamada de nativa pura em contexto esperado (`val n: Int = len(...)`) deixou de invalidar como chamada de usuário. Casos `tests/cases/narrowing_write_shape.lx` e `this_field_narrowing.lx` (L6, três canais) e `errors/any_narrowing_lost.lx`; escrita com `String?`/`Int?` como campo segue sem backend (`E4001`, lacuna declarada).
+- **Leitura de índice depois de estreitar o mesmo caminho** ([#236](https://github.com/loxia-lang/loxia/issues/236)):
+  `if (m["k"] is Int) { print(m["k"] as Int) }` era check-limpo mas o lowering recusava com
+  `E4001: Map key/value type`/`List element type is not supported by the backend yet`,
+  porque o caminho estreitado devolvia o tipo refinado sem publicar o receptor. O checker
+  agora infere o objeto e o índice e publica `storage_types` do nó; `Map`, `List`, `Map`
+  aninhado e tupla batem com o tree-walk. Caso `tests/cases/narrowed_index.lx` (`L6`).
+
 ## [1.2.0] - 2026-11-20
 
 ### Adicionado
@@ -180,6 +504,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   artefatos e `SHA256SUMS` para o release; `--check` continua sendo o gate de drift.
 
 ### Corrigido
+
+- **`std.timex.parseIso` rejeita sinais em campos ISO**: `_digits` agora valida
+  dígitos ASCII de largura fixa em vez de delegar ao `Int.parse` (que aceita `+`/`-`);
+  `+123-01-01` e `2024-01-01T-1:00:00Z` voltam a ser `nil`.
+- **`std.fs` rejeita caminhos com NUL nos dois motores**: as primitivas de mutação,
+  `fs.open`, `fs.exists` e `fs.listDir` não derrubam mais o Python com `ValueError`;
+  o C também não trunca silenciosamente o caminho. O `kind` é `io`.
+- **`std.fs.rename` mantém o mesmo `kind` no tree-walk e no binário** para
+  `ENOTEMPTY`/`EEXIST` (`notEmpty`/`alreadyExists`).
 
 - **Backend: `super` em lambdas/funções locais e bindings de `match` capturados**
   (ADR-0022): o passe de captura agora marca o receptor de `super` e declara os bindings

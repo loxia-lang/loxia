@@ -8,6 +8,7 @@ from loxia_core.execution.environment import Environment
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.frontend.expr import Lambda
 from loxia_core.frontend.stmt import Function
+from loxia_core.frontend.ty import FnTy
 
 if TYPE_CHECKING:
     from loxia_core.execution.interpreter import Interpreter
@@ -23,15 +24,17 @@ class LoxFunction:
         declaration: Function | Lambda,
         closure: Environment,
         is_initializer: bool,
+        fn_type: FnTy | None = None,
     ) -> None:
         self._declaration = declaration
         self._closure = closure
         self._is_initializer = is_initializer
+        self.fn_type = fn_type
 
     def bind(self, instance: LoxInstance) -> LoxFunction:
         environment = Environment(self._closure)
         environment.define("this", instance)
-        return LoxFunction(self._declaration, environment, self._is_initializer)
+        return LoxFunction(self._declaration, environment, self._is_initializer, self.fn_type)
 
     def min_arity(self) -> int:
         required = 0

@@ -1,0 +1,153 @@
+var total = 0
+for i in 0..10 {
+  if (i == 3) {
+    continue
+  }
+  if (i == 6) {
+    break
+  }
+  total = total + i
+}
+print(total)
+
+var n = 0
+while (true) {
+  n = n + 1
+  if (n < 3) {
+    continue
+  }
+  if (n == 5) {
+    break
+  }
+}
+print(n)
+
+var log = ""
+while (true) {
+  try {
+    break
+  } finally {
+    log = log + "f"
+  }
+}
+print(log)
+
+for i in 0..2 {
+  for j in 0..2 {
+    if (j == 1) {
+      break
+    }
+    print("${i}:${j}")
+  }
+}
+
+var logged = ""
+for i in 0..3 {
+  try {
+    if (i == 1) {
+      continue
+    }
+    if (i == 2) {
+      break
+    }
+  } finally {
+    logged = logged + "f"
+  }
+  print(i)
+}
+print(logged)
+
+while (true) {
+  try {
+    break
+  } finally {
+    break
+  }
+}
+print("after")
+
+var m = 0
+while (true) {
+  m = m + 1
+  try {
+    continue
+  } finally {
+    if (m == 3) {
+      break
+    }
+  }
+}
+print(m)
+
+fn g() -> Int {
+  while (true) {
+    try {
+      if (false) {
+        return 1
+      }
+      break
+    } finally {
+      print("F")
+    }
+  }
+  return 0
+}
+
+print(g())
+
+fn h() -> Int {
+  while (true) {
+    try {
+      break
+    } finally {
+      return 7
+    }
+  }
+  return 0
+}
+
+print(h())
+
+fn withParam(x: Int) -> Int {
+  while (true) {
+    try {
+      break
+    } finally {
+      print("x=${x}")
+    }
+  }
+  return x
+}
+
+print(withParam(42))
+
+fn withLocal() -> Int {
+  var y = 5
+  while (true) {
+    try {
+      break
+    } finally {
+      print(y)
+    }
+  }
+  return y
+}
+
+print(withLocal())
+
+# expect: 12
+# expect: 5
+# expect: f
+# expect: 0:0
+# expect: 1:0
+# expect: 0
+# expect: fff
+# expect: after
+# expect: 3
+# expect: F
+# expect: 0
+# expect: 7
+# expect: x=42
+# expect: 42
+# expect: 5
+# expect: 5

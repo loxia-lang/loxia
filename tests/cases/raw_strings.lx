@@ -1,8 +1,10 @@
 # Strings raw (ADR-0070): sem escapes e sem interpolação.
 print(r"a\nb")
 print(r"${1 + 1}")
-print(r"""multi
-linha \n""")
+print(
+  r"""multi
+linha \n""",
+)
 print(r"""aspas " com \\ barras""")
 # expect: a\nb
 # expect: ${1 + 1}

@@ -171,7 +171,7 @@ void lox_reserve_stack(void) {
 
 /* Boehm OOM callback: fixed message and exit 70. */
 
-static void lox_oom_exit(void) {
+void lox_oom_exit(void) {
     fflush(stdout);
     fputs("error[R1000]: Out of memory.\n", stderr);
     fflush(stderr);
@@ -310,7 +310,7 @@ int32_t lox_exception_matches(const void *pointer, const void *expected,
                 const LoxStr *name = ((const LoxStr **)descriptor)[2];
                 size_t length = strlen(type_name);
                 if (name->byte_len == (int64_t)length &&
-                    memcmp(name->data, type_name, length) == 0) {
+                    memcmp(lox_str_bytes(name), type_name, length) == 0) {
                     return 1;
                 }
             }
@@ -468,6 +468,22 @@ void lox_raise_current(int32_t line, int32_t column) {
                           frame->exception.type_name,
                           frame->exception.message, line, column,
                           lox_call_depth);
+}
+
+/* Entry point: `Err` returned by `main` (ADR-0148). The message is the `String`
+ * payload boxed in the enum; `lox_str_from_any` reproduces the tree-walk
+ * `stringify` (a String comes back as is). Fixed prefix and no position, the same
+ * shape as `error[R1000]: Out of memory.`. Never returns. */
+void lox_unhandled_result(const void *pointer) {
+    LoxValue value = lox_enum_payload(pointer, 0, 0, 0);
+    void *text = lox_str_from_any(value.tag, value.payload);
+    const LoxStr *message = text;
+    fflush(stdout);
+    fputs("error[R1016]: ", stderr);
+    fwrite(lox_str_bytes(message), 1, (size_t)message->byte_len, stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
+    exit(70);
 }
 
 /* Runtime panic: with an active try it becomes a catchable `RuntimeError`;

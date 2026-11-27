@@ -9,11 +9,26 @@ whenToUse: Ao adicionar um teste, fazer a suíte passar, investigar uma falha ou
 ## Comandos
 
 ```bash
-make test                          # pytest (unit + golden)
+make test                          # pytest (unit + golden), xdist
+make test-serial                   # pytest serial (investigar um erro)
+make check                         # gate completo (~30 s)
+make check-serial                  # gate completo serial (investigar um erro)
+make test-fast                     # sem backend/install, xdist (~15-20 s)
+make test-fast TEST_JOBS=0         # serial (depurar um caso)
+make test-backend                  # backend sem os casos lentos (Rust), xdist (~12 s)
+make test-backend TEST_JOBS=0      # backend serial (depurar um caso)
+make test-backend-all              # backend completo, incluindo os casos lentos
+make smoke-backend                 # um caso por nível, processo real (~5 s)
 uv run pytest -k block             # subconjunto
 make case                          # runner golden sem pytest
 uv run python -m tests.runner for  # um caso (filtro por substring)
 ```
+
+O runner golden, a suíte oficial e o corpus diferencial executam o CLI **no processo
+do pytest** (`tests/inprocess.py`); `LOX_GOLDEN_SUBPROCESS=1` volta ao processo por caso.
+Use `subprocess` só quando o teste precisa de processo real (hash seed, sinal/timeout,
+stdin de REPL, sandbox, `std.proc`, binário compilado, oráculo de regex nativo). Casos
+com o crate Rust são `slow`: ficam fora de `make test-backend` e rodam no gate e no CI.
 
 ## Caso golden (`tests/cases/*.lx`)
 
@@ -80,7 +95,7 @@ uv run pytest tests/test_backend.py -q
 ```
 
 No CI o `libgc-dev` é a fonte da verdade. Nesta máquina, sem o header `gc.h`, use o shim
-local descrito no `AGENTS.md` §2.
+local descrito no `AGENTS.md` §4.
 
 ## Armadilhas
 

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Zero-length Bytes: NULL data, empty slice/concat and empty conversions.
+print(
+  match Bytes.empty().toText() {
+    Result.Ok(text) => len(text)
+    Result.Err(_) => -1
+  },
+)
+print(Bytes.empty().toBase64())
+print(Bytes.empty().slice(0, 0).toHex())
+print(Bytes.empty().concat(Bytes.empty()).toHex())
+print(
+  match Bytes.fromHex("") {
+    Result.Ok(value) => len(value)
+    Result.Err(_) => -1
+  },
+)
+print(
+  match Bytes.fromBase64("") {
+    Result.Ok(value) => len(value)
+    Result.Err(_) => -1
+  },
+)
+
+# expect: 0
+# expect:
+# expect:
+# expect:
+# expect: 0
+# expect: 0

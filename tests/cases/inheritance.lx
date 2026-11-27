@@ -1,9 +1,9 @@
 class Doughnut {
-  cook() -> Nil {
-    print("Fry until golden brown.");
+  fn cook() -> Nil {
+    print("Fry until golden brown.")
   }
 }
 
 class BostonCream(Doughnut) {}
 
-BostonCream().cook();  # expect: Fry until golden brown.
+BostonCream().cook() # expect: Fry until golden brown.

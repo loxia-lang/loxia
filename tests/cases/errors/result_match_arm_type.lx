@@ -1,0 +1,6 @@
+val r: Result[Int, String] = match 1 {
+  0 => Result.Ok("x")
+  _ => Result.Err("e")
+}
+print(r)
+# expect error: Expected Int, found String.

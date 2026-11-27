@@ -122,7 +122,9 @@ editar anotações de tipo com precisão, `ClassTy` ganhou um `token` opcional d
 `inlayHint` entraram em 2026-11-18; DAP fica fora por enquanto. As duas features novas
 têm settings (`loxia.inlayHints.enabled` e `loxia.completion.inheritedMembers`), enviadas
 pelo cliente em `initializationOptions` e `workspace/didChangeConfiguration`; os defaults
-são `true`. O teste de paridade `publishDiagnostics` × `check --error-format=json` passou
+são `true`. Desde 2026-11-23 o formatter também aceita `loxia.formatter.maxWidth`
+(20..1000, default 100) pelo mesmo caminho, usado por `textDocument/formatting`
+([ADR-0136](0136-formatter-2-doc-ir.md)). O teste de paridade `publishDiagnostics` × `check --error-format=json` passou
 a existir em `tests/test_lsp.py`.
 
 ### 3. Mapeamento do diagnóstico

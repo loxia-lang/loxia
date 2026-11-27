@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# The panic site is the call paren, matching the tree-walk's NativeError rethrow.
+print(Bytes.fromList([256]))
+# expect runtime error: Bytes.fromList() expects integers in 0..255.

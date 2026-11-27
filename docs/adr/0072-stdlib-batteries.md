@@ -3,6 +3,10 @@
 > **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): o `LoxRuntimeError` do
 > prelúdio passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico da decisão
 > da época.
+>
+> **Atualizado por** [ADR-0131](0131-regex-motor-rust-dois-modos.md): regex deixa de ser
+> não-objetivo — vira módulo nativo embutido (motor Rust), fora de `std/`. As demais linhas
+> de "fora da stdlib" continuam valendo.
 
 - **Status:** accepted (plano; implementação pendente)
 - **Data:** 2026-11-14
@@ -104,9 +108,10 @@ Um módulo só entra se tiver **todos**:
 
 ### 6. Erros e variádicos
 
-- Falha esperada devolve `T?` (ausência) ou `Result[T, E]` (detalhe). **Nenhuma função da
-  stdlib lança exceção na v1** — o backend ainda não tem unwinding (L6j) e a stdlib tem
-  que rodar nos dois motores.
+- **Superseded pelo [ADR-0135](0135-politica-de-erro.md).** Falha esperada devolve `Result[T, E]`
+  (o `T?` sai da API pública de `std/`); o backend **tem** unwinding desde o L6, e `std/` lança
+  apenas nos módulos cujo contrato é falhar (`asserts`, `contracts`, `test`, `property`). O
+  orçamento de `raise` por módulo é policiado por `tests/test_stdlib_error_policy.py`.
 - Variádicos existem desde o [ADR-0083](0083-variadicos.md): `fmt.format` recebe
   `...values: Any` e a chamada é `fmt.format("{} + {} = {}", a, b, c)`; `...args`
   (spread) também vale. APIs anteriores que recebiam `List[Any]` mantêm o corpo usando a

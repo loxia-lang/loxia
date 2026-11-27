@@ -471,12 +471,6 @@ def _import_items(
     return []
 
 
-def _statement_name(statement: Stmt) -> str | None:
-    if isinstance(statement, (Function, Class, EnumDecl, Interface, TypeAlias)):
-        return statement.name.lexeme
-    return None
-
-
 def declared_type(statements: list[Stmt], name: str) -> Any:
     found: Any = None
 

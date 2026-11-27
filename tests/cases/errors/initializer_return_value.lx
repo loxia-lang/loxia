@@ -1,6 +1,6 @@
 class Foo {
-  init() {
-    return 1;
+  fn init() {
+    return 1
   }
 }
 # expect error: Can't return a value from an initializer.

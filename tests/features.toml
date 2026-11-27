@@ -11,6 +11,12 @@ golden = ["tests/cases/numbers.lx", "tests/cases/literals.lx", "tests/cases/comp
 differential = "l1"
 backend = true
 
+[features.any]
+title = "Any boxeado: top type, is/as, ??, curto-circuito, narrowing e campos"
+golden = ["tests/cases/any_box.lx", "tests/cases/any_casts.lx", "tests/cases/any_coalesce_nil.lx", "tests/cases/any_field_assign.lx", "tests/cases/any_field_layout.lx", "tests/cases/any_logical.lx", "tests/cases/any_narrowing.lx", "tests/cases/narrowed_index.lx", "tests/cases/std_jsonrpc_data.lx"]
+differential = "l6"
+backend = true
+
 [features.operators]
 title = "Aritmética, precedência, unários e bits"
 golden = ["tests/cases/arithmetic.lx", "tests/cases/precedence.lx", "tests/cases/bitwise.lx", "tests/cases/exponentiation.lx", "tests/cases/unary.lx"]
@@ -37,19 +43,19 @@ backend = true
 
 [features.functions]
 title = "Funções, closures, lambdas, defaults e variádicos"
-golden = ["tests/cases/functions.lx", "tests/cases/closures.lx", "tests/cases/function_values.lx", "tests/cases/local_function.lx", "tests/cases/default_params.lx", "tests/cases/variadic.lx"]
+golden = ["tests/cases/functions.lx", "tests/cases/closures.lx", "tests/cases/function_values.lx", "tests/cases/local_function.lx", "tests/cases/default_params.lx", "tests/cases/variadic.lx", "tests/cases/fn_any.lx"]
 differential = "l4"
 backend = true
 
 [features.classes]
 title = "Classes, campos, métodos, this, init, herança e super"
-golden = ["tests/cases/classes.lx", "tests/cases/class_fields.lx", "tests/cases/class_initializer.lx", "tests/cases/inheritance.lx", "tests/cases/super.lx", "tests/cases/class_bound_method.lx"]
+golden = ["tests/cases/classes.lx", "tests/cases/class_fields.lx", "tests/cases/class_initializer.lx", "tests/cases/inheritance.lx", "tests/cases/super.lx", "tests/cases/class_bound_method.lx", "tests/cases/selfhost_recursive_class.lx"]
 differential = "l5"
 backend = true
 
 [features.interfaces]
 title = "Interfaces nominais e métodos default"
-golden = ["tests/cases/interfaces.lx", "tests/cases/interface_decl.lx"]
+golden = ["tests/cases/any_interface.lx", "tests/cases/interface_union_optional.lx", "tests/cases/interfaces.lx", "tests/cases/interface_decl.lx", "tests/cases/selfhost_ast_interface.lx"]
 differential = "l6"
 backend = true
 
@@ -67,7 +73,7 @@ backend = true
 
 [features.enums]
 title = "Enums, match e Result"
-golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx"]
+golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx", "tests/cases/selfhost_ast_enum.lx", "tests/cases/selfhost_ast_generic_enum.lx"]
 differential = "l6"
 backend = true
 
@@ -121,7 +127,7 @@ backend = true
 
 [features.test_runner]
 title = "std.test e o runner loxia test"
-golden = ["tests/cases/std_test.lx", "tests/cases/std_test_hooks.lx", "tests/cases/exception_site.lx"]
+golden = ["tests/cases/std_test.lx", "tests/cases/std_test_hooks.lx", "tests/cases/std_test_any.lx", "tests/cases/exception_site.lx"]
 differential = "t3"
 backend = true
 
@@ -141,4 +147,10 @@ backend = true
 title = "Stdlib de dados: json, csv, fmt e utf8"
 golden = ["tests/cases/std_json.lx", "tests/cases/std_csv.lx", "tests/cases/std_fmt.lx", "tests/cases/std_utf8.lx"]
 differential = "t2"
+backend = true
+
+[features.regex]
+title = "Módulo embutido regex (motor Rust, linear e Full)"
+golden = ["tests/cases/std_regex/basic.lx", "tests/cases/std_regex/errors.lx", "tests/cases/std_regex/limits.lx"]
+differential = "t4"
 backend = true

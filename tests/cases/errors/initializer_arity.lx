@@ -1,5 +1,6 @@
 class Foo {
-  init(a) {}
+  fn init(a) {}
 }
-Foo();
+
+Foo()
 # expect runtime error: Expected 1 arguments but got 0.

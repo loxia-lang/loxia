@@ -1,0 +1,6 @@
+print(
+  match 1.5 {
+    _ => "x"
+  },
+)
+# expect error: match requires an enum, Int, String, Bool or nil value; narrow it first.

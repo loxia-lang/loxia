@@ -34,6 +34,7 @@ BOOL = Prim("Bool")
 INT = Prim("Int")
 FLOAT = Prim("Float")
 STRING = Prim("String")
+BYTES = Prim("Bytes")
 RANGE = Prim("Range")
 
 PRIMITIVES: dict[str, Ty] = {
@@ -44,6 +45,7 @@ PRIMITIVES: dict[str, Ty] = {
     "Int": INT,
     "Float": FLOAT,
     "String": STRING,
+    "Bytes": BYTES,
     "Range": RANGE,
 }
 
@@ -173,21 +175,26 @@ class NativeFnTy(Ty):
     name: str
 
 
+def _short_name(name: str) -> str:
+    """Nome local de uma declaração: o loader separa módulos com `$` (ADR-0073)."""
+    return name.rsplit("$", 1)[-1]
+
+
 def display(ty: Ty) -> str:
     if isinstance(ty, TyVar):
         if ty.bounds:
             return f"{ty.name}: {' + '.join(ty.bounds)}"
         return ty.name
     if isinstance(ty, (Prim, ClassObjectTy, InterfaceTy, NativeModuleTy)):
-        return ty.name
+        return _short_name(ty.name)
     if isinstance(ty, ClassTy):
         if ty.args:
-            return f"{ty.name}[" + ", ".join(display(arg) for arg in ty.args) + "]"
-        return ty.name
+            return f"{_short_name(ty.name)}[" + ", ".join(display(arg) for arg in ty.args) + "]"
+        return _short_name(ty.name)
     if isinstance(ty, EnumTy):
         if ty.args:
-            return f"{ty.name}[" + ", ".join(display(arg) for arg in ty.args) + "]"
-        return ty.name
+            return f"{_short_name(ty.name)}[" + ", ".join(display(arg) for arg in ty.args) + "]"
+        return _short_name(ty.name)
     if isinstance(ty, ListTy):
         return f"List[{display(ty.element)}]"
     if isinstance(ty, MapTy):
@@ -232,10 +239,6 @@ def union(*types: Ty) -> Ty:
     return UnionTy(tuple(members))
 
 
-def nullable(ty: Ty) -> Ty:
-    return union(ty, NIL)
-
-
 def is_nilable(ty: Ty) -> bool:
     if ty is ANY or ty is NIL:
         return True
@@ -243,10 +246,6 @@ def is_nilable(ty: Ty) -> bool:
         return any(member is NIL for member in ty.members)
 
     return False
-
-
-def is_union(ty: Ty) -> bool:
-    return isinstance(ty, UnionTy)
 
 
 def non_nil(ty: Ty) -> Ty:

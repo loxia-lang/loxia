@@ -14,7 +14,7 @@ def execute(lox: Loxia, source: str, capsys: pytest.CaptureFixture[str]) -> tupl
 
 
 def run(source: str, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str]:
-    return execute(Loxia(), source, capsys)
+    return execute(Loxia(check_on_run=False), source, capsys)
 
 
 def test_prints_literals(capsys: pytest.CaptureFixture[str]) -> None:
@@ -196,9 +196,9 @@ def test_assignment_reaches_enclosing_scope(capsys: pytest.CaptureFixture[str]) 
     assert stdout == ["12"]
 
 
-def test_while_and_for_loops(capsys: pytest.CaptureFixture[str]) -> None:
+def test_while_and_for_in_loops(capsys: pytest.CaptureFixture[str]) -> None:
     while_source = "var i = 0; while (i < 3) { print(i); i = i + 1; }"
-    for_source = "for (var i = 0; i < 3; i = i + 1) print(i);"
+    for_source = "for i in 0..3 { print(i); }"
 
     assert run(while_source, capsys)[0] == ["0", "1", "2"]
     assert run(for_source, capsys)[0] == ["0", "1", "2"]
@@ -943,6 +943,25 @@ def test_enum_match_runtime_error(
     )
 
     assert "No match arm matched." in stderr
+
+
+def test_literal_match_is_strict_across_types(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        """
+        print(match true { true => "bool", _ => "no" })
+        print(match 1 { 1 => "int", _ => "no" })
+        print(match true { 1 => "int", _ => "no" })
+        print(match 1 { true => "bool", _ => "no" })
+        print(match nil { 0 => "int", _ => "no" })
+        print(match "1" { 1 => "int", _ => "no" })
+        """,
+        capsys,
+    )
+
+    assert stdout == ["bool", "int", "no", "no", "no", "no"]
+    assert stderr == ""
 
 
 def test_exceptions_runtime_flow(

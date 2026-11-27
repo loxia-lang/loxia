@@ -1,3 +1,9 @@
+---
+name: lox-git-flow
+description: Fluxo de branches da Loxia — main como release, dev como integração, feature→dev por squash, release dev→main e hotfix.
+whenToUse: Antes de criar branch, abrir PR, mergear, cortar release ou resolver conflito de fluxo.
+---
+
 # Fluxo de branches e PRs (Loxia)
 
 Use esta skill antes de criar branch, abrir PR, mergear ou cortar release. As regras

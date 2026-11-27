@@ -1,2 +1,2 @@
-print(1?.x);
-# expect runtime error: Only instances have properties.
+print(1?.x)
+# expect error: Only instances have properties.

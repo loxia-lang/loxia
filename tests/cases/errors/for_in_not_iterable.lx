@@ -1,2 +1,4 @@
-for x in 42 { print(x); }
-# expect runtime error: Can only iterate over a range, a list, a map or a string.
+for x in 42 {
+  print(x)
+}
+# expect error: Can only iterate over a range, a list, a map or a string.

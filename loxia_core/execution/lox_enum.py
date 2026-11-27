@@ -55,7 +55,3 @@ class LoxEnumObject:
 
     def __str__(self) -> str:
         return f"<enum {self.name}>"
-
-
-def is_enum_value(value: object) -> bool:
-    return isinstance(value, LoxEnumValue)

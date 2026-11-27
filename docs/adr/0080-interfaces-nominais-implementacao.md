@@ -35,8 +35,9 @@ modelo nominal e os métodos default continuam válidos.
 
 > **Implementação (2026-11-15):** fases T1–T9 entregues — sintaxe, tipos,
 > conformidade/defaults no tree-walk e no checker, loader, golden/checker/AST e backend
-> B2 (`interface_id` + tabela `itab` no descritor de classe). `is`/`as` com interface
-> seguem fora.
+> B2 (`interface_id` + tabela `itab` no descritor de classe). Na v1, `is`/`as` com
+> interface ficavam fora; o [ADR-0146](0146-is-as-interface.md) os implementou em
+> 2026-11-25 sobre essa mesma tabela.
 
 Este ADR não reabre o modelo: fecha as decisões de **implementação** que faltavam e define
 as fases.
@@ -88,9 +89,10 @@ class Triangulo(Figura) implements Forma, Desenhavel { ... }
   `Any` sim; `InterfaceTy?`/uniões seguem as regras existentes. Interface em campo,
   parâmetro, retorno, `List[Forma]`, `Map[K, Forma]` (valor) é permitido; chave de `Map`
   continua `String`/`Int`/`Bool`.
-- `is`/`as` com interface ficam **fora da v1**, como no ADR-0038: o checker recusa com
-  diagnóstico dirigido (`Interface types aren't supported in 'is' yet.`), nos dois
-  motores. O mapa classe→interfaces fica para quando o backend tiver a tabela (fase B2).
+- Na v1, `is`/`as` com interface ficavam **fora**, como no ADR-0038: o checker recusava
+  com diagnóstico dirigido (`Interface types aren't supported in 'is' yet.`). O
+  [ADR-0146](0146-is-as-interface.md) os implementou sobre a tabela de interfaces do
+  descritor (fase B2), sem ABI nova.
 
 ### 3. Verificação de `implements` (checker)
 
@@ -160,7 +162,8 @@ foram promovidos a `LEVELS` em B2.
 - classes sem interfaces têm tabela vazia; o custo é 2 words no descritor + a tabela;
 - classes genéricas e locais que implementam interfaces usam a mesma tabela (a genérica
   por instanciação monomorfizada; a local no descritor construído na função);
-- `is`/`as` com interface continuam fora (podem reusar a tabela depois).
+- `is`/`as` com interface reusam a tabela do descritor (implementados no
+  [ADR-0146](0146-is-as-interface.md)).
 
 ### 7. Orçamento sintático (ADR-0066)
 
@@ -242,7 +245,7 @@ comparador), iterador (`for-in` sobre classe) e variádicos
 | T1 | ADR + spec + grammar + orçamento | `docs/adr/0080`, `docs/spec/{sintaxe,semantica}.md`, `make grammar` |
 | T2 | AST/parser/printer: `interface`, `implements`, abstrato × default | `stmt.py`, `parser.py`, `ast_printer.py`, `token_type.py`, `keywords.py` |
 | T3 | Resolver: `this` no default, duplicatas, `super` proibido | `resolver.py` |
-| T4 | Checker: `InterfaceTy`, `InterfaceInfo`, conformidade, conflito, chamadas, `is/as` recusado | `ty.py`, `checker.py`, `codes.py` |
+| T4 | Checker: `InterfaceTy`, `InterfaceInfo`, conformidade, conflito, chamadas, `is/as` recusado (v1; implementado no [ADR-0146](0146-is-as-interface.md)) | `ty.py`, `checker.py`, `codes.py` |
 | T5 | Interpreter: `LoxInterface`, defaults, ordem de resolução | `lox_interface.py`, `lox_class.py`, `interpreter.py` |
 | T6 | Loader: clonar `Interface`, renomear `InterfaceTy`/`implements` em módulos | `loader.py` |
 | T7 | Testes: golden, checker, AST, determinismo, docs | `tests/cases/interface_*.lx`, `tests/test_checker.py` |
@@ -270,7 +273,8 @@ Casos de erro:
 - interface duplicada em `implements`; conflito de dois defaults sem override;
 - interface fora do topo; campo no corpo da interface; `init` na interface; `super`/campo
   no default;
-- interface como valor; `is`/`as` com interface; interface genérica.
+- interface como valor; `is`/`as` com interface (v1; implementado no
+  [ADR-0146](0146-is-as-interface.md)); interface genérica.
 
 Backend: os casos de interface foram promovidos de `PENDING` para `LEVELS` (l6) no mesmo
 commit da ABI B2; o diferencial cobre stdout, stderr e exit code nos três canais.

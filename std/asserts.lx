@@ -18,15 +18,9 @@ fn assert(condition: Bool, message: String = "assertion failed") -> Nil {
 ///
 /// Uses `!=`, so lists, maps and tuples compare structurally. The message includes
 /// both values rendered with `str`, which keeps the failure readable in TAP output.
-fn assertEq[T](
-  actual: T,
-  expected: T,
-  message: String = "assertEq failed"
-) -> Nil {
+fn assertEq[T](actual: T, expected: T, message: String = "assertEq failed") -> Nil {
   if (actual != expected) {
-    raise RuntimeError(
-      "${message}: expected ${str(expected)}, got ${str(actual)}"
-    )
+    raise RuntimeError("${message}: expected ${str(expected)}, got ${str(actual)}")
   }
 }
 
@@ -34,10 +28,7 @@ fn assertEq[T](
 ///
 /// The return type removes the optional, so callers can keep using the value without a
 /// second nil check. The default message is `expected a non-nil value`.
-fn assertNotNil[T](
-  value: T?,
-  message: String = "expected a non-nil value"
-) -> T {
+fn assertNotNil[T](value: T?, message: String = "expected a non-nil value") -> T {
   if (value == nil) {
     raise RuntimeError(message)
   }

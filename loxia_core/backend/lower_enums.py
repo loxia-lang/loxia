@@ -10,6 +10,7 @@ from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
 from loxia_core.backend.lower_model import (
     _ANY,
+    _BOOL,
     _I8_PTR,
     _I32,
     _INT,
@@ -24,11 +25,13 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import (
     Call,
     Get,
+    LiteralPattern,
     Match,
     VariantPattern,
     WildcardPattern,
 )
 from loxia_core.frontend.stmt import EnumDecl
+from loxia_core.frontend.ty import STRING as TY_STRING
 from loxia_core.frontend.ty import EnumTy, Ty, TyVar
 
 
@@ -63,6 +66,16 @@ class EnumLowering(LoweringBase):
             (
                 EnumVariantLayout("Ok", (TyVar("T", -1),)),
                 EnumVariantLayout("Err", (TyVar("E", -2),)),
+            ),
+        )
+        layouts["BytesError"] = EnumLayout(
+            "BytesError",
+            -1,
+            (),
+            (
+                EnumVariantLayout("InvalidHex", (TY_STRING,)),
+                EnumVariantLayout("InvalidBase64", (TY_STRING,)),
+                EnumVariantLayout("InvalidUtf8", (TY_STRING,)),
             ),
         )
         next_id = 1
@@ -204,6 +217,9 @@ class EnumLowering(LoweringBase):
         return self._enum_build(layout, variant, None, [])  # type: ignore[arg-type]
 
     def _match(self, expr: Match) -> Value:
+        if not any(isinstance(arm.pattern, VariantPattern) for arm in expr.arms):
+            return self._match_literal(expr)
+
         scrutinee = self._expr(expr.scrutinee)
         if scrutinee.ty is ValueType.ANY:
             scrutinee = self._unbox_any(scrutinee, TypeDesc(ValueType.ENUM), expr.keyword.line)
@@ -349,3 +365,70 @@ class EnumLowering(LoweringBase):
             result_desc.class_name,
             interface_name=result_desc.interface_name,
         )
+
+    def _match_literal(self, expr: Match) -> Value:
+        scrutinee = self._expr(expr.scrutinee)
+        result_desc = self._type_desc(self.types[expr], expr.keyword.line)
+        end = llvm_ir.append_block(self._function_ir, "match.end")
+        incoming: list[tuple[Any, Any]] = []
+
+        for arm in expr.arms:
+            pattern = arm.pattern
+            body = llvm_ir.append_block(self._function_ir, "match.arm")
+            next_block = llvm_ir.append_block(self._function_ir, "match.next")
+            if isinstance(pattern, WildcardPattern):
+                self.builder.branch(body)
+            else:
+                assert isinstance(pattern, LiteralPattern)
+                self.builder.cbranch(
+                    self._literal_condition(scrutinee, pattern.value, pattern.token.line),
+                    body,
+                    next_block,
+                )
+
+            self.builder = llvm_ir.builder(body)
+            value = self._coerce(self._expr(arm.body), result_desc, expr.keyword.line)
+            if not self.builder.block.is_terminated:
+                self.builder.branch(end)
+                incoming.append((value, self.builder.block))
+            self.builder = llvm_ir.builder(next_block)
+
+        if not self.builder.block.is_terminated:
+            self.builder.branch(end)
+            incoming.append((self._zero_desc(result_desc), self.builder.block))
+        self.builder = llvm_ir.builder(end)
+        if not incoming:
+            return self._zero_desc(result_desc)
+        if result_desc.ty is ValueType.NIL:
+            return Value(ValueType.NIL)
+        merged = self.builder.phi(self._storage_llvm_type(result_desc), "match.value")
+        for value, block in incoming:
+            merged.add_incoming(value.llvm, block)
+        return Value(
+            result_desc.ty,
+            merged,
+            result_desc.fn,
+            result_desc.optional,
+            result_desc.class_name,
+            interface_name=result_desc.interface_name,
+        )
+
+    def _literal_condition(self, scrutinee: Value, value: object, line: int) -> Any:
+        if value is None:
+            if scrutinee.ty is not ValueType.NIL:
+                raise _unsupported("nil pattern on a non-Nil scrutinee", line)
+            return llvm_ir.constant(_BOOL, 1)
+        if isinstance(value, bool):
+            return self.builder.icmp_signed(
+                "==", scrutinee.llvm, llvm_ir.constant(_BOOL, int(value))
+            )
+        if isinstance(value, int):
+            return self.builder.icmp_signed("==", scrutinee.llvm, llvm_ir.constant(_INT, value))
+        if isinstance(value, str):
+            literal = self._string_literal(value)
+            compared = self.builder.call(
+                self._function("lox_str_equal", _I32, [_I8_PTR, _I8_PTR]),
+                [scrutinee.llvm, literal.llvm],
+            )
+            return self.builder.icmp_signed("!=", compared, llvm_ir.constant(_I32, 0))
+        raise _unsupported("match literal", line)

@@ -10,11 +10,13 @@ from loxia_core.backend.lower_base import LoweringBase
 from loxia_core.backend.lower_model import (
     _ANY,
     _BOOL,
+    _CLOSURE,
     _FLOAT,
     _I8_PTR,
     _I32,
     _INT,
     ANY_TAG_BOOL,
+    ANY_TAG_BYTES,
     ANY_TAG_CLASS,
     ANY_TAG_ENUM,
     ANY_TAG_FLOAT,
@@ -40,6 +42,7 @@ from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import BOOL as TY_BOOL
+from loxia_core.frontend.ty import BYTES as TY_BYTES
 from loxia_core.frontend.ty import FLOAT as TY_FLOAT
 from loxia_core.frontend.ty import INT as TY_INT
 from loxia_core.frontend.ty import NIL as TY_NIL
@@ -71,6 +74,8 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.BOOL)
         if ty is TY_STRING:
             return TypeDesc(ValueType.STRING)
+        if ty is TY_BYTES:
+            return TypeDesc(ValueType.BYTES)
         if ty is TY_NIL:
             return TypeDesc(ValueType.NIL)
         if ty is TY_ANY:
@@ -84,7 +89,7 @@ class OptionalLowering(LoweringBase):
         if isinstance(ty, TupleTy):
             return TypeDesc(ValueType.TUPLE)
         if isinstance(ty, EnumTy):
-            return TypeDesc(ValueType.ENUM)
+            return TypeDesc(ValueType.ENUM, class_name=ty.name)
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
@@ -119,7 +124,7 @@ class OptionalLowering(LoweringBase):
             if ty.name in self._interface_ids:
                 return TypeDesc(ValueType.INSTANCE, interface_name=ty.name)
             if ty.name in self._enum_layouts:
-                return TypeDesc(ValueType.ENUM)
+                return TypeDesc(ValueType.ENUM, class_name=ty.name)
             if ty.name in self._type_subst:
                 return self._type_desc(self._type_subst[ty.name], line)
             if ty.args:
@@ -176,6 +181,8 @@ class OptionalLowering(LoweringBase):
                 return _BOOL
             case ValueType.STRING:
                 return _I8_PTR
+            case ValueType.BYTES:
+                return _I8_PTR
             case ValueType.FUNCTION:
                 return _I8_PTR
             case (
@@ -186,6 +193,7 @@ class OptionalLowering(LoweringBase):
                 | ValueType.MAP
                 | ValueType.TUPLE
                 | ValueType.ENUM
+                | ValueType.BYTES
             ):
                 return _I8_PTR
             case ValueType.ANY:
@@ -200,6 +208,23 @@ class OptionalLowering(LoweringBase):
         if ty is None:
             raise _unsupported("Type information for an expression", line)
         return self._type_desc(ty, line)
+
+    def _narrowed(self, expr: Expr, value: Value, line: int | None) -> Value:
+        """Desembrulha `Any` quando o checker publicou um tipo estreitado.
+
+        O checker refina `a is C`/`a != nil`, mas o slot continua guardando o box de
+        `Any`; o tipo estreitado só existe no ponto de uso. Sem o unbox, um programa
+        check-limpo (`if (a is C) { a.m() }`) emitiria R1014 no binário (I1).
+        """
+        if value.ty is not ValueType.ANY:
+            return value
+        narrowed = self.flow_types.get(expr)
+        if narrowed is None:
+            return value
+        desc = self._type_desc(narrowed, line)
+        if desc.ty is ValueType.ANY:
+            return value
+        return self._unbox_any(value, desc, line)
 
     def _storage_llvm_type(self, desc: TypeDesc) -> Any:
         if not desc.optional:
@@ -232,6 +257,9 @@ class OptionalLowering(LoweringBase):
                 True,
                 interface_name=desc.interface_name,
             )
+        if desc.ty is ValueType.ANY:
+            # `Any` inclui nil na tag; o zero é o agregado, não um ponteiro nulo.
+            return Value(ValueType.ANY, llvm_ir.zero_value(_ANY))
         return Value(
             desc.ty,
             llvm_ir.null_pointer(),
@@ -239,6 +267,14 @@ class OptionalLowering(LoweringBase):
             True,
             interface_name=desc.interface_name,
         )
+
+    def _uninitialized_function(self) -> Value:
+        """Slot de função ainda sem valor: sentinela que imprime/compara como nil."""
+        global_ = self._extern_values.get("lox_uninitialized_function")
+        if global_ is None:
+            global_ = llvm_ir.extern_global(self.module, "lox_uninitialized_function", _CLOSURE)
+            self._extern_values["lox_uninitialized_function"] = global_
+        return Value(ValueType.FUNCTION, global_.bitcast(_I8_PTR))
 
     def _zero(self, ty: ValueType) -> Value:
         match ty:
@@ -250,8 +286,10 @@ class OptionalLowering(LoweringBase):
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
             case ValueType.STRING:
                 return Value(ValueType.STRING, llvm_ir.null_pointer())
+            case ValueType.BYTES:
+                return Value(ValueType.BYTES, llvm_ir.null_pointer())
             case ValueType.FUNCTION:
-                return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
+                return self._uninitialized_function()
             case (
                 ValueType.CLASS
                 | ValueType.INSTANCE
@@ -271,6 +309,43 @@ class OptionalLowering(LoweringBase):
         """Constrói `{1, payload}` (escalar) ou devolve o ponteiro não nulo."""
         if not desc.optional:
             raise BackendError("Invalid optional construction.", None)
+        if desc.ty is ValueType.FUNCTION:
+            # A sentinela de função não inicializada é `nil`: envolvê-la num `T?`
+            # precisa produzir a tag nil, não um "presente" com display "nil".
+            is_nil = self.builder.call(
+                self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                [value.llvm],
+            )
+            uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
+            some = llvm_ir.append_block(self._function_ir, "fn.some")
+            nothing = llvm_ir.append_block(self._function_ir, "fn.nil")
+            end = llvm_ir.append_block(self._function_ir, "fn.optional")
+            self.builder.cbranch(uninitialized, nothing, some)
+
+            self.builder = llvm_ir.builder(nothing)
+            zero = self._zero_desc(desc)
+            self.builder.branch(end)
+            nothing_end = self.builder.block
+
+            self.builder = llvm_ir.builder(some)
+            self.builder.branch(end)
+            some_end = self.builder.block
+
+            self.builder = llvm_ir.builder(end)
+            merged = self.builder.phi(self._storage_llvm_type(desc), "fn.optional.value")
+            merged.add_incoming(zero.llvm, nothing_end)
+            merged.add_incoming(value.llvm, some_end)
+            return Value(
+                desc.ty,
+                merged,
+                desc.fn,
+                True,
+                desc.class_name,
+                value.function,
+                value.generic,
+                value.generic_node,
+                interface_name=desc.interface_name,
+            )
         if desc.ty not in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
             return Value(
                 desc.ty,
@@ -278,6 +353,9 @@ class OptionalLowering(LoweringBase):
                 desc.fn,
                 True,
                 desc.class_name,
+                value.function,
+                value.generic,
+                value.generic_node,
                 interface_name=desc.interface_name,
             )
 
@@ -289,6 +367,9 @@ class OptionalLowering(LoweringBase):
             desc.fn,
             True,
             desc.class_name,
+            value.function,
+            value.generic,
+            value.generic_node,
             interface_name=desc.interface_name,
         )
 
@@ -305,6 +386,9 @@ class OptionalLowering(LoweringBase):
                 value.sig,
                 False,
                 value.class_name,
+                value.function,
+                value.generic,
+                value.generic_node,
                 interface_name=value.interface_name,
             )
         return Value(
@@ -313,6 +397,9 @@ class OptionalLowering(LoweringBase):
             value.sig,
             False,
             value.class_name,
+            value.function,
+            value.generic,
+            value.generic_node,
             interface_name=value.interface_name,
         )
 
@@ -331,6 +418,7 @@ class OptionalLowering(LoweringBase):
             ValueType.MAP: ANY_TAG_MAP,
             ValueType.TUPLE: ANY_TAG_TUPLE,
             ValueType.ENUM: ANY_TAG_ENUM,
+            ValueType.BYTES: ANY_TAG_BYTES,
         }.get(ty)
         if tag is None:
             raise _unsupported(f"Boxing {ty.name}", line)
@@ -368,6 +456,41 @@ class OptionalLowering(LoweringBase):
             return value
         if value.optional:
             return self._box_optional(value, line)
+
+        if value.ty is ValueType.FUNCTION:
+            # A sentinela de função não inicializada boxa como a tag nil, não
+            # como uma função "presente" com display nil (ADR-0147).
+            is_nil = self.builder.call(
+                self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                [value.llvm],
+            )
+            uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
+            nothing = llvm_ir.append_block(self._function_ir, "box.fn.nil")
+            some = llvm_ir.append_block(self._function_ir, "box.fn.some")
+            end = llvm_ir.append_block(self._function_ir, "box.fn.end")
+            self.builder.cbranch(uninitialized, nothing, some)
+
+            self.builder = llvm_ir.builder(nothing)
+            nil_box = llvm_ir.zero_value(_ANY)
+            self.builder.branch(end)
+            nothing_end = self.builder.block
+
+            self.builder = llvm_ir.builder(some)
+            aggregate = llvm_ir.zero_value(_ANY)
+            aggregate = self.builder.insert_value(
+                aggregate, llvm_ir.constant(_INT, ANY_TAG_FUNCTION), 0
+            )
+            aggregate = self.builder.insert_value(
+                aggregate, self.builder.ptrtoint(value.llvm, _INT), 1
+            )
+            self.builder.branch(end)
+            some_end = self.builder.block
+
+            self.builder = llvm_ir.builder(end)
+            merged = self.builder.phi(_ANY, "box.fn.value")
+            merged.add_incoming(nil_box, nothing_end)
+            merged.add_incoming(aggregate, some_end)
+            return Value(ValueType.ANY, merged)
 
         tag = self._any_tag(value.ty, line)
 

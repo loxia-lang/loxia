@@ -68,6 +68,9 @@ class LoxInstance:
     def is_instance_of_class(self, klass: LoxClass) -> bool:
         return self._klass.is_subclass_of_class(klass)
 
+    def implements_interface(self, name: str) -> bool:
+        return self._klass.implements_interface(name)
+
     def assert_initialized(self) -> None:
         for field in self._klass.fields.values():
             if field.name.lexeme not in self._initialized:

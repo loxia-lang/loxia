@@ -100,6 +100,15 @@ processing before the suite ends; the final summary is still authoritative. JSON
 ASCII escapes for non-ASCII text, so Unicode line separators such as U+0085 never split a
 record.
 
+## Type pre-check
+
+Before running each file, the runner type-checks it in **gradual** mode (ADR-0142): a missing
+annotation is a warning and `Any` is consistent with every type, so an unannotated suite is
+not rejected. A real type error fails the file as a single `crash` result named `<path>`
+whose message is the short diagnostic; the file is not executed (and, with `--native`, not
+built). The pre-check always runs. It uses the same dependency flags as the
+run (`--frozen`, `--offline`, `--cache-dir`).
+
 ## JUnit XML (`--junit PATH`)
 
 `--junit` writes a JUnit report (in addition to the human/JSON output):

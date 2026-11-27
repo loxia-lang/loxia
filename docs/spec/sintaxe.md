@@ -11,16 +11,16 @@ sources:
 Grammar of the current parser ([`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py)) — recursive descent,
 one function per precedence level.
 
-> This is the **implemented Lox**. The target syntax of the language itself
-> (`break`/`continue`, for example) is tracked in [`../roadmap.md`](../roadmap.md).
+> This is the **implemented Lox**. `break`/`continue` exist in `while` and `for-in`;
+> C-style `for` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md)).
 > `fn`, `elif`, the optional `;`, ternary, `??`, `?.`, interpolation, escapes, `not`,
 > nested destructuring, `"""` and raw strings already exist; `val`/`var` have existed since
 > ADR-0005.
 
 
 Trailing comma is accepted (and canonical in the formatter) in parameters, calls,
-lists, maps and tuples **when the construct is multiline**; enums and `match` remain
-without a trailing comma.
+lists, maps and tuples **when the formatter lays the construct out multiline** (ADR-0136);
+enums and `match` remain without a trailing comma.
 
 ## Grammar (EBNF)
 
@@ -73,6 +73,8 @@ statement      → exprStmt
                | forStmt
                | ifStmt
                | returnStmt
+               | breakStmt
+               | continueStmt
                | whileStmt
                | tryStmt
                | raiseStmt
@@ -81,14 +83,13 @@ statement      → exprStmt
 terminator     → ";"? ;   (* see "Optional semicolon" *)
 
 exprStmt       → expression terminator ;
-forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
-                 expression? ";"
-                 expression? ")" statement
-               | "for" IDENTIFIER "in" expression statement ;
+forStmt        → "for" IDENTIFIER "in" expression statement ;
 ifStmt         → "if" "(" expression ")" statement
                  ( "elif" "(" expression ")" statement )*
                  ( "else" statement )? ;
 returnStmt     → "return" expression? terminator ;
+breakStmt      → "break" terminator ;
+continueStmt   → "continue" terminator ;
 whileStmt      → "while" "(" expression ")" statement ;
 tryStmt        → "try" block ( "except" IDENTIFIER "as" IDENTIFIER block )*
                  ( "finally" block )? ;
@@ -128,7 +129,10 @@ primary        → "true" | "false" | "nil" | "this"
                | lambda ;
 matchExpr      → "match" expression "{" matchArm+ "}" ;
 matchArm       → pattern "=>" expression ;
-pattern        → "_" | IDENTIFIER "." IDENTIFIER
+pattern        → "_"
+               | INT | STRING | "true" | "false" | "nil"
+               | "-" INT
+               | IDENTIFIER "." IDENTIFIER
                  ( "(" IDENTIFIER ( "," IDENTIFIER )* ")" )? ;
 lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | block ) ;
 ```
@@ -136,9 +140,13 @@ lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | b
 `try` requires at least one `except`/`finally`; `raise` without an expression only inside
 `except` (rethrows). `except Exception as e` is the catch-all and must be last.
 
+`INT` above is a `NUMBER` literal without `.`/exponent; a `Float` pattern is rejected
+(`E1007`), because `Int`/`Float` do not coerce in a pattern.
+
 `enum` declares namespaced variants (`Color.Green`, `Shape.Circle(1.0)`); `match` is an
-expression and requires an exhaustive enum (see [`semantica.md`](semantica.md)). `Result` is a built-in
-enum with `Ok(T)`/`Err(E)`.
+expression and requires an exhaustive enum or a literal match with `_` (see
+[`semantica.md`](semantica.md)). Literal patterns accept `Int`, `String`, `Bool` and `nil`;
+`Float` patterns are rejected. `Result` is a built-in enum with `Ok(T)`/`Err(E)`.
 
 `INTERPOLATED_STRING` is the literal `"text ${expression} more text"`; the expression is any
 `expression` and may contain another interpolated string. `\${` and `\$` escape the dollar sign.
@@ -221,8 +229,8 @@ exist yet. See [ADR-0027](../adr/0027-generics-t3b.md),
 
 `expr is Type` is a boolean expression; the right side uses the type grammar and the
 operator sits at the comparison level. `is` tests primitives, classes/subclasses,
-`List[T]`/`Map[K, V]` (elements included) and unions; function types are rejected in
-`--check`. `Animal` as a value is not an instance: `Animal is Animal` is `false`. See
+`List[T]`/`Map[K, V]` (elements included) and unions; function types are tested by the
+runtime signature (arity/parameters/return, [ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)). `Animal` as a value is not an instance: `Animal is Animal` is `false`. See
 [ADR-0025](../adr/0025-is-e-narrowing.md).
 
 In **expression context** a union requires parentheses: `x is (Int | String)` is valid,
@@ -286,8 +294,7 @@ var x = 1
 
 A bare `return` at the end of the line returns `nil`; to return a value, keep it on the
 same line as the `return` (before `;`, `}`, or another line, no `;` is needed). A call with `(` must start on the same line as the callee;
-breaking before `.` is allowed (property chaining). The `;` of the C-style `for`
-header remain mandatory.
+breaking before `.` is allowed (property chaining).
 
 `elif` is sugar for `else if`, with the same requirement of parentheses around the condition:
 
@@ -384,34 +391,14 @@ class Triangle(Figure) implements Shape, Drawable { ... }
 - No generic interfaces (`interface I[T]`), no interface inheritance (`interface A : B`)
   and no `class C(A, I)`.
 
-## Syntactic sugar
+## Loops
 
-### C-style `for` becomes `while`
+C-style `for (init; cond; incr)` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md));
+use `for x in ...` or `while`. `for` only introduces `for-in`:
 
-There is no node for the C-style `for` in the AST. The parser desugars:
-
-```lox
-for (var i = 0; i < 3; i = i + 1) print(i);
-```
-
-becomes
-
-```lox
-{
-  var i = 0;
-  while (i < 3) {
-    print(i);
-    i = i + 1;
-  }
-}
-```
-
-Therefore the `for` has the same scoping rules as a block and an omitted condition becomes
-`true` (infinite loop).
-
-`for-in` is different: it becomes the node `ForIn(name, iterable, body)` and does **not**
-desugar to `while`, because the interpreter needs to report "not iterable" and the codegen needs the loop
-per iterable (Range/String/List/Map/Tuple — `Map` yields the keys). See
+`for-in` becomes the node `ForIn(name, iterable, body)` and does **not** desugar to `while`,
+because the interpreter needs to report "not iterable" and the codegen needs the loop per
+iterable (Range/String/List/Map/Tuple — `Map` yields the keys). See
 [`semantica.md`](semantica.md#ranges-and-for-in).
 
 ### Blocks
@@ -460,7 +447,8 @@ from dtos.dtoA import DtoA as Dto
   function. On exceeding, the error is reported but the parser continues (the arguments are
   dropped from the AST).
 - `this` and `super` are keywords: `super` only appears as `super.method`.
-- These do not exist: `break`/`continue`, `switch` (use `match`), a `?:`-style ternary
+- These do not exist: C-style `for` (removed in [ADR-0138](../adr/0138-remocao-for-c-style.md);
+  use `for-in` or `while`), `switch` (use `match`), a `?:`-style ternary
   operator (use `a if c else b`), `+=`, `++` and `catch` (use `except`). `match` with
   enums ([ADR-0041](../adr/0041-enums-match.md)) and lambdas ([ADR-0022](../adr/0022-lambdas.md))
   exist; lists, maps and interpolation have existed since

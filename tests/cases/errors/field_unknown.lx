@@ -1,5 +1,5 @@
 class C {}
 
-var c = C();
-c.y = 1;
-# expect runtime error: Undefined field 'y'.
+var c = C()
+c.y = 1
+# expect error: Undefined field 'y'.

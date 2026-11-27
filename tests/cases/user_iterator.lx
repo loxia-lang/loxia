@@ -21,8 +21,14 @@ class ContadorIter {
 
 class Contador {
   val limite: Int
-  fn init(limite: Int) { this.limite = limite }
-  fn iter() -> ContadorIter { return ContadorIter(this.limite) }
+
+  fn init(limite: Int) {
+    this.limite = limite
+  }
+
+  fn iter() -> ContadorIter {
+    return ContadorIter(this.limite)
+  }
 }
 
 for x in Contador(3) {
@@ -50,8 +56,14 @@ class NomesIter {
 
 class Nomes {
   val xs: List[String]
-  fn init(xs: List[String]) { this.xs = xs }
-  fn iter() -> NomesIter { return NomesIter(this.xs) }
+
+  fn init(xs: List[String]) {
+    this.xs = xs
+  }
+
+  fn iter() -> NomesIter {
+    return NomesIter(this.xs)
+  }
 }
 
 val nomes = Nomes(["a", "b"])
@@ -66,7 +78,7 @@ for a in nomes {
 }
 
 interface IntIter {
-  next() -> Int?
+  fn next() -> Int | Nil
 }
 
 class RangeIter implements IntIter {
@@ -90,8 +102,14 @@ class RangeIter implements IntIter {
 
 class RangeBox {
   val n: Int
-  fn init(n: Int) { this.n = n }
-  fn iter() -> IntIter { return RangeIter(this.n) }
+
+  fn init(n: Int) {
+    this.n = n
+  }
+
+  fn iter() -> IntIter {
+    return RangeIter(this.n)
+  }
 }
 
 for x in RangeBox(2) {
@@ -119,8 +137,14 @@ class BoxIter[T] {
 
 class Box[T] {
   val xs: List[T]
-  fn init(xs: List[T]) { this.xs = xs }
-  fn iter() -> BoxIter[T] { return BoxIter(this.xs) }
+
+  fn init(xs: List[T]) {
+    this.xs = xs
+  }
+
+  fn iter() -> BoxIter[T] {
+    return BoxIter(this.xs)
+  }
 }
 
 for x in Box([1, 2]) {

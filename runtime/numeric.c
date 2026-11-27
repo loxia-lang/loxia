@@ -93,7 +93,7 @@ int64_t lox_math_trunc(double value, int32_t line, int32_t column) {
  * input, an invalid character or i64 overflow. */
 LoxValue lox_parse_int(const void *pointer) {
     const LoxStr *string = pointer;
-    const char *data = string->data;
+    const char *data = lox_str_bytes(string);
     size_t size = (size_t)string->byte_len;
     LoxValue nil = {0, 0};
     if (size == 0) {
@@ -138,7 +138,7 @@ LoxValue lox_parse_float(const void *pointer) {
     if (size == 0) {
         return nil;
     }
-    const char *data = string->data;
+    const char *data = lox_str_bytes(string);
     size_t index = 0;
     if (data[index] == '+' || data[index] == '-') {
         index += 1;
@@ -178,7 +178,7 @@ LoxValue lox_parse_float(const void *pointer) {
     }
 
     char *copy = lox_alloc_atomic(size + 1);
-    memcpy(copy, string->data, size);
+    memcpy(copy, lox_str_bytes(string), size);
     copy[size] = '\0';
     char *parse_end = NULL;
     double value = strtod(copy, &parse_end);

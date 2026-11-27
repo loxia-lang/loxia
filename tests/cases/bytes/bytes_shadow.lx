@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# A local named `Bytes` shadows the namespace; method dispatch must stay normal.
+class Fake {
+  fn fromText(text: String) -> Int {
+    return 7
+  }
+}
+
+fn run() -> Int {
+  val Bytes = Fake()
+  return Bytes.fromText("x")
+}
+
+print(run())
+# expect: 7

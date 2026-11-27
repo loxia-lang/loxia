@@ -177,6 +177,22 @@ class ErrorReporter:
             )
         )
 
+    def entry_error(self, message: str) -> None:
+        """Borda do processo: `Err` devolvido pelo `main` (ADR-0148).
+
+        Sem posição e sem trace: a mensagem vem do valor, não de um token. Renderiza como
+        `error[R1016]: <msg>`, o mesmo formato do `Out of memory.` do runtime C.
+        """
+        self.had_runtime_error = True
+        self._diagnostics.append(
+            Diagnostic(
+                code=Code.UNHANDLED_RESULT,
+                phase=Phase.RUNTIME,
+                severity=Severity.ERROR,
+                message=message,
+            )
+        )
+
     def backend_error(
         self,
         line: int | None,
@@ -263,6 +279,25 @@ class ErrorReporter:
         self.defer_lowerable = False
         self._diagnostics.clear()
         self._deferred.clear()
+
+    @property
+    def error_count(self) -> int:
+        return sum(1 for item in self._diagnostics if item.severity is Severity.ERROR)
+
+    def adopt(self, diagnostics: tuple[Diagnostic, ...]) -> None:
+        """Incorpora diagnósticos já prontos (REPL: o check roda em reporter separado)."""
+        self._diagnostics.extend(diagnostics)
+        if any(item.severity is Severity.ERROR for item in diagnostics):
+            self.had_error = True
+
+    def release_deferred(self) -> None:
+        """Entrega os erros rebaixáveis ao runtime (run) e reavalia `had_error`.
+
+        Os adiados viram `Rxxxx` no interpretador; o exit code passa a refletir só o
+        que será impresso (erros não adiados, ou warnings com `-Werror`).
+        """
+        self._deferred.clear()
+        self.had_error = any(item.severity is Severity.ERROR for item in self._diagnostics)
 
     # -- internos --------------------------------------------------------
 

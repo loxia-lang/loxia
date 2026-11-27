@@ -1,0 +1,4 @@
+# Chamar uma função não-opcional ainda não inicializada é R1001.
+var f: fn(Int) -> Int
+print(f(1))
+# expect runtime error: Can only call functions and classes.

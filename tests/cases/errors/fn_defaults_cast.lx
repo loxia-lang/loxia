@@ -1,0 +1,6 @@
+fn comDefault(x: Int, y: Int = 1) -> Int {
+  return x * 100 + y
+}
+
+val a: Any = comDefault
+print((a as fn(Int) -> Int)(2)) # expect runtime error: Can't cast value to fn(Int) -> Int.

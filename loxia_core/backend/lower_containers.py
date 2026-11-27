@@ -14,6 +14,7 @@ from loxia_core.backend.lower_model import (
     _I32,
     _INT,
     _VOID,
+    BackendError,
     TypeDesc,
     Value,
     ValueType,
@@ -26,15 +27,54 @@ from loxia_core.frontend.ty import ListTy, MapTy
 
 class ContainerLowering(LoweringBase):
     def _element_desc(self, expr: Expr, line: int | None) -> TypeDesc:
-        ty = self.types.get(expr)
+        # O narrowing pode mudar `Any` para `List[T]`; o fluxo manda na descrição
+        # do elemento, a representação continua a do slot.
+        ty = self.flow_types.get(expr)
+        if not isinstance(ty, ListTy):
+            ty = self.types.get(expr)
         if isinstance(ty, ListTy):
             return self._type_desc(self._subst_ty(ty.element), line)
         if self._list_expected_element is not None:
             return self._type_desc(self._subst_ty(self._list_expected_element), line)
         raise _unsupported("List element type", line)
 
+    def _list_storage_kind(self, expr: ListLiteral, line: int | None) -> int:
+        """Typed storage for a literal whose element type is a scalar.
+
+        Optional, union, class and function elements stay boxed (`Any` -> 0); the
+        runtime promotes a typed list on the first mismatching push, so the
+        choice is an optimization, never a semantic one.
+        """
+        try:
+            desc = self._element_desc(expr, line)
+        except BackendError:
+            return 0
+        if (
+            desc.optional
+            or desc.fn is not None
+            or desc.class_name is not None
+            or desc.interface_name is not None
+        ):
+            return 0
+        if desc.ty is ValueType.INT:
+            return 1
+        if desc.ty is ValueType.FLOAT:
+            return 2
+        if desc.ty is ValueType.BOOL:
+            return 3
+        if desc.ty is ValueType.STRING:
+            return 4
+        return 0
+
     def _list_literal(self, expr: ListLiteral) -> Value:
-        raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
+        kind = self._list_storage_kind(expr, expr.bracket.line)
+        if kind != 0:
+            raw = self.builder.call(
+                self._function("lox_list_new_typed", _I8_PTR, [_I32]),
+                [llvm_ir.constant(_I32, kind)],
+            )
+        else:
+            raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
         for item in expr.elements:
             value = self._expr(item)
             boxed = self._box_value(value, None)
@@ -49,7 +89,9 @@ class ContainerLowering(LoweringBase):
         return Value(ValueType.LIST, raw)
 
     def _map_types(self, expr: Expr, line: int | None) -> tuple[TypeDesc, TypeDesc]:
-        ty = self.types.get(expr)
+        ty = self.flow_types.get(expr)
+        if not isinstance(ty, MapTy):
+            ty = self.types.get(expr)
         if isinstance(ty, MapTy):
             return (
                 self._type_desc(self._subst_ty(ty.key), line),
@@ -123,38 +165,25 @@ class ContainerLowering(LoweringBase):
         return Value(ValueType.MAP, raw)
 
     def _list_get(self, expr: Index) -> Value:
-        obj = self._expr(expr.object)
-        if obj.ty is ValueType.ANY:
-            tag = self.builder.extract_value(obj.llvm, 0)
-            payload = self.builder.extract_value(obj.llvm, 1)
-            tuple_block = llvm_ir.append_block(self._function_ir, "idx.tuple")
-            bad_block = llvm_ir.append_block(self._function_ir, "idx.bad")
-            end_block = llvm_ir.append_block(self._function_ir, "idx.end")
-            is_tuple = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, 11))
-            self.builder.cbranch(is_tuple, tuple_block, bad_block)
-            self.builder = llvm_ir.builder(tuple_block)
-            tuple_value = Value(
-                ValueType.TUPLE,
-                self.builder.inttoptr(payload, _I8_PTR),
-            )
-            result = self._tuple_get(expr, tuple_value)
-            self.builder.branch(end_block)
-            tuple_end = self.builder.block
-            self.builder = llvm_ir.builder(bad_block)
-            self._poison(expr.bracket, "Indexing this value is not supported.")
-            zero = self._zero_desc(self._type_desc(self.types[expr], expr.bracket.line))
-            self.builder.branch(end_block)
-            bad_end = self.builder.block
-            self.builder = llvm_ir.builder(end_block)
-            merged = self.builder.phi(
-                self._storage_llvm_type(self._type_desc(self.types[expr], expr.bracket.line)),
-                "idx.value",
-            )
-            merged.add_incoming(result.llvm, tuple_end)
-            merged.add_incoming(zero.llvm, bad_end)
-            return Value(result.ty, merged, result.sig, result.optional, result.class_name)
+        obj = self._narrowed(expr.object, self._expr(expr.object), expr.bracket.line)
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
+        if obj.ty is ValueType.BYTES:
+            index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
+            call = self.builder.call(
+                self._function(
+                    "lox_bytes_at",
+                    _INT,
+                    [_I8_PTR, _INT, _I32, _I32],
+                ),
+                [
+                    obj.llvm,
+                    index.llvm,
+                    llvm_ir.constant(_I32, expr.bracket.line),
+                    llvm_ir.constant(_I32, expr.bracket.column),
+                ],
+            )
+            return Value(ValueType.INT, call)
         if obj.ty is ValueType.MAP:
             _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
             key = self._box_value(self._expr(expr.index), None)
@@ -190,7 +219,7 @@ class ContainerLowering(LoweringBase):
         )
 
     def _list_set(self, expr: IndexSet) -> Value:
-        obj = self._expr(expr.object)
+        obj = self._narrowed(expr.object, self._expr(expr.object), expr.bracket.line)
         if obj.ty is ValueType.MAP:
             _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
             key = self._box_value(self._expr(expr.index), None)
@@ -237,7 +266,9 @@ class ContainerLowering(LoweringBase):
         name = expr.callee.name.lexeme
         line = expr.callee.name.line
         column = expr.callee.name.column
-        list_ty = self.types.get(expr.callee.object)
+        list_ty = self.flow_types.get(expr.callee.object)
+        if not isinstance(list_ty, ListTy):
+            list_ty = self.types.get(expr.callee.object)
         if not isinstance(list_ty, ListTy):
             raise _unsupported("List method receiver", line)
         element = self._type_desc(self._subst_ty(list_ty.element), line)
@@ -398,7 +429,13 @@ class ContainerLowering(LoweringBase):
                         ValueType.STRING,
                         self.builder.inttoptr(payload, _I8_PTR),
                     )
-                case ValueType.LIST | ValueType.MAP | ValueType.RANGE | ValueType.TUPLE:
+                case (
+                    ValueType.LIST
+                    | ValueType.MAP
+                    | ValueType.RANGE
+                    | ValueType.TUPLE
+                    | ValueType.BYTES
+                ):
                     return Value(inner.ty, self.builder.inttoptr(payload, _I8_PTR))
                 case ValueType.CLASS | ValueType.INSTANCE:
                     return Value(

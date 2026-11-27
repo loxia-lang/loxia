@@ -1,0 +1,15 @@
+# A class field of its own optional type is accepted by the backend (ADR-0087 update).
+class Node {
+  var next: Node?
+  val value: Int
+
+  fn init(value: Int) {
+    this.value = value
+    this.next = nil
+  }
+}
+
+val a = Node(1)
+a.next = Node(2)
+print(a.value)
+# expect: 1

@@ -1,0 +1,52 @@
+# `Any` exige estreitamento antes de usar a forma; o backend desembrulha no uso.
+class C {
+  var n: Int = 1
+
+  fn m() -> Int {
+    return 7
+  }
+}
+
+val a: Any = C()
+if (a is C) {
+  print(a.m()) # expect: 7
+  a.n = 5
+  print(a.n) # expect: 5
+}
+print((a as C).m()) # expect: 7
+
+val xs: Any = [10, 20]
+if (xs is List[Int]) {
+  print(xs[1]) # expect: 20
+  xs.push(30)
+  print(xs) # expect: [10, 20, 30]
+}
+
+val t: Any = (3, "c")
+if (t is (Int, String)) {
+  print(t[0] + 1)
+} # expect: 4
+
+val s: Any = "abc"
+if (s is String) {
+  print(len(s))
+} # expect: 3
+
+# Nativas puras não invalidam o refino de campo; chamada de usuário invalida.
+class Guarded {
+  var n: Int = 1
+}
+
+class BoxGuarded {
+  var value: Any = nil
+}
+
+val g = BoxGuarded()
+g.value = Guarded()
+if (g.value is Guarded) {
+  print(len("abc")) # expect: 3
+  g.value.n = 5
+}
+if (g.value is Guarded) {
+  print(g.value.n) # expect: 5
+}

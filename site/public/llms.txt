@@ -15,6 +15,7 @@
 - [Standard library](https://loxia-lang.github.io/loxia/stdlib/): Reference generated from /// in std/*.lx and the builtins registry.
 - [std.asserts](https://loxia-lang.github.io/loxia/stdlib/asserts/): Explicit failures for tests and contracts. Every helper raises RuntimeError.
 - [Builtins and kernel](https://loxia-lang.github.io/loxia/stdlib/builtins/): Global names available without an import, generated from loxia/builtins_docs.py. Namespaces are read-only. std.* modules are documented separately.
+- [std.bytes](https://loxia-lang.github.io/loxia/stdlib/bytes/): Byte buffers: incremental Builder, comparison and big/little-endian helpers.
 - [std.cli](https://loxia-lang.github.io/loxia/stdlib/cli/): Deterministic command-line parsing from a declarative spec.
 - [std.collections](https://loxia-lang.github.io/loxia/stdlib/collections/): Stack, Queue, Deque and PriorityQueue, backed by lists.
 - [std.contracts](https://loxia-lang.github.io/loxia/stdlib/contracts/): Design by contract as a library: precondition, postcondition and invariant checks.
@@ -37,11 +38,12 @@
 - [std.proc](https://loxia-lang.github.io/loxia/stdlib/proc/): Processes, streams and poll (POSIX, ambient: outside I1/I3).
 - [std.property](https://loxia-lang.github.io/loxia/stdlib/property/): Deterministic property-based testing with generators, shrinking and seeds.
 - [std.rand](https://loxia-lang.github.io/loxia/stdlib/rand/): Deterministic xorshift64* PRNG with an explicit seed.
+- [regex](https://loxia-lang.github.io/loxia/stdlib/regex/): Unicode regular expressions: linear by default, backtracking opt-in.
 - [std.results](https://loxia-lang.github.io/loxia/stdlib/results/): Combinators for Result[T, E].
 - [std.sets](https://loxia-lang.github.io/loxia/stdlib/sets/): Set[T] backed by Map[Any, Bool], preserving insertion order.
 - [std.strings](https://loxia-lang.github.io/loxia/stdlib/strings/): UTF-8 text operations over code points, not bytes or UTF-16 units.
 - [std.test](https://loxia-lang.github.io/loxia/stdlib/test/): Mini test harness with TAP output, hooks, matchers and a recorder.
-- [std.timex](https://loxia-lang.github.io/loxia/stdlib/timex/): UTC date/time helpers over integer epoch seconds; no timezones.
+- [std.timex](https://loxia-lang.github.io/loxia/stdlib/timex/): UTC date/time helpers over integer epoch milliseconds; no timezones.
 - [std.utf8](https://loxia-lang.github.io/loxia/stdlib/utf8/): UTF-8 and UTF-16 widths (bytes, code units, columns).
 
 ## Optional

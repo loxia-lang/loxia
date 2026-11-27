@@ -9,16 +9,15 @@ ser estável e a própria saída tem que ser aceita e reproduzida pelo parser Lo
 from __future__ import annotations
 
 import re
-import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from tests.inprocess import Result, run_cli
+
 ROOT = Path(__file__).resolve().parents[1]
-ENTRYPOINT = ROOT / "main.py"
 MAIN = ROOT / "tests" / "lox" / "toml" / "main.lx"
 CASES = ROOT / "tests" / "lox" / "toml" / "cases"
 
@@ -45,15 +44,8 @@ INVALID = (
 OUTSIDE_SUBSET = ("bad_date.toml", "bad_inf.toml")
 
 
-def _run(path: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), "run", str(MAIN), "--", str(path)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=120,
-        check=False,
-    )
+def _run(path: Path) -> Result:
+    return run_cli("run", str(MAIN), "--", str(path))
 
 
 def _normalize(value: Any) -> Any:

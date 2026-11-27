@@ -57,3 +57,54 @@ code points. Os números >100x são limitados pelo startup do binário (~1 ms).
 
 Conclusão: os limites iniciais (256 funções, 256 classes, profundidade 8, 1024 bytes)
 ficam ~17x acima do maior caso do corpus e o teto custa ~1,2 MiB/~0,33 s nesta máquina.
+
+## `SourceIndex` (2026-11-24)
+
+`uv run python bench/source_index.py` mede a construção do índice do front-end (issue #130)
+sem subprocesso e sem CI. O parse fica fora do tempo: o alvo é indexar nós + nomes de
+declaração + nomes de tipo e responder `at()` no caminho de navegação local.
+
+```bash
+uv run python bench/source_index.py                 # compara com o baseline
+uv run python bench/source_index.py --repeat 5      # mais amostras
+uv run python bench/source_index.py --update        # regrava o baseline
+uv run python bench/source_index.py --json          # inclui o por-arquivo
+```
+
+Corpus de 2026-11-24 (369 arquivos, 338 parseáveis): 36 827 spans (2 928 de tipo,
+3 295 de nome), total ~625 ms, mediana 0,589 ms/arquivo, p95 7,939 ms/arquivo e
+`at()` ~13,9 µs/consulta. A regra é **≤ 2×** o total/mediana do
+[`source_index_baseline.json`](source_index_baseline.json); o guard determinístico é
+[`tests/test_source_index_budget.py`](../tests/test_source_index_budget.py) e não mede tempo.
+
+## LSP end-to-end (2026-11-24)
+
+`uv run python bench/lsp.py` (ou `make bench-lsp`) sobe o servidor real (`main.py lsp`) e
+mede o caminho JSON-RPC sobre stdio: startup/initialize, didOpen com imports, hover,
+definition, references cross-file (frio, quente e pós-edição), documentHighlight, rename local, completion,
+documentSymbol, didChange, didChange num arquivo de ~650 linhas (`did_change_large`) e uma
+rajada de 5 didChange num único write (`did_change_burst`). Não roda no CI.
+
+```bash
+uv run python bench/lsp.py                  # compara com o baseline
+uv run python bench/lsp.py --repeat 7       # mais sessões (cada uma sobe um servidor)
+uv run python bench/lsp.py --update         # regrava o baseline
+uv run python bench/lsp.py --json
+```
+
+Workspace gerado em diretório temporário (`lib.lx` com classe/funções, `main.lx` com
+`import`, anotação, `std.lists` e variável local, mais 48 módulos independentes), então os
+offsets são estáveis e não aparecem paths absolutos. O arquivo grande fica em outro
+diretório temporário, fora do root: `_workspace_files` caminha o root e incluí-lo na
+análise de references mudaria a baseline sem que o caminho tivesse mudado. Mediana de
+2026-11-25 nesta máquina, depois do [ADR-0143](../docs/adr/0143-lsp-didchange-coalescing-e-reuso.md):
+startup ~92 ms, didOpen ~34 ms, references cross-file ~92 ms na primeira consulta (e
+~86 ms de novo após cada edição, porque o cache é descartado), ~1,7 ms no cache quente,
+didChange ~10 ms, didChange em ~650 linhas ~48 ms, rajada de 5 changes ~10 ms (antes:
+~173 ms = 5× o didChange), completion ~1,4 ms; hover, definition, highlight, rename e
+documentSymbol abaixo de 1 ms. O bench usa ~50 arquivos: `_workspace_files` poda
+diretórios ocultos e `node_modules` (`os.walk`) e reusa o texto lido do disco por
+mtime/ctime/inode/tamanho, mas o custo do walk ainda cresce com o workspace. O baseline
+foi regravado intencionalmente na fase 5 do #191 com os números pós-coalescing/cache; a
+tolerância é **1,5×** ([`lsp_baseline.json`](lsp_baseline.json)) e startup/recheck
+dominam, então variações de máquina aparecem primeiro neles.

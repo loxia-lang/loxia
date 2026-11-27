@@ -55,21 +55,32 @@ uv sync --all-groups --extra llvm
 uv run loxia --version
 ```
 
-Run from the repository root; that is the supported layout. `.venv/`, caches and
-`AGENTS.md` are not versioned.
+Run from the repository root; that is the supported layout. `.venv/` and caches are not
+versioned. `AGENTS.md` is the versioned agent context; `NOTAS.local.md` is the maintainer's
+local notebook (gitignored).
 
 ## Checks
 
 ```bash
-make check-fast     # ruff + format + mypy + pytest (no native builds) + docs freshness
-make check          # everything, including the native backend suite
-make test-fast      # pytest without backend builds
+make check-fast     # ruff + format + mypy + pytest (no native builds) + backend smoke + docs
+make check          # everything; the gate (pytest under xdist, ~30 s on 8 cores)
+make check-serial   # same gate serial: investigate a failure
+make test-fast      # pytest without backend/install, parallel (~15-20 s)
+make test-backend   # native backend without the slow Rust cases, parallel (~12 s)
+make test-backend-all  # native backend including the slow Rust cases (Rust crate)
 make bench          # performance vs bench/baseline.json (run when touching hot paths)
 ```
 
-`make check-fast` is the loop while iterating. `make check` is the gate before opening a
-PR. If the backend is not installed, the backend tests are skipped locally; CI always runs
-them with `libgc` and fails if `llvmlite` is missing.
+`make check-fast` is the loop while iterating; `make test-backend` is the loop when touching
+the backend or the corpus (the oracle and the build run in the pytest process, so xdist only
+changes the wall time). Cases that need the Rust regex engine are `slow`: they are skipped by
+`make test-backend` and run by `make test-backend-all`, `make check` and CI. `make check` is the gate and runs `pytest -n auto` (a hard crash kills a worker instead of
+a test); `make check-serial` runs the same selection serially when a failure needs to be
+investigated in order, and `TEST_JOBS=0` disables xdist on any target. CI runs the suite
+under xdist too. If the backend is not installed, the
+backend tests are skipped locally; CI always runs them with `libgc` and fails if `llvmlite`
+is missing. `make test-fast TEST_JOBS=0` runs the same selection serially when debugging a
+single case.
 
 The golden cases live in `tests/cases/*.lx` and are self-explanatory:
 
@@ -148,7 +159,7 @@ message).
   `docs/adr/README.md` and `docs/decisoes.md`, and link it from the PR.
 - Regenerate generated artifacts instead of editing them by hand: `make docs-sync`,
   `make grammar`, `make primitives`, `make codes`.
-- Do not commit `AGENTS.md`, `__pycache__`, `.venv`, caches or `dist/`.
+- Do not commit `NOTAS.local.md`, `__pycache__`, `.venv`, caches or `dist/`.
 - Keep the PR description short: what changed, why, how it was tested, and what is out of
   scope.
 - Use `Closes #N` when the PR resolves an issue.
@@ -186,6 +197,11 @@ AI assistance is welcome. The contributor remains responsible for the result: yo
 understand the change, run the tests, and be able to explain the diff in review. Disclose
 substantial AI assistance in the PR description. Do not submit unreviewed mass-generated
 PRs, and do not use an agent to bypass the syntax or feature gates.
+
+If you work with an agent, point it at [`AGENTS.md`](AGENTS.md) — the versioned agent
+context, with scoped files under `loxia_core/`, `runtime/`, `std/` and `tests/` — and at the
+task procedures in [`.dsh/skills/`](.dsh/skills/). `NOTAS.local.md` is the maintainer's
+notebook and is not part of the repository.
 
 ## Security
 

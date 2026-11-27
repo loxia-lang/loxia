@@ -37,6 +37,7 @@ class ExceptionLowering(LoweringBase):
             None,
             0,
             0,
+            slot=2,
         )
         # ADR-0120: posição do throw. O initializer garante que subclasses de
         # `Exception` (TestFailure/Skip) passem no bitmap sem declarar o campo.
@@ -47,6 +48,7 @@ class ExceptionLowering(LoweringBase):
             Literal(""),
             1,
             0,
+            slot=3,
         )
         instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, _INT, _INT])
         exception = ClassLayout(
@@ -161,7 +163,11 @@ class ExceptionLowering(LoweringBase):
         # Caminho normal: corpo, pop, finally.
         self.builder = llvm_ir.builder(normal)
         self._scopes.append({})
-        context = self._push_cleanup(frame, stmt.finally_body)
+        context = self._push_cleanup(
+            frame,
+            stmt.finally_body,
+            scopes_depth=len(self._scopes) - 1,
+        )
         try:
             for statement in stmt.body:
                 if self.builder.block.is_terminated:
@@ -206,7 +212,11 @@ class ExceptionLowering(LoweringBase):
             handler_blocks.append(body)
             self.builder = llvm_ir.builder(body)
             self._scopes.append({})
-            handler_context = self._push_cleanup(None, stmt.finally_body)
+            handler_context = self._push_cleanup(
+                None,
+                stmt.finally_body,
+                scopes_depth=len(self._scopes) - 1,
+            )
             previous_handler = self._handler_exception
             self._handler_exception = exception
             try:
@@ -234,7 +244,13 @@ class ExceptionLowering(LoweringBase):
                         break
                     self._stmt(statement)
                 if not self.builder.block.is_terminated:
-                    self._emit_finally(stmt, end, None)
+                    # O binding do `except` não está no escopo do `finally`.
+                    self._emit_finally(
+                        stmt,
+                        end,
+                        None,
+                        scopes_depth=len(self._scopes) - 1,
+                    )
             finally:
                 self._handler_exception = previous_handler
                 self._scopes.pop()
@@ -304,7 +320,14 @@ class ExceptionLowering(LoweringBase):
         instance.add_incoming(constructed, runtime_end)
         self.builder.store(instance, binding)
 
-    def _emit_finally(self, stmt: Try, end: Any, pending: Any | None) -> None:
+    def _emit_finally(
+        self,
+        stmt: Try,
+        end: Any,
+        pending: Any | None,
+        *,
+        scopes_depth: int | None = None,
+    ) -> None:
         if stmt.finally_body is None:
             if pending is not None:
                 self.builder.call(
@@ -321,7 +344,13 @@ class ExceptionLowering(LoweringBase):
             return
         # O frame já foi desempilhado antes de chamar o finally; um `return` aqui
         # deve rodar apenas os cleanups de fora, nunca este de novo.
-        self._lower_finally_body(stmt.finally_body)
+        saved_scopes = self._scopes
+        if scopes_depth is not None:
+            self._scopes = self._scopes[:scopes_depth]
+        try:
+            self._lower_finally_body(stmt.finally_body)
+        finally:
+            self._scopes = saved_scopes
         if self.builder.block.is_terminated:
             return
         if pending is not None:

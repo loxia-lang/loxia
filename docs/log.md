@@ -1231,3 +1231,160 @@ Intervalo: `38cfb05`..`228252e`. `server.json`, README e versão 1.2.0.
   mudaram; só a versão do projeto subiu.
 
 <!-- triaged: 228252e -->
+
+## 2026-11-21 — achados da auditoria estrutural
+
+Intervalo: `8158aaa`..`4d76a45`. Correções de contrato e documentação, sem mudança de
+comportamento observável da linguagem.
+
+- `docs/spec/garantias.md` — **updated**: limite de recursão do tree-walk 200.000 → 500.000.
+- `docs/spec/erros.md` — **no-change**: `INT_MAX` e o limite de handles mudaram de lugar,
+  mas as mensagens e os códigos de erro são os mesmos.
+- `docs/spec/lexico.md` — **no-change**: scanner e tokens intocados.
+- `docs/spec/semantica.md` — **no-change**: nenhuma regra de linguagem mudou; só helpers
+  mortos foram removidos.
+- `docs/decisoes.md` — **no-change**: nenhuma decisão nova; o ADR-0123 só teve o total
+  corrigido (33 → 40).
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou.
+- `docs/tech/python-coverage.md` — **no-change**: comando e números de cobertura iguais; a
+  suíte só ganhou um caso de handles.
+
+<!-- triaged: 4d76a45 -->
+
+## 2026-11-21 — oráculo do front-end
+
+Intervalo: `4d76a45`..`cdf6c58`. AST JSON, spans e snapshot do corpus; sem mudança de
+sintaxe ou semântica da linguagem.
+
+- `docs/decisoes.md` — **updated**: linha do ADR-0129 (oráculo do front-end).
+- `docs/spec/erros.md` — **no-change**: diagnóstico, códigos e formato não mudaram.
+- `docs/spec/semantica.md` — **no-change**: os nós ganharam tokens de fonte para spans; nenhuma
+  regra de execução, tipo ou escopo mudou.
+- `docs/spec/sintaxe.md` — **no-change**: gramática e forma canônica intocadas.
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou; o JSON é consumidor futuro.
+- `docs/tech/python-coverage.md` — **no-change**: o comando e os pisos de cobertura não mudaram;
+  a suíte ganhou testes do oráculo.
+- `docs/tech/test-report.md` — **no-change**: protocolo e formato do runner de testes intocados.
+
+<!-- triaged: cdf6c58 -->
+
+## 2026-11-22 — P1–P3 do oráculo
+
+Intervalo: `61f9a7b`..`eb55f80`. Corpus, checker, self-host, scaffold `--lib` e baseline de
+front-end; sem mudança de sintaxe ou semântica da linguagem.
+
+- `docs/decisoes.md` — **no-change**: o ADR-0129 já resume a decisão; os ADRs 0087/0124
+  receberam notas de atualização, não decisões novas.
+- `docs/spec/erros.md` — **no-change**: bloco gerado; códigos e mensagens não mudaram.
+- `docs/spec/sintaxe.md` — **no-change**: gramática e forma canônica intocadas.
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou.
+- `docs/tech/python-coverage.md` — **no-change**: o piso do checker subiu de 81 para 83, mas a
+  página publica a política e o comando, não os pisos por arquivo.
+- `docs/tech/test-report.md` — **no-change**: o protocolo do runner não mudou; a suíte ganhou
+  testes de corpus/checker/scaffold.
+
+<!-- triaged: eb55f80 -->
+
+## 2026-11-26 — cache do workspace do LSP (#195)
+
+Intervalo: `eb55f80`..`82c83b6` (parcial). Só a página afetada por este PR foi triada; as 32
+candidatas anteriores a este trabalho continuam pendentes e **sem marcador** — fechar o
+intervalo agora silenciaria páginas que não foram lidas.
+
+- `docs/decisoes.md` — **no-change**: a linha do ADR-0151 continua verdadeira; o commit
+  `82c83b6` só ajustou o ADR-0151 (lock no fingerprint, 512 módulos) e o engine. O backlog
+  de stdlib/spec/tech é anterior ao PR e precisa de uma triagem própria.
+
+## 2026-11-26 — precisão de escrita do checker (#216)
+
+Intervalo: `5c7aa63`. Só as páginas que este PR tocou/regenerou foram triadas; o backlog de
+stdlib/spec/tech anterior a este trabalho continua pendente e **sem marcador** — fechar o
+intervalo agora silenciaria páginas que não foram lidas.
+
+- `docs/spec/semantica.md` — **updated**: a escrita derruba o mesmo slot (inclusive por
+  outra raiz), um sub-caminho contíguo e uma raiz que é objeto do caminho escrito, preserva o
+  refino de tipo do pai e caminhos com outro campo no fim;
+  `this.campo` estreita; o diagnóstico de refino derrubado cita quem o derrubou.
+- `docs/spec/garantias.md` — **updated** (bloco gerado): dois casos L6 a mais no corpus.
+- `docs/decisoes.md` — **updated**: a linha de soundness de fluxo descreve a precisão de
+  escrita entregue e mantém no ADR-0107 o gatilho do alias de chamadas. A correção de
+  soundness posterior (`d1b6db0`) completou o predicado sem mudar a linha, então o veredicto
+  do intervalo é um só.
+- `docs/tech/test-coverage.md` — **updated** (gerado): contagem de testes.
+- `docs/spec/erros.md` — **no-change**: códigos e mensagens não mudaram; a nota de
+  proveniência é texto do diagnóstico, não um código novo.
+- `docs/adr/0107`/`0141` — emenda de decisão; ADRs não participam do relatório de frescor.
+  `docs/spec/erros.md`, `docs/spec/lexico.md`, `docs/stdlib/*` e `docs/tech/*` continuam o
+  backlog anterior a este PR, sem marcador.
+
+## 2026-11-27 — release 1.3.0
+
+Intervalo: `c125003`..`3082dfa`. Só bump de versão e documentação de release; nenhuma regra
+de linguagem, CLI ou stdlib mudou. As 32 candidatas anteriores continuam pendentes e **sem
+marcador** — fechar o intervalo agora silenciaria páginas que não foram lidas.
+
+- `README.md` — **updated**: release atual 1.3.0, tabela de empacotamento e exemplo de
+  `--version`.
+- `docs/roadmap.md` — **updated**: "Onde estamos" em 2026-11-27, 1.3.0 como release atual e o
+  estado de LSP/MCP.
+- `docs/i18n/en/changelog.md` — **updated**: seção 1.3.0 da página do site.
+- `docs/tech/docs-index.md` — **updated**: exemplo de `loxia_version` 1.3.0.
+- `docs/spec/garantias.md`, `docs/spec/erros.md` e `docs/stdlib/*` — **no-change** (gerado):
+  `make docs-sync` reescreveu os blocos sem diff; o bump não altera comportamento.
+
+## 2026-11-27 — triagem do backlog de frescor
+
+Intervalo: `e083e73`. Fechei as 32 candidatas acumuladas desde a 1.2.0. O bump da 1.3.0 não
+mudou comportamento; as páginas geradas foram regravadas e comparadas byte a byte, e as
+manuais foram lidas contra o diff das fontes.
+
+- `docs/spec/lexico.md` — **updated**: o bloco de keywords listava 30 das 34 do scanner —
+  faltavam `break`, `continue`, `import` e `from` — e agora bate com `KEYWORDS`; a prosa
+  registra quando `break`/`continue` viraram reservadas (ADR-0139) e que `import`/`from`
+  são keywords de módulo (ADR-0073). `tests/test_docs_consistency.py` ganhou
+  `test_bloco_de_keywords_do_lexico_bate_com_o_scanner` para o bloco não voltar a divergir.
+- `docs/decisoes.md` — **updated**: a linha do ADR-0133 ganhou a quinta emenda (#239/#254):
+  goldens com `# requires: rust` rodam em subprocesso porque a tabela de handles do regex
+  nativo não pode ser herdada, mantendo `LOX_GOLDEN_SUBPROCESS=1` como escape.
+- `docs/spec/erros.md` — **no-change** (gerado): `make docs-sync` regravou o catálogo de
+  códigos sem diff; os quatro commits no intervalo (checker/LSP/objetos de classe) não
+  criaram código novo.
+- `docs/stdlib/asserts.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/builtins.md` — **no-change** (gerado): `make docs-sync` sem diff; o motor
+  `regex` já estava documentado na página.
+- `docs/stdlib/bytes.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/collections.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/contracts.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/convert.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/csv.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/documents.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/framing.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/fs.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/hash.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/index.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/json.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/lists.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/log.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/maps.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/paths.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/proc.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/property.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/rand.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/regex.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/results.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/sets.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/strings.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/timex.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/stdlib/utf8.md` — **no-change** (gerado): `make docs-sync` sem diff.
+- `docs/tech/mcp.md` — **no-change**: entre as fontes só `server.json` mudou (versão 1.3.0);
+  a página não cita número de versão e o contrato das tools (`loxia_run` devolve os bytes
+  exatos do CLI) não mudou. `loxia/mcp.py`, `cli_args`, `cli_commands` e `formatter/edits`
+  estão intactos desde o commit da página.
+- `docs/tech/python-coverage.md` — **no-change**: os commits do intervalo mexeram nos alvos
+  de teste (`pytest -n auto`, backend em xdist/in-process) e no CI, não nos comandos de
+  cobertura, pisos ou `COVERAGE_JOBS` (4) que a página documenta.
+- `docs/tech/test-report.md` — **no-change**: `std.test.Expectation` passou a guardar `Any`,
+  mas o envelope `start`/`result`/`discover`/`end`, o schema v1 e o `--capture` não mudaram;
+  `tests/test_test_runner.py` só ganhou `git_env()` no helper.
+
+<!-- triaged: e083e73 -->

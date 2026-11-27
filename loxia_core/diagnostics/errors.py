@@ -5,7 +5,12 @@ from loxia_core.frontend.tokens import Token
 
 
 class ParseError(Exception):
-    pass
+    """Erro de sintaxe com o token e a mensagem, para a recuperação do parser."""
+
+    def __init__(self, token: Token | None = None, message: str = "") -> None:
+        super().__init__(message)
+        self.token = token
+        self.message = message
 
 
 def immutable_assignment_message(name: str) -> str:
@@ -61,3 +66,19 @@ class ReturnSignal(Exception):
         super().__init__("return")
         self.keyword = keyword
         self.value = value
+
+
+class BreakSignal(Exception):
+    """Controle de fluxo interno do `break`; capturado pelo laço mais interno."""
+
+    def __init__(self, keyword: Token) -> None:
+        super().__init__("break")
+        self.keyword = keyword
+
+
+class ContinueSignal(Exception):
+    """Controle de fluxo interno do `continue`; capturado pelo laço mais interno."""
+
+    def __init__(self, keyword: Token) -> None:
+        super().__init__("continue")
+        self.keyword = keyword

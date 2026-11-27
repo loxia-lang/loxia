@@ -56,8 +56,8 @@ export default defineConfig({
           items: [
             { label: 'Overview', translations: { 'pt-BR': 'Visão geral' }, link: '/reference/' },
             {
-              label: '1.2 (current)',
-              translations: { 'pt-BR': '1.2 (atual)' },
+              label: '1.3 (current)',
+              translations: { 'pt-BR': '1.3 (atual)' },
               collapsed: true,
               items: [{ autogenerate: { directory: 'reference' } }],
             },

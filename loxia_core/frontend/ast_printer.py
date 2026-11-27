@@ -7,6 +7,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -17,6 +18,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -32,9 +34,12 @@ from loxia_core.frontend.expr import (
 from loxia_core.frontend.expr import Visitor as ExprVisitor
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     ForIn,
     Function,
@@ -105,6 +110,10 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
             bindings = " ".join(token.lexeme for token in pattern.bindings)
             suffix = f" ({bindings})" if bindings else ""
             return f"({pattern.enum.lexeme}.{pattern.variant.lexeme}{suffix})"
+        if isinstance(pattern, LiteralPattern):
+            if isinstance(pattern.value, int) and not isinstance(pattern.value, bool):
+                return f"({pattern.value})"
+            return f"({pattern.token.lexeme})"
         return "_"
 
     def visit_try_stmt(self, stmt: Try) -> str:
@@ -177,6 +186,9 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_variable_expr(self, expr: Variable) -> str:
         return expr.name.lexeme
+
+    def visit_error_expr(self, expr: ErrorExpr) -> str:
+        return f"(error {expr.message!r})"
 
     def visit_call_expr(self, expr: Call) -> str:
         name = "?call" if expr.optional else "call"
@@ -327,6 +339,12 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
         return f"(return {stmt.value.accept(self)})"
 
+    def visit_break_stmt(self, stmt: Break) -> str:
+        return "(break)"
+
+    def visit_continue_stmt(self, stmt: Continue) -> str:
+        return "(continue)"
+
     def visit_destructure_stmt(self, stmt: Destructure) -> str:
         keyword = "var" if stmt.mutable else "val"
         names = self._destructure_pattern(stmt.pattern)
@@ -354,6 +372,9 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_while_stmt(self, stmt: While) -> str:
         return f"(while {stmt.condition.accept(self)} {stmt.body.accept(self)})"
+
+    def visit_error_stmt(self, stmt: ErrorStmt) -> str:
+        return f"(error {stmt.message!r})"
 
 
 # Teste manual do capítulo 6:

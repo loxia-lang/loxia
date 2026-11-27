@@ -1,3 +1,3 @@
 val xs: List[Int] = [1]
 print(xs.foo)
-# expect runtime error: Undefined property 'foo'.
+# expect error: Undefined property 'foo'.

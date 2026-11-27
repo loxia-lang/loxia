@@ -5,44 +5,100 @@ O contrato (ADR-0031) é: o interpretador é o oráculo. Cada caso compila, exec
 binário e compara **stdout, stderr e exit code** com a execução interpretada — não com
 uma expectativa escrita à mão, que poderia "consertar" uma divergência.
 
+Oráculo e build rodam **no processo do pytest** (`tests/inprocess.py::run_cli`), como no
+caminho rápido dos golden (ADR-0133, emenda de 2026-11-26); o binário compilado continua
+sendo executado em subprocesso. `_interpret_process`/`_build_process` preservam a via de
+processo real para os testes cujo objeto é o processo (std.proc, stdin) e para o smoke
+`test_smoke_*`, que confere um caso por nível fora do caminho in-process; `_oracle` mantém
+o oráculo em processo real nos casos que usam o motor nativo de regex (o binding `ctypes`
+é global). Os casos Rust/regex são `slow`: ficam fora de `make test-backend` e rodam em
+`make test-backend-all`, no gate e no CI (#232).
+
 Dependências: `llvmlite` (extra `llvm`) e um compilador C para linkar. No CI a env
 `LOX_REQUIRE_LLVM=1` transforma a ausência em falha, não em skip.
 """
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import os
 import select
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from loxia.engine import Loxia
-from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
-
-MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
+from tests.corpus_manifest import COMPILE_ERRORS, LEVELS, NEGATIVE, PENDING
+from tests.inprocess import Result, run_cli
+from tests.runner import missing_requirements, parse_expectations, requirements
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
-TIMEOUT_SECONDS = 60
+TIMEOUT_SECONDS = 120
 
 
-def _require(reason: str) -> None:
-    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
-        pytest.fail(reason, pytrace=False)
-
-    pytest.skip(reason, allow_module_level=True)
+def _requires_rust(case: str) -> bool:
+    """O caso usa o motor nativo (`# requires: rust` no bloco de comentários do topo)."""
+    return "rust" in requirements((ROOT / case).read_text(encoding="utf-8"))
 
 
+# Sem llvmlite/cc o módulo inteiro fica pendurado num skip por teste (e não num
+# `pytest.skip` de import): com `-m smoke` um módulo skipado não seleciona nada e o
+# pytest devolve 5, o que quebrava `make check-fast` em máquina sem o extra `llvm`.
+_MISSING_BACKEND: str | None = None
 if importlib.util.find_spec("llvmlite") is None:
-    _require("llvmlite não instalado; rode `uv sync --extra llvm`")
+    _MISSING_BACKEND = "llvmlite não instalado; rode `uv sync --extra llvm`"
+elif not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
+    _MISSING_BACKEND = "nenhum compilador C encontrado (cc, clang ou gcc)"
 
-if not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
-    _require("nenhum compilador C encontrado (cc, clang ou gcc)")
+if _MISSING_BACKEND is not None:
+    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
+        pytest.fail(_MISSING_BACKEND, pytrace=False)
+    pytestmark = pytest.mark.skipif(True, reason=_MISSING_BACKEND)
+
+
+@functools.lru_cache(maxsize=1)
+def _libgc_missing() -> bool:
+    """`libgc` é exigida pelo link; probe com o compilador, não com `find_library`.
+
+    `ctypes.util.find_library("gc")` acha o soname de runtime mesmo sem a `libgc-dev`
+    que o `cc -lgc` precisa, e um índice velho pode esconder um build válido.
+    """
+    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
+        return False
+    compiler = shutil.which("cc") or shutil.which("clang") or shutil.which("gcc")
+    if compiler is None:
+        return True
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "probe.c"
+        binary = Path(directory) / "probe"
+        source.write_text("int main(void) { return 0; }\n", encoding="utf-8")
+        done = subprocess.run(
+            [compiler, str(source), "-lgc", "-o", str(binary)],
+            capture_output=True,
+            check=False,
+        )
+    return done.returncode != 0
+
+
+#: Casos Rust/regex: o crate leva ~20 s a frio e entra no gate/CI, não no loop local.
+SLOW_CASES = frozenset(case for cases in LEVELS.values() for case in cases if _requires_rust(case))
+
+MANIFEST_PARAMS = [
+    pytest.param(
+        level,
+        case,
+        marks=[pytest.mark.slow] if case in SLOW_CASES else [],
+        id=f"{level}-{Path(case).stem}",
+    )
+    for level, cases in LEVELS.items()
+    for case in cases
+]
 
 
 def _run(arguments: list[str], input: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -63,20 +119,53 @@ def _write(tmp_path: Path, source: str, name: str = "caso.lx") -> Path:
     return path
 
 
-def _interpret(path: Path) -> subprocess.CompletedProcess[str]:
+def _interpret(path: Path) -> Result:
+    """Oráculo in-process: mesmo contrato do CLI (stdout, stderr, exit code)."""
+    return run_cli(str(path), cwd=ROOT)
+
+
+def _interpret_process(path: Path) -> subprocess.CompletedProcess[str]:
+    """Oráculo em processo real; usado quando o objeto do teste é o processo."""
     return _run([sys.executable, str(ENTRYPOINT), str(path)])
 
 
-def _build(
+def _as_result(done: subprocess.CompletedProcess[str]) -> Result:
+    return Result(returncode=done.returncode, stdout=done.stdout, stderr=done.stderr)
+
+
+def _oracle(path: Path) -> Result:
+    """Oráculo do caso: in-process, exceto quando o programa usa o motor nativo.
+
+    O binding `ctypes` do regex é global ao processo e os handles de um programa
+    sobrevivem ao seguinte; `groupNames(1)` deixaria de ser "unknown" e o oráculo
+    divergiria do binário, que é sempre um processo novo. Esses casos são poucos e
+    usam o crate Rust, que fica fora do loop local (#232).
+    """
+    if "rust" in requirements(path.read_text(encoding="utf-8")):
+        return _as_result(_interpret_process(path))
+    return _interpret(path)
+
+
+def _build(path: Path, tmp_path: Path, *, max_heap: str | None = None) -> tuple[Result, Path]:
+    """Build in-process pelo caminho do CLI; o binário gerado roda em subprocesso."""
+    binary = tmp_path / "programa"
+    arguments = ["--emit", "exe"]
+    if max_heap is not None:
+        arguments.extend(["--max-heap", max_heap])
+    arguments.extend(["-o", str(binary), str(path)])
+    return run_cli(*arguments, cwd=ROOT), binary
+
+
+def _build_process(
     path: Path, tmp_path: Path, *, max_heap: str | None = None
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
+    """Build em processo real; par do `_build` para paridade e smoke."""
     binary = tmp_path / "programa"
     arguments = [sys.executable, str(ENTRYPOINT), "--emit", "exe"]
     if max_heap is not None:
         arguments.extend(["--max-heap", max_heap])
     arguments.extend(["-o", str(binary), str(path)])
-    result = _run(arguments)
-    return result, binary
+    return _run(arguments), binary
 
 
 CASES = [
@@ -419,15 +508,21 @@ def test_binario_concorda_com_interpretador(tmp_path: Path, source: str, label: 
 
 
 @pytest.mark.backend
-@pytest.mark.parametrize(
-    ("level", "case"),
-    MANIFEST_CASES,
-    ids=[f"{level}-{Path(case).stem}" for level, case in MANIFEST_CASES],
-)
+@pytest.mark.parametrize(("level", "case"), MANIFEST_PARAMS)
 def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
     path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
+    if "rust" in requirements(path.read_text(encoding="utf-8")):
+        # O build frio do crate não cabe no timeout de 60 s de cada chamada;
+        # aquece o cache uma vez no processo do teste.
+        from loxia_core import native_build
 
-    interpreted = _interpret(path)
+        native_build.library()
+        native_build.static_library()
+
+    interpreted = _oracle(path)
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 0, result.stderr
@@ -438,17 +533,201 @@ def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
     assert compiled.returncode == interpreted.returncode
 
 
+def _smoke_cases() -> list[tuple[str, str]]:
+    """Um caso por nível, preferindo o primeiro sem capacidade externa.
+
+    O smoke roda em processo real e é a rede de segurança do caminho in-process
+    (ADR-0133); por isso ele não arrasta o crate Rust para o loop local. Níveis em
+    que todo caso exige `rust` ficam fora — o gate e os testes `slow` cobrem.
+    """
+    chosen: list[tuple[str, str]] = []
+    for level, cases in LEVELS.items():
+        for case in cases:
+            source = (ROOT / case).read_text(encoding="utf-8")
+            if not requirements(source):
+                chosen.append((level, case))
+                break
+    return chosen
+
+
+SMOKE_CASES = _smoke_cases()
+
+
+@pytest.mark.backend
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    ("level", "case"),
+    SMOKE_CASES,
+    ids=[f"{level}-{Path(case).stem}" for level, case in SMOKE_CASES],
+)
+def test_smoke_do_backend_em_processo_real(level: str, case: str, tmp_path: Path) -> None:
+    """Um caso por nível pelo caminho de processo real (oráculo e build)."""
+    if _libgc_missing():
+        pytest.skip("libgc não encontrada; o smoke não linka sem ela")
+    path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
+
+    interpreted = _interpret_process(path)
+    result, binary = _build_process(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+def test_smoke_cobre_todos_os_niveis_sem_capacidade_externa() -> None:
+    """Nível só pode ficar fora do smoke se todos os casos exigirem `rust`."""
+    covered = {level for level, _ in SMOKE_CASES}
+    for level in set(LEVELS) - covered:
+        sources = [(ROOT / case).read_text(encoding="utf-8") for case in LEVELS[level]]
+        assert all("rust" in requirements(source) for source in sources), level
+
+
+def _make_recipe(makefile: str, target: str) -> str:
+    """Linhas do alvo (cabeçalho + receita), sem depender de tabulação exata."""
+    lines = makefile.splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith(f"{target}:"):
+            continue
+        recipe = [line]
+        for following in lines[index + 1 :]:
+            if following.startswith(("\t", " ")) and following.strip():
+                recipe.append(following)
+            elif not following.strip():
+                continue
+            else:
+                break
+        return "\n".join(recipe)
+    raise AssertionError(f"alvo `{target}` não encontrado no Makefile")
+
+
+def _make_dependencies(makefile: str, target: str) -> set[str]:
+    """Dependências declaradas no cabeçalho do alvo (sem receita)."""
+    for line in makefile.splitlines():
+        if line.startswith(f"{target}:"):
+            return set(line.split(":", 1)[1].split())
+    raise AssertionError(f"alvo `{target}` não encontrado no Makefile")
+
+
+def test_loop_local_exclui_slow_e_gate_inclui() -> None:
+    """A seleção é contrato: só o loop local tira `slow`; gate, CI e `-all` não."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "not slow" in _make_recipe(makefile, "test-backend")
+    # O alvo que o CI de cobertura executa de verdade é `coverage-backend`.
+    for target in ("test", "test-backend-all", "coverage-backend", "check", "check-fast"):
+        assert "not slow" not in _make_recipe(makefile, target), target
+
+    assert "smoke-backend" in _make_recipe(makefile, "check-fast")
+    check_deps = _make_dependencies(makefile, "check")
+    assert "test" in check_deps
+    assert not {"test-backend", "test-backend-all"} & check_deps
+
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "not slow" not in ci
+    assert "coverage-ratchet-backend" in ci
+
+
+def test_casos_rust_do_manifesto_sao_slow() -> None:
+    """Todo caso com `# requires: rust` está marcado `slow` (e só ele)."""
+    assert SLOW_CASES, "o corpus não tem caso Rust; o marcador não seria exercitado"
+    for param in MANIFEST_PARAMS:
+        values = param.values
+        assert isinstance(values, tuple), values
+        case = values[1]
+        assert isinstance(case, str), case
+        marked = any(getattr(mark, "name", "") == "slow" for mark in param.marks)
+        assert marked == _requires_rust(case), case
+
+
+def test_testes_de_regex_sao_slow() -> None:
+    """Teste de backend com "regex" no nome e sem `slow` voltaria a pagar o crate."""
+    module = sys.modules[__name__]
+    for name, value in vars(module).items():
+        if not name.startswith("test_") or not callable(value):
+            continue
+        raw = getattr(value, "pytestmark", [])
+        marks = raw if isinstance(raw, list) else [raw]
+        names = {getattr(mark, "name", "") for mark in marks}
+        if "backend" in names and "regex" in name:
+            assert "slow" in names, name
+
+
+def test_casos_que_usam_o_motor_de_regex_declaram_rust() -> None:
+    """A diretiva é o que mantém esses casos no oráculo em processo real e em `slow`."""
+    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
+        source = path.read_text(encoding="utf-8")
+        if "regex_engine" not in source and "import regex" not in source:
+            continue
+        assert "rust" in requirements(source), path.relative_to(ROOT)
+
+
+PARITY_SOURCES = (
+    ("print(1 + 2);", "sucesso"),
+    ("print(1 // 0);", "erro de runtime"),
+    ("print(1 + true);", "erro rebaixável vira panic"),
+    ("print(", "erro de compilação"),
+)
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(
+    ("source", "label"), PARITY_SOURCES, ids=[case[1] for case in PARITY_SOURCES]
+)
+def test_caminho_in_process_bate_com_subprocesso(tmp_path: Path, source: str, label: str) -> None:
+    """Paridade três canais entre `run_cli` e o processo real, no oráculo e no build."""
+    path = _write(tmp_path, source + "\n")
+    fast = _interpret(path)
+    slow = _interpret_process(path)
+    assert (fast.returncode, fast.stdout, fast.stderr) == (
+        slow.returncode,
+        slow.stdout,
+        slow.stderr,
+    )
+
+    fast_dir = tmp_path / "fast"
+    slow_dir = tmp_path / "slow"
+    fast_dir.mkdir()
+    slow_dir.mkdir()
+    fast_build, fast_binary = _build(path, fast_dir)
+    slow_build, slow_binary = _build_process(path, slow_dir)
+    assert (fast_build.returncode, fast_build.stdout, fast_build.stderr) == (
+        slow_build.returncode,
+        slow_build.stdout,
+        slow_build.stderr,
+    )
+    assert fast_binary.exists() == slow_binary.exists(), label
+    if not slow_binary.exists():
+        return
+
+    native_fast = _run([str(fast_binary)])
+    native_slow = _run([str(slow_binary)])
+    assert (native_fast.returncode, native_fast.stdout, native_fast.stderr) == (
+        native_slow.returncode,
+        native_slow.stdout,
+        native_slow.stderr,
+    )
+
+
 def test_manifesto_referencia_casos_existentes() -> None:
     for cases in LEVELS.values():
         for case in cases:
             assert (ROOT / case).exists(), case
+    for case in COMPILE_ERRORS:
+        assert (ROOT / case).exists(), case
 
 
 CASES_DIR = ROOT / "tests" / "cases"
 
 
 def _corpus_paths() -> set[str]:
-    return {path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lx")}
+    paths = set(CASES_DIR.rglob("*.lx"))
+    return {path.relative_to(ROOT).as_posix() for path in paths}
 
 
 def test_corpus_classificado() -> None:
@@ -458,8 +737,8 @@ def test_corpus_classificado() -> None:
     pending = set(PENDING)
     negative = set(NEGATIVE)
 
-    assert levels | pending | negative == paths
-    assert len(levels) + len(pending) + len(negative) == len(paths)
+    assert levels | pending | negative | COMPILE_ERRORS == paths
+    assert len(levels) + len(pending) + len(negative) + len(COMPILE_ERRORS) == len(paths)
     for case, level in PENDING.items():
         assert level in {"l2", "l4", "l5", "l6"}, case
 
@@ -614,15 +893,51 @@ def test_gc_preserva_try_frame_e_excecao(tmp_path: Path) -> None:
     assert native.stderr == ""
 
 
-# ~200 MiB de strings vivas: acima do override de 128 MiB, abaixo do default de 512 MiB.
+TYPED_LIST_SOURCES = [
+    ("val xs: List[Int] = [1, 2]\nprint(len(xs))\n", True, "literal List[Int]"),
+    (
+        "class B { var xs: List[Int]\n  init() { this.xs = [] }\n}\n"
+        "val b = B()\nb.xs.push(1)\nprint(len(b.xs))\n",
+        True,
+        "campo de classe List[Int]",
+    ),
+    ('val xs: List[Any] = [1, "x"]\nprint(len(xs))\n', False, "List[Any] boxeada"),
+]
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(
+    ("source", "typed"),
+    [(source, typed) for source, typed, _ in TYPED_LIST_SOURCES],
+    ids=[label for _, _, label in TYPED_LIST_SOURCES],
+)
+def test_listas_tipadas_usam_armazenamento_desacoplado(
+    tmp_path: Path, source: str, typed: bool
+) -> None:
+    """O ganho de `List[T]` escalar é invisível na saída; o IR é o contrato.
+
+    Sem este teste, o lowering pode voltar a criar listas boxeadas sem que
+    nenhum caso de saída perceba (a promoção do runtime mantém a semântica).
+    """
+    path = _write(tmp_path, source)
+
+    result = _run([sys.executable, str(ENTRYPOINT), "--emit=ll", str(path)])
+
+    assert result.returncode == 0, result.stderr
+    assert ("lox_list_new_typed" in result.stdout) is typed
+
+
+# ~140 MiB de strings vivas: acima do override de 128 MiB, abaixo do default de 512 MiB.
+# `join([s], "")` materializa cada rope num buffer plano: desde a representação
+# por concatenação, `s + s` compartilha as metades e sozinho não pressiona o heap.
 HEAP_PRESSURE_SOURCE = (
     "var xs: List[String] = []\n"
     "var i = 0\n"
-    "while (i < 200) {\n"
+    "while (i < 140) {\n"
     '  var s = "0123456789abcdef"\n'
     "  var j = 0\n"
     "  while (j < 16) { s = s + s; j = j + 1 }\n"
-    "  xs.push(s)\n"
+    '  xs.push(join([s], ""))\n'
     "  i = i + 1\n"
     "}\n"
     "print(len(xs))\n"
@@ -657,7 +972,7 @@ def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
 
 
 @pytest.mark.backend
-def test_heap_default_de_512_mib_permite_200_mib(tmp_path: Path) -> None:
+def test_heap_default_de_512_mib_permite_140_mib(tmp_path: Path) -> None:
     """ADR-0087: o default de 512 MiB não é mais o teto de 128 MiB."""
     path = _write(tmp_path, HEAP_PRESSURE_SOURCE)
 
@@ -667,7 +982,7 @@ def test_heap_default_de_512_mib_permite_200_mib(tmp_path: Path) -> None:
     native = _run([str(binary)])
 
     assert native.returncode == 0, native.stderr
-    assert native.stdout == "200\n"
+    assert native.stdout == "140\n"
     assert native.stderr == ""
 
 
@@ -715,7 +1030,11 @@ def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
 
 def _checkable_sources() -> list[tuple[str, str]]:
     """Casos do corpus que podem passar no `--check` (sem `errors/`)."""
-    paths = sorted(CASES_DIR.glob("*.lx")) + sorted((ROOT / "examples").glob("*.lx"))
+    paths = (
+        sorted(CASES_DIR.glob("*.lx"))
+        + sorted((CASES_DIR / "bytes").glob("*.lx"))
+        + sorted((ROOT / "examples").glob("*.lx"))
+    )
     return [(path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8")) for path in paths]
 
 
@@ -774,6 +1093,70 @@ def test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering(
             problems.append(f"{name}: {reported.strip()}")
 
     assert problems == [], "check limpo virou erro no backend:\n" + "\n".join(problems)
+
+
+@pytest.mark.backend
+def test_campo_anotado_decide_o_layout_nao_o_inicializador(tmp_path: Path) -> None:
+    """Issue #196: o slot do campo vem da anotação, nunca do inicializador.
+
+    Antes: `var x: Int | String = 1` virava slot `Int` (o inicializador vencia a
+    anotação). O checker publicava a união — `Any` por baixo — e aceitava
+    `c.x = "s"`, então o lowering morria em E4002: duas fontes de verdade, o que o
+    I4/ADR-0059 proíbe. `Any` virou feature no ADR-0145; este teste fixa a regra
+    geral com a união (o único caso não-`Any` em que anotação e inicializador
+    diferem e o `--check` aceita) e continua proibindo o E4002.
+    """
+    source = """class C {
+  var x: Int | String = 1
+}
+val c = C()
+c.x = "s"
+print(c.x)
+"""
+    path = _write(tmp_path, source, "campo_anotado.lx")
+
+    interpreted = _interpret(path)
+    assert interpreted.returncode == 0, interpreted.stderr
+    assert interpreted.stdout == "s\n"
+
+    checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+    assert checked.returncode == 0, checked.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "E4002" not in result.stderr, result.stderr
+    assert "Traceback" not in result.stderr, result.stderr
+
+    native = _run([str(binary)])
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+
+
+@pytest.mark.backend
+def test_promocao_int_para_float_em_campo_e_recusada_pelos_dois(tmp_path: Path) -> None:
+    """O checker recusa a promoção no campo; o lowering nunca vê a divergência.
+
+    O equivalente em variável local está em
+    `test_promocao_int_para_float_e_recusada_pelos_dois`.
+    """
+    path = _write(
+        tmp_path,
+        """class C {
+  var x: Float = 1
+}
+""",
+    )
+    expected = "Expected Float, found Int."
+
+    checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+    assert checked.returncode == 65, checked.stderr
+    assert expected in checked.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 65, result.stderr
+    assert expected in result.stderr, result.stderr
+    assert "E4002" not in result.stderr, result.stderr
+    assert not binary.exists()
 
 
 @pytest.mark.parametrize(
@@ -1066,6 +1449,9 @@ def test_abi_das_estruturas_publicas_e_estavel() -> None:
     assert [str(element) for element in _CLOSURE.elements] == [
         "i8*",
         "i8*",
+        "i8*",
+        "i64",
+        "i64",
         "i8*",
     ]
     assert [str(element) for element in _CLASS_DESC.elements] == [
@@ -1445,7 +1831,8 @@ def test_std_proc_nativo(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     native = _run([str(binary)])
-    interpreted = _interpret(path)
+    # `std.proc` é o objeto do teste: o oráculo continua em processo real.
+    interpreted = _interpret_process(path)
     assert native.returncode == interpreted.returncode
     assert native.stdout == interpreted.stdout
     assert native.stderr == interpreted.stderr
@@ -1479,7 +1866,8 @@ def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     native = _run([str(binary)])
-    interpreted = _interpret(path)
+    # `process.poll`/`spawn` é o objeto do teste: oráculo em processo real.
+    interpreted = _interpret_process(path)
     assert native.returncode == interpreted.returncode
     assert native.stdout == interpreted.stdout
     assert native.stdout == "true\neco\n0\n"
@@ -1863,6 +2251,13 @@ def test_i4_lacunas_declaradas(tmp_path: Path) -> None:
         "mathany.lx": 'val a: Any = "x"\nprint(math.abs(a))\n',
         "nativevalue.lx": "print(len)\n",
         "enumvalue.lx": "enum E { A }\nprint(E)\n",
+        "fndefaults.lx": (
+            "fn soma(x: Int, y: Int = 10) -> Int { return x + y }\n"
+            "fn sub(x: Int, y: Int = 20) -> Int { return x - y }\n"
+            "val talvez = nil if 1 == 2 else sub\n"
+            "val g = talvez ?? soma\n"
+            "print(g(1))\n"
+        ),
     }
     for name, source in sources.items():
         path = _write(tmp_path, source, name)
@@ -1949,14 +2344,20 @@ print(f(9998))
 
 @pytest.mark.backend
 def test_oom_nao_e_capturavel(tmp_path: Path) -> None:
+    # Each iteration allocates a fresh string (`str(i)`), so the heap grows with
+    # both the strings and the list. A LoxStr is a 56-byte header plus the bytes
+    # and a NUL, so `str(i)` needs at least 58 bytes: 2,000,000 x 58 B = 116 MB,
+    # over 3x the 32 MB cap (32 MiB = 33.6 MB). The typed list adds 8 bytes per
+    # slot, >= 16 MiB at its 2,097,152-slot peak. A constant string would be
+    # shared (interning) and only the list would grow (~16 MB), leaving the test
+    # at the budget edge — that was the flake in issue #144.
     path = _write(
         tmp_path,
         """fn alloc() -> Nil {
   var xs: List[String] = []
-  val s = "abcdefgh"
   var i = 0
   while (i < 2000000) {
-    xs.push(s)
+    xs.push(str(i))
     i = i + 1
   }
 }
@@ -1978,38 +2379,72 @@ print("after")
     assert "caught" not in compiled.stdout
 
 
+def _runtime_error_goldens() -> list[str]:
+    """Goldens com erro de runtime anotado (o filtro de `--check` vem em `_check_clean_goldens`).
+
+    Parametrizar (em vez de um laço) deixa o xdist distribuir os casos: o laço único era
+    um piso serial de ~30 s no `make test-backend` (ADR-0133).
+    """
+    cases: list[str] = []
+    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
+        expectations = parse_expectations(path.read_text(encoding="utf-8"))
+        if expectations.exit_code == 70 and expectations.error is not None:
+            cases.append(path.relative_to(ROOT).as_posix())
+    return cases
+
+
+def _check_clean_goldens() -> list[str]:
+    """Só os goldens cujo `--check` passa entram no diferencial (o build depende disso).
+
+    O filtro roda na coleta (poucos ms por caso in-process): a lista parametrizada passa
+    a ser a que realmente executa, então a guarda de não-vazio não pode ficar verde com
+    zero casos — antes o `skip` dentro do teste escondia uma regressão que deixasse
+    todos os goldens check-dirty.
+    """
+    clean: list[str] = []
+    for case in _runtime_error_goldens():
+        if run_cli("--check", str(ROOT / case), cwd=ROOT).returncode == 0:
+            clean.append(case)
+    return clean
+
+
+GOLDEN_RUNTIME_ERRORS = _check_clean_goldens()
+
+GOLDEN_RUNTIME_ERROR_PARAMS = [
+    pytest.param(
+        case,
+        marks=[pytest.mark.slow] if _requires_rust(case) else [],
+        id=Path(case).stem,
+    )
+    for case in GOLDEN_RUNTIME_ERRORS
+]
+
+
 @pytest.mark.backend
-def test_goldens_de_runtime_error_batem_bytes(tmp_path: Path) -> None:
+@pytest.mark.parametrize("case", GOLDEN_RUNTIME_ERROR_PARAMS)
+def test_goldens_de_runtime_error_batem_bytes(case: str, tmp_path: Path) -> None:
     """Todo golden de erro de runtime que passa no check deve ter stderr idêntico.
 
     O corpus `LEVELS` não inclui os goldens de erro; este teste fecha a lacuna que
     deixou passar mensagens de índice/range/cast divergentes.
     """
-    from tests.runner import parse_expectations
+    path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
 
-    cases = []
-    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
-        expectations = parse_expectations(path.read_text(encoding="utf-8"))
-        if expectations.exit_code != 70 or expectations.error is None:
-            continue
-        checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
-        if checked.returncode != 0:
-            continue
-        cases.append(path)
+    interpreted = _oracle(path)
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, f"{path}: {result.stderr}"
+    compiled = _run([str(binary)])
 
-    assert cases, "nenhum golden de runtime error check-clean encontrado"
+    assert compiled.stdout == interpreted.stdout, path
+    assert compiled.stderr == interpreted.stderr, path
+    assert compiled.returncode == interpreted.returncode, path
 
-    for index, path in enumerate(cases):
-        interpreted = _interpret(path)
-        case_dir = tmp_path / f"case_{index}"
-        case_dir.mkdir()
-        result, binary = _build(path, case_dir)
-        assert result.returncode == 0, f"{path}: {result.stderr}"
-        compiled = _run([str(binary)])
 
-        assert compiled.stdout == interpreted.stdout, path
-        assert compiled.stderr == interpreted.stderr, path
-        assert compiled.returncode == interpreted.returncode, path
+def test_goldens_de_runtime_error_existem() -> None:
+    assert GOLDEN_RUNTIME_ERRORS, "nenhum golden de runtime error check-clean encontrado"
 
 
 @pytest.mark.backend
@@ -2038,3 +2473,228 @@ def test_fs_read_utf8_pending_bate_com_o_binario(tmp_path: Path) -> None:
     assert compiled.stdout == interpreted.stdout
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_fs_nul_e_rename_kind_batem_com_o_binario(tmp_path: Path) -> None:
+    empty = tmp_path / "vazio"
+    occupied = tmp_path / "ocupado"
+    empty.mkdir()
+    occupied.mkdir()
+    (occupied / "arquivo").write_text("x", encoding="utf-8")
+    path = _write(
+        tmp_path,
+        "import std.fs as fs\n"
+        'print(match fs.stat("nao\\0existe") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.rename("a\\0x", "b") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.remove("a\\0x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.mkdir("a\\0x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.open("a\\0x", "r") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(fs.exists("a\\0x"))\n'
+        'print(match fs.listDir("a\\0x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        f'print(match fs.rename("{empty}", "{occupied}") {{ Result.Ok(_) => "ok", Result.Err(e) => e.kind }})\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "notEmpty" in interpreted.stdout
+
+
+@pytest.mark.backend
+def test_fs_read_bytes_erro_de_diretorio_bate_com_o_binario(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "import std.fs as fs\n"
+        f'val opened = fs.open("{tmp_path}", "r")\n'
+        "val file = match opened { Result.Ok(value) => value, Result.Err(_) => fs.File(0) }\n"
+        'print(match file.read(1) { Result.Ok(value) => value ?? "nil", Result.Err(e) => e.kind })\n'
+        'print(match file.readBytes(1) { Result.Ok(value) => value?.toHex() ?? "nil", Result.Err(e) => e.kind })\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "isDirectory" in interpreted.stdout
+
+
+@pytest.mark.backend
+@pytest.mark.slow
+def test_regex_engine_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        'val compiled = regex_engine.compile("([A-Za-z]+) +([0-9]+)", 0, 0)\n'
+        "print(compiled)\n"
+        "val handle = compiled[1]\n"
+        'print(regex_engine.find(handle, "abc 42", 0))\n'
+        'print(regex_engine.find(handle, "nada", 0))\n'
+        'print(regex_engine.compile("a(b", 0, 0))\n'
+        'print(regex_engine.compile("a(b", 0, 1))\n'
+        'print(regex_engine.compile("a{1000000}", 0, 0))\n'
+        "regex_engine.free(handle)\n"
+        'print(regex_engine.find(handle, "abc 42", 0))\n',
+    )
+    # Oráculo em processo real: o motor nativo é estado global (ver `_oracle`).
+    interpreted = _interpret_process(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70  # handle fechado é panic, nos dois motores
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+@pytest.mark.slow
+def test_regex_engine_so_entra_no_binario_quando_usado(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    nm = shutil.which("nm")
+    if nm is None:
+        pytest.skip("nm não disponível")
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    plain_dir = tmp_path / "plain"
+    regex_dir = tmp_path / "regex"
+    plain_dir.mkdir()
+    regex_dir.mkdir()
+    plain = _write(plain_dir, "print(1)\n")
+    with_regex = _write(
+        regex_dir, 'val compiled = regex_engine.compile("a+", 0, 0)\nprint(compiled)\n'
+    )
+
+    plain_build, plain_binary = _build(plain, plain_dir)
+    regex_build, regex_binary = _build(with_regex, regex_dir)
+    assert plain_build.returncode == 0, plain_build.stderr
+    assert regex_build.returncode == 0, regex_build.stderr
+
+    def symbols(binary: Path) -> set[str]:
+        result = subprocess.run([nm, str(binary)], capture_output=True, text=True, check=False)
+        return set(result.stdout.split())
+
+    assert not {symbol for symbol in symbols(plain_binary) if symbol.startswith("loxr_")}
+    assert not {
+        symbol for symbol in symbols(plain_binary) if symbol.startswith("lox_regex_engine_")
+    }
+    assert any(symbol.startswith("loxr_compile") for symbol in symbols(regex_binary))
+    assert any(symbol.startswith("lox_regex_engine_compile") for symbol in symbols(regex_binary))
+    # Link acidental do motor: 99 KB x 3,8 MB hoje; 4x é folga suficiente e portátil.
+    assert plain_binary.stat().st_size * 4 < regex_binary.stat().st_size
+
+
+@pytest.mark.backend
+@pytest.mark.slow
+def test_regex_module_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        "import regex\n"
+        "\n"
+        'val words = regex.tryCompile("\\\\p{L}+")\n'
+        "if (words != nil) {\n"
+        '  print(words.replaceAll("a1 b2", "<$0>"))\n'
+        '  print(len(words.findAll("café ☕")))\n'
+        "  words.close()\n"
+        "}\n"
+        'val named = regex.tryCompile("(?P<a>[a-z]+)-(?P<b>[0-9]+)")\n'
+        "if (named != nil) {\n"
+        '  print(named.replaceAll("x-1 y-2", "$b/$a"))\n'
+        "  named.close()\n"
+        "}\n"
+        'print(regex.tryCompile("("))\n',
+    )
+    interpreted = _interpret_process(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 0
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "<a>1 <b>2" in interpreted.stdout
+    assert "1/x 2/y" in interpreted.stdout
+
+
+@pytest.mark.backend
+@pytest.mark.slow
+def test_regex_group_names_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        'val compiled = regex_engine.compile("(?P<a>[a-z]+)-(?P<b>[0-9]+)", 0, 0)\n'
+        "val handle = compiled[1]\n"
+        "print(regex_engine.groupNames(handle))\n"
+        "regex_engine.free(handle)\n"
+        "print(regex_engine.groupNames(handle))\n",
+    )
+    interpreted = _interpret_process(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70  # handle fechado é panic, nos dois motores
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert '["", "a", "b"]' in interpreted.stdout
+    assert "regex handle is closed or unknown." in interpreted.stderr
+
+
+@pytest.mark.backend
+@pytest.mark.slow
+def test_regex_group_names_sozinho_linka_o_motor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(tmp_path, "print(regex_engine.groupNames(1))\n")
+    interpreted = _interpret_process(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "regex handle is closed or unknown." in interpreted.stderr

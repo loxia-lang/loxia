@@ -19,7 +19,7 @@ class TomlParse {
   val value: Any
   val error: String
 
-  init(ok: Bool, value: Any, error: String) {
+  fn init(ok: Bool, value: Any, error: String) {
     this.ok = ok
     this.value = value
     this.error = error
@@ -48,7 +48,7 @@ class _Parser {
   var line: Int
   var column: Int
 
-  init(text: String) {
+  fn init(text: String) {
     this.text = text
     this.index = 0
     this.line = 1
@@ -75,7 +75,7 @@ class _Parser {
     if (code == 10) {
       this.line = this.line + 1
       this.column = 1
-    } else if (code != 13) {
+    } elif (code != 13) {
       this.column = this.column + 1
     }
     return code
@@ -116,9 +116,9 @@ class _Parser {
       val code = this._peek()
       if (code == nil) {
         go = false
-      } else if (code == 32 or code == 9 or code == 10 or code == 13) {
+      } elif (code == 32 or code == 9 or code == 10 or code == 13) {
         this._advance()
-      } else if (code == 35) {
+      } elif (code == 35) {
         var comment = true
         while (comment) {
           val inner = this._peek()
@@ -186,7 +186,7 @@ class _Parser {
     while (this._peek() != nil) {
       if (this._starts("[[")) {
         current = this._parseArrayTable(root, explicit)
-      } else if (this._starts("[")) {
+      } elif (this._starts("[")) {
         current = this._parseTable(root, explicit)
       } else {
         this._parseAssignment(current)
@@ -260,7 +260,7 @@ class _Parser {
         val child: Map[String, Any] = {}
         node[key] = child
         node = child
-      } else if (existing is Map[String, Any]) {
+      } elif (existing is Map[String, Any]) {
         node = existing as Map[String, Any]
       } else {
         this._fail("key '${key}' is not a table")
@@ -321,7 +321,7 @@ class _Parser {
       val current = this._peek()
       if (current == nil) {
         go = false
-      } else if (_isKeyCode(current)) {
+      } elif (_isKeyCode(current)) {
         raw = raw + fromCodePoint(this._advance())
       } else {
         go = false
@@ -338,22 +338,25 @@ class _Parser {
     if (code == nil) {
       this._fail("expected a value")
     }
-    if (code == 34) {
+    # `_fail` sempre levanta; o checker não faz essa conta entre funções, então o
+    # estreitamento depois do guard é explícito.
+    val current = code as Int
+    if (current == 34) {
       if (this._starts("\"\"\"")) {
         return this._parseMultilineBasic()
       }
       return this._parseBasicString()
     }
-    if (code == 39) {
+    if (current == 39) {
       if (this._starts("'''")) {
         return this._parseMultilineLiteral()
       }
       return this._parseLiteralString()
     }
-    if (code == 91) {
+    if (current == 91) {
       return this._parseArray()
     }
-    if (code == 123) {
+    if (current == 123) {
       return this._parseInlineTable()
     }
     if (this._starts("true")) {
@@ -370,7 +373,7 @@ class _Parser {
     if (this._looksLikeDate()) {
       this._fail("date/time is outside the supported TOML subset")
     }
-    if (code == 43 or code == 45 or (code >= 48 and code <= 57)) {
+    if (current == 43 or current == 45 or (current >= 48 and current <= 57)) {
       return this._parseNumber()
     }
     this._fail("expected a value")
@@ -408,7 +411,7 @@ class _Parser {
       var base = 10
       if (next == 120) {
         base = 16
-      } else if (next == 111) {
+      } elif (next == 111) {
         base = 8
       } else {
         base = 2
@@ -467,7 +470,7 @@ class _Parser {
         }
         lastUnderscore = true
         this._advance()
-      } else if (code != nil and _digitValue(code) >= 0 and _digitValue(code) < base) {
+      } elif (code != nil and _digitValue(code) >= 0 and _digitValue(code) < base) {
         raw = raw + fromCodePoint(this._advance())
         lastUnderscore = false
       } else {
@@ -493,7 +496,7 @@ class _Parser {
       if (code == 93) {
         this._advance()
         go = false
-      } else if (code == nil) {
+      } elif (code == nil) {
         this._fail("unterminated array")
       } else {
         items.push(this._parseValue())
@@ -501,7 +504,7 @@ class _Parser {
         val after = this._peek()
         if (after == 44) {
           this._advance()
-        } else if (after == 93) {
+        } elif (after == 93) {
           this._advance()
           go = false
         } else {
@@ -536,7 +539,7 @@ class _Parser {
       val after = this._peek()
       if (after == 44) {
         this._advance()
-      } else if (after == 125) {
+      } elif (after == 125) {
         this._advance()
         go = false
       } else {
@@ -558,7 +561,7 @@ class _Parser {
       if (code == 34) {
         this._advance()
         go = false
-      } else if (code == 92) {
+      } elif (code == 92) {
         this._advance()
         out = out + this._parseEscape()
       } else {
@@ -600,7 +603,7 @@ class _Parser {
       if (code == 34 and this._starts("\"\"\"")) {
         this._consume("\"\"\"")
         go = false
-      } else if (code == 92) {
+      } elif (code == 92) {
         this._advance()
         val next = this._peek()
         if (next == 32 or next == 9 or next == 10 or next == 13) {
@@ -608,7 +611,7 @@ class _Parser {
         } else {
           out = out + this._parseEscape()
         }
-      } else if (code == 13) {
+      } elif (code == 13) {
         this._advance()
         if (this._peek() == 10) {
           this._advance()
@@ -646,7 +649,7 @@ class _Parser {
       if (code == 39 and this._starts("'''")) {
         this._consume("'''")
         go = false
-      } else if (code == 13) {
+      } elif (code == 13) {
         this._advance()
         if (this._peek() == 10) {
           this._advance()
@@ -665,7 +668,7 @@ class _Parser {
       if (this._peek() == 10) {
         this._advance()
       }
-    } else if (this._peek() == 10) {
+    } elif (this._peek() == 10) {
       this._advance()
     }
   }
@@ -715,7 +718,7 @@ class _Parser {
       if (code == nil) {
         this._fail("unterminated unicode escape")
       }
-      val digit = _digitValue(code)
+      val digit = _digitValue(code as Int)
       if (digit < 0 or digit > 15) {
         this._fail("invalid unicode escape")
       }
@@ -731,7 +734,11 @@ class _Parser {
 }
 
 fn _isKeyCode(code: Int) -> Bool {
-  return (code >= 97 and code <= 122) or (code >= 65 and code <= 90) or (code >= 48 and code <= 57) or code == 95 or code == 45
+  return (code >= 97 and code <= 122) or
+    (code >= 65 and code <= 90) or
+    (code >= 48 and code <= 57) or
+    code == 95 or
+    code == 45
 }
 
 fn _digitValue(code: Int) -> Int {
@@ -837,19 +844,19 @@ fn _quote(text: String) -> String {
     val code = charCodeAt(text, index)
     if (code == 34) {
       out = out + "\\\""
-    } else if (code == 92) {
+    } elif (code == 92) {
       out = out + "\\\\"
-    } else if (code == 10) {
+    } elif (code == 10) {
       out = out + "\\n"
-    } else if (code == 13) {
+    } elif (code == 13) {
       out = out + "\\r"
-    } else if (code == 9) {
+    } elif (code == 9) {
       out = out + "\\t"
-    } else if (code == 8) {
+    } elif (code == 8) {
       out = out + "\\b"
-    } else if (code == 12) {
+    } elif (code == 12) {
       out = out + "\\f"
-    } else if (code < 32 or code == 127) {
+    } elif (code < 32 or code == 127) {
       out = out + "\\u" + _hex4(code)
     } else {
       out = out + fromCodePoint(code)
@@ -864,7 +871,10 @@ fn _hex4(value: Int) -> String {
   val b = (value // 256) % 16
   val c = (value // 16) % 16
   val d = value % 16
-  return fromCodePoint(_hexDigit(a)) + fromCodePoint(_hexDigit(b)) + fromCodePoint(_hexDigit(c)) + fromCodePoint(_hexDigit(d))
+  return fromCodePoint(_hexDigit(a)) +
+    fromCodePoint(_hexDigit(b)) +
+    fromCodePoint(_hexDigit(c)) +
+    fromCodePoint(_hexDigit(d))
 }
 
 fn _hexDigit(value: Int) -> Int {

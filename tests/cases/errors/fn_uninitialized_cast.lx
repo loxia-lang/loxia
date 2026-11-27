@@ -1,0 +1,4 @@
+# `as fn` numa função não-opcional não inicializada é R1011.
+var f: fn(Int) -> Int
+print(f as fn(Int) -> Int)
+# expect runtime error: Can't cast value to fn(Int) -> Int.

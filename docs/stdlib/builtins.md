@@ -241,6 +241,12 @@ Reads at most `n` bytes from a file handle, always a complete UTF-8 prefix.
 
 Ambient. `nil` is end of file; invalid UTF-8 or a handle not open for reading raises.
 
+#### `fs.readBytes(id: Int, n: Int) -> Bytes?`
+
+Reads at most `n` raw bytes from a file handle, without UTF-8 validation.
+
+Ambient. `nil` is immediate end of file and `n == 0` is the empty `Bytes`; a handle not open for reading or a negative `n` raises.
+
 #### `fs.write(id: Int, text: String) -> Nil`
 
 Writes all of `text` to a file handle.
@@ -252,6 +258,30 @@ Ambient. A handle opened with `r`, a closed handle or a failed write raises.
 Closes a file handle; closing it again is a no-op.
 
 Ambient. An id that never existed raises.
+
+#### `fs.rename(source: String, target: String) -> Nil`
+
+Renames `source` to `target` with POSIX semantics: atomic and replacing an existing `target`.
+
+Ambient. Failure raises `RuntimeError` with a stable kind prefix (`notFound: ...`); across filesystems the kind is `crossDevice`.
+
+#### `fs.remove(path: String) -> Nil`
+
+Removes a file or symlink.
+
+Ambient. A directory is an `isDirectory` error; failure raises `RuntimeError`.
+
+#### `fs.mkdir(path: String) -> Nil`
+
+Creates one directory level.
+
+Ambient. An existing path is `alreadyExists`; a missing parent is `notFound`.
+
+#### `fs.stat(path: String) -> (Int, Int, Bool)`
+
+Returns `(size, mtimeMs, isDir)` for `path`, following symlinks.
+
+Ambient. `mtimeMs` is floor milliseconds since the epoch; the filesystem may have coarser resolution. Failure raises `RuntimeError`.
 
 #### `fs.listDir(path: String) -> List[String]?`
 
@@ -359,6 +389,64 @@ Suspends the current process for at least `milliseconds`.
 
 Ambient. A negative duration raises `RuntimeError`.
 
+### `Bytes`
+
+Immutable sequence of bytes (0..255).
+
+`len(b)` counts bytes; `b[i]` is an `Int` 0..255; `str`/`repr` render `0x<hex>`; equality is structural and `b == s` is `false`. `Bytes` is not a `Map` key and has no literal syntax. Build with `Bytes.fromText`, `fromList`, `fromHex` or `fromBase64`; slice/concat and conversions are value methods.
+
+#### `Bytes.empty() -> Bytes`
+
+Returns the empty `Bytes`.
+
+#### `Bytes.fromList(xs: List[Int]) -> Bytes`
+
+Copies a list of integers 0..255 into `Bytes`.
+
+A value outside 0..255 (or a non-integer element) raises `RuntimeError`.
+
+#### `Bytes.fromText(text: String) -> Bytes`
+
+Encodes the UTF-8 bytes of `text`.
+
+#### `Bytes.fromHex(text: String) -> Result[Bytes, BytesError]`
+
+Decodes RFC 4648 base16.
+
+Accepts lowercase and uppercase digits; an odd length or a non-hex character is `Err(BytesError.InvalidHex(message))`.
+
+#### `Bytes.fromBase64(text: String) -> Result[Bytes, BytesError]`
+
+Decodes canonical RFC 4648 base64 (standard alphabet, padding required).
+
+Invalid, unpadded or non-canonical input is `Err(BytesError.InvalidBase64(message))`.
+
+#### `Bytes.slice(start: Int, end: Int) -> Bytes`
+
+Returns the half-open byte range `start..end`.
+
+Same bounds rules as `substr`: negative, inverted or past-the-end ranges raise `RuntimeError`.
+
+#### `Bytes.concat(other: Bytes) -> Bytes`
+
+Returns a new `Bytes` with `other` appended; neither operand is mutated.
+
+#### `Bytes.toList() -> List[Int]`
+
+Copies the bytes into a new `List[Int]`.
+
+#### `Bytes.toText() -> Result[String, BytesError]`
+
+Decodes strict UTF-8; invalid input is `Err(BytesError.InvalidUtf8(message))` and is never replaced.
+
+#### `Bytes.toHex() -> String`
+
+Returns lowercase RFC 4648 base16.
+
+#### `Bytes.toBase64() -> String`
+
+Returns canonical RFC 4648 base64 with padding.
+
 ## Built-in types
 
 ### `Result[T, E]`
@@ -366,6 +454,12 @@ Ambient. A negative duration raises `RuntimeError`.
 Built-in generic sum type with `Result.Ok(value)` and `Result.Err(error)`.
 
 Use an exhaustive `match` to inspect it, or the combinators in `std.results`.
+
+### `BytesError`
+
+Failure of a `Bytes` conversion.
+
+Variants: `BytesError.InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`. Available without an import; use `match` to inspect it.
 
 ### `Exception`
 

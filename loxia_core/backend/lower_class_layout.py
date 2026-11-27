@@ -21,6 +21,7 @@ from loxia_core.backend.lower_model import (
     TypeDesc,
     ValueType,
     _unsupported,
+    field_words,
 )
 from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import Expr, Grouping, Literal, Unary
@@ -60,20 +61,28 @@ class ClassLayoutLowering(LoweringBase):
             )
         return super_name, super_layout
 
-    def _class_fields(self, stmt: Class, base_fields: int) -> list[FieldLayout]:
+    def _class_fields(self, stmt: Class, base_index: int, base_words: int) -> list[FieldLayout]:
+        # Dois contadores diferentes: `index` é o ordinal do campo (bit do bitmap) e
+        # continua vindo de `field_count()`; `slot` é a palavra de 8 bytes no struct e
+        # vem de `word_count()` (ADR-0145). Confundir as bases é o erro clássico aqui.
         fields: list[FieldLayout] = []
+        offset = base_words + 2  # header: descritor da classe + bitmap
         for local_index, field in enumerate(stmt.fields):
+            desc = self._field_desc(field)
             fields.append(
                 FieldLayout(
                     field.name.lexeme,
-                    self._field_desc(field),
+                    desc,
                     field.mutable,
                     field.initializer,
-                    base_fields + local_index,
+                    base_index + local_index,
                     field.name.line,
                     field.name.column,
+                    field.type_annotation,
+                    offset,
                 )
             )
+            offset += 2 if desc.ty is ValueType.ANY else 1
         return fields
 
     def _class_methods(
@@ -139,9 +148,10 @@ class ClassLayoutLowering(LoweringBase):
         super_layout: ClassLayout | None,
     ) -> None:
         name = stmt.name.lexeme
-        base_fields = 0 if super_layout is None else super_layout.field_count()
+        base_index = 0 if super_layout is None else super_layout.field_count()
+        base_words = 0 if super_layout is None else super_layout.word_count()
         base_methods = 0 if super_layout is None else super_layout.vtable_size
-        fields = self._class_fields(stmt, base_fields)
+        fields = self._class_fields(stmt, base_index, base_words)
         methods, init, init_method, new_methods = self._class_methods(
             stmt, name, super_layout, base_methods
         )
@@ -150,7 +160,7 @@ class ClassLayoutLowering(LoweringBase):
             effective = super_layout.effective_init()
 
         instance_type = llvm_ir.literal_struct(
-            [_I8_PTR, _INT, *([_INT] * (base_fields + len(fields)))]
+            [_I8_PTR, _INT, *([_INT] * (base_words + field_words(fields)))]
         )
         layout = ClassLayout(
             name,
@@ -198,7 +208,10 @@ class ClassLayoutLowering(LoweringBase):
 
         if field.initializer is not None:
             initial = self._const_desc(field.initializer, field.name.line)
-            desc = annotated if annotated is not None and annotated.optional else initial
+            # The annotation is the field type; the initializer only supplies a value
+            # (coerced when the constructor runs). Using the initializer's type as the
+            # layout would make the slot disagree with the type the checker publishes.
+            desc = annotated if annotated is not None else initial
         elif annotated is not None:
             desc = annotated
         else:

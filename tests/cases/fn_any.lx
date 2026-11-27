@@ -1,0 +1,128 @@
+fn dobro(x: Int) -> Int {
+  return x * 2
+}
+
+class Contador {
+  val base: Int
+
+  fn init(base: Int) {
+    this.base = base
+  }
+
+  fn soma(x: Int) -> Int {
+    return this.base + x
+  }
+}
+
+interface Faz {
+  fn faz(x: Int) -> Int
+}
+
+class Impl implements Faz {
+  fn faz(x: Int) -> Int {
+    return x + 1
+  }
+}
+
+fn usaFaz(f: Faz, x: Int) -> Int {
+  return f.faz(x)
+}
+
+val a: Any = dobro
+print(a is fn(Int) -> Int)       # expect: true
+print(a is fn(String) -> Int)    # expect: false
+print(a is fn(Int, Int) -> Int)  # expect: false
+
+if (a is fn(Int) -> Int) {
+  print(a(4)) # expect: 8
+}
+
+print((a as fn(Int) -> Int)(5)) # expect: 10
+
+val c = Contador(10)
+val m: Any = c.soma
+print(m is fn(Int) -> Int)       # expect: true
+print((m as fn(Int) -> Int)(3))  # expect: 13
+
+val i: Faz = Impl()
+val g: Any = usaFaz
+print(g is fn(Faz, Int) -> Int)          # expect: true
+print((g as fn(Faz, Int) -> Int)(i, 1))  # expect: 2
+
+val varianza: Any = usaFaz
+print(varianza is fn(Impl, Int) -> Int)               # expect: true
+print((varianza as fn(Impl, Int) -> Int)(Impl(), 1))  # expect: 2
+
+fn aplica(f: fn(Int) -> Int) -> Int {
+  return f(1)
+}
+
+val n: Any = aplica
+print(n is fn(fn(Int) -> Int) -> Int)           # expect: true
+print((n as fn(fn(Int) -> Int) -> Int)(dobro))  # expect: 2
+
+val p: (fn(Int) -> Int)? = dobro
+print(p is fn(Int) -> Int) # expect: true
+val q = p ?? dobro
+print(q(3)) # expect: 6
+
+fn comDefault(x: Int, y: Int = 7) -> Int {
+  return x * 100 + y
+}
+
+val d: Any = comDefault
+print(d is fn(Int) -> Int)       # expect: false
+print(d is fn(Int, Int) -> Int)  # expect: true
+
+fn tam(xs: List[Int]) -> Int {
+  return len(xs)
+}
+
+val l: Any = tam
+print(l is fn(List[Int]) -> Int)               # expect: true
+print((l as fn(List[Int]) -> Int)([1, 2, 3]))  # expect: 3
+
+fn soma(...xs: Int) -> Int {
+  return len(xs)
+}
+
+val v: Any = soma
+print(v is fn(...Int) -> Int)                # expect: true
+print((v as fn(...Int) -> Int)(1, 2, 3, 4))  # expect: 4
+
+fn aplicaDinamico(f: fn(Int) -> Int) -> Int {
+  return f(1)
+}
+
+val n2: Any = aplicaDinamico
+print(n2 is fn(fn(Int) -> Int) -> Int)           # expect: true
+print((n2 as fn(fn(Int) -> Int) -> Int)(dobro))  # expect: 2
+print(n2 is fn(fn(Any) -> Int) -> Int)           # expect: false
+
+enum Cor { Vermelho, Verde }
+
+fn cor(c: Cor) -> Int {
+  return 1
+}
+
+val e2: Any = cor
+print(e2 is fn(Cor) -> Int)                  # expect: true
+print((e2 as fn(Cor) -> Int)(Cor.Vermelho))  # expect: 1
+
+interface Saudacao {
+  fn ola() -> String {
+    return "ola"
+  }
+}
+
+class Pessoa implements Saudacao {}
+
+val pessoa = Pessoa()
+val ola: Any = pessoa.ola
+print(ola is fn() -> String)      # expect: true
+print((ola as fn() -> String)())  # expect: ola
+
+val lam: fn(Int) -> Int = fn(x) => x * 2
+val lamb: Any = lam
+print(lamb is fn(Int) -> Int)       # expect: true
+print((lamb as fn(Int) -> Int)(3))  # expect: 6

@@ -17,44 +17,79 @@ fn pathOf(parts: List[String]) -> String {
   return result
 }
 
-forAll(intRange(-50, 50), fn(left: Int) {
-  forAll(intRange(-50, 50), fn(right: Int) {
-    val divisor = numeric.gcd(left, right)
-    expect(divisor >= 0).toBe(true)
-    if (divisor != 0) {
-      expect(left % divisor == 0).toBe(true)
-      expect(right % divisor == 0).toBe(true)
+forAll(
+  intRange(-50, 50),
+  fn(left: Int) {
+    forAll(
+      intRange(-50, 50),
+      fn(right: Int) {
+        val divisor = numeric.gcd(left, right)
+        expect(divisor >= 0).toBe(true)
+        if (divisor != 0) {
+          expect(left % divisor == 0).toBe(true)
+          expect(right % divisor == 0).toBe(true)
+        }
+      },
+      8,
+      11,
+    )
+  },
+  8,
+  3,
+)
+
+forAll(
+  intRange(-25, 25),
+  fn(base: Int) {
+    forAll(
+      intRange(0, 12),
+      fn(exponent: Int) {
+        forAll(
+          intRange(1, 31),
+          fn(modulus: Int) {
+            val result = numeric.powMod(base, exponent, modulus)
+            expect(result >= 0).toBe(true)
+            expect(result < modulus).toBe(true)
+          },
+          8,
+          7,
+        )
+      },
+      8,
+      5,
+    )
+  },
+  8,
+  2,
+)
+
+forAll(
+  stringOf(20),
+  fn(text: String) {
+    val encoded = convert.base64Encode(text)
+    expect(len(encoded) % 4 == 0).toBe(true)
+    val decoded = convert.base64Decode(encoded)
+    expect(decoded != nil).toBe(true)
+    if (decoded != nil) {
+      expect(decoded ?? "").toBe(text)
     }
-  }, 8, 11)
-}, 8, 3)
+  },
+  25,
+  13,
+)
 
-forAll(intRange(-25, 25), fn(base: Int) {
-  forAll(intRange(0, 12), fn(exponent: Int) {
-    forAll(intRange(1, 31), fn(modulus: Int) {
-      val result = numeric.powMod(base, exponent, modulus)
-      expect(result >= 0).toBe(true)
-      expect(result < modulus).toBe(true)
-    }, 8, 7)
-  }, 8, 5)
-}, 8, 2)
-
-forAll(stringOf(20), fn(text: String) {
-  val encoded = convert.base64Encode(text)
-  expect(len(encoded) % 4 == 0).toBe(true)
-  val decoded = convert.base64Decode(encoded)
-  expect(decoded != nil).toBe(true)
-  if (decoded != nil) {
-    expect(decoded ?? "").toBe(text)
-  }
-}, 25, 13)
-
-forAll(listOf(pathPart(), 6), fn(parts: List[String]) {
-  val raw = pathOf(parts)
-  val normalized = paths.normalize(raw)
-  expect(paths.normalize(normalized)).toBe(normalized)
-  expect(paths.isAbsolute(normalized)).toBe(paths.isAbsolute(raw))
-  expect(paths.normalize("")).toBe(".")
-}, 25, 9)
+forAll(
+  listOf(pathPart(), 6),
+  fn(parts: List[String]) {
+    val raw = pathOf(parts)
+    val normalized = paths.normalize(raw)
+    expect(paths.normalize(normalized)).toBe(normalized)
+    expect(paths.isAbsolute(normalized)).toBe(paths.isAbsolute(raw))
+    expect(paths.normalize("")).toBe(".")
+  },
+  25,
+  9,
+)
 
 try {
   numeric.powMod(2, -1, 5)
@@ -70,4 +105,4 @@ try {
 }
 # expect: powMod() expects a positive modulus.
 
-print("property ok")  # expect: property ok
+print("property ok") # expect: property ok

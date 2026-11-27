@@ -22,6 +22,33 @@ program at the point where it occurred; whatever was already printed remains. Si
 `try`/`raise` ([ADR-0042](../adr/0042-excecoes.md)) capture explicit exceptions and runtime
 errors, and `Result` covers expected errors. Type/syntax errors exit 65.
 
+The boundary between the two channels is [ADR-0135](../adr/0135-politica-de-erro.md): a **defect**
+(division by zero, `R1015`, invalid index) surfaces as `RuntimeError` and is fatal unless caught;
+an **expected failure** is a `Result[T, E]` value in the signature; `raise`/`except` is for
+**user control flow**. A function declares one channel: a function returning `Result` does not
+raise for the same failure. The naming rule (core uses the plain name, raising shell uses the
+`OrRaise` suffix) is the target for **new** shells; no stdlib function uses `OrRaise` yet — `json`
+migrates in ADR-0135's M2. The stdlib is migrating to "no raise for expected failure": today the
+allowlist by nature is `asserts`, `contracts`, `test`, `property`, and the remaining raises are
+tracked in M2-M3 by `tests/test_stdlib_error_policy.py`.
+
+The **entry point** is the top-level `fn main` of the file being run/built that returns
+`Result[T, String]` ([ADR-0148](../adr/0148-ponto-de-entrada-main-result.md)). It takes no
+parameters, is not generic, and runs **once after every top-level statement**. `Ok(...)` exits
+**0** and the payload is ignored; `Err(msg)` prints `error[R1016]: <msg>` to stderr and exits
+**70** (same code as an uncaught runtime error). `msg` is the `String` itself — no `repr`, no
+implicit conversion. Only the value **returned** by `main` counts: a discarded `Err` elsewhere
+is still just a value (exit 0). The boundary is not an exception (`try` cannot catch it); an
+exception escaping `main` keeps the normal `R1010`/70 path with position and stack trace.
+Modules and the REPL never have an entry point, and a `main` that does not return `Result`
+(e.g. `fn main() -> Nil`) is an ordinary function — the explicit `main()` idiom still works.
+A `main` that returns `Result` with a parameter, type parameter or `E ≠ String` is the
+check error `E3026` (exit 65). A top-level declaration with a value (function, class or
+enum) declared twice — `main` included — is `E3027` (exit 65): the tree-walk would use the
+last closure at each point while the checker types every call with the last signature, so
+different signatures would diverge before the backend. There is no `main(args)` and `Ok(code)` does not set the exit code; use
+`os.exit(code)`.
+
 Call depth is limited to **10,000 Lox activations** (function, method, lambda,
 `init` and constructor); the next is `R1015` (`Stack overflow.`), exit 70, catchable by
 `try`/`except RuntimeError`, with position and stack trace
@@ -45,6 +72,7 @@ A pure expression such as `1 + 1` is wrapped in `print(1 + 1)` and shows `2`; de
 | `List` | `[...]` literal | `[1, 2, 3]` (strings quoted inside the list) |
 | `Map` | `{...}` literal | `{"a": 1, "b": 2}` (insertion order) |
 | `Range` | `a..b`, `a..=b`, `range(a, b, step)` | `<range 0..10>`, `<range 0..=10>` |
+| `Bytes` | `Bytes.fromText`/`fromList`/`fromHex`/`fromBase64` | `0x<lowercase hex>` |
 | string | literals, `+`, interpolation | contents |
 | function | `fn` | `<fn name>` |
 | native function | `len` | `<native fn>` |
@@ -76,7 +104,7 @@ Only `nil` and `false` are falsy. `0`, `0.0`, `""`, lists and maps (including em
   `{"a": 1, "b": 2} == {"b": 2, "a": 1}` → `true`; the number of entries and the equality of
   each value count, with a cycle guard. `Map` is not hashable;
 - `true == 1` → `false` (a boolean is never a number);
-- strings compare by content;
+- strings compare by content; `Bytes` compares by content (O(n), identity short-circuit) and `b == s` is `false` (different types);
 - functions, classes and instances compare by **identity** (the same object);
 - `NaN != NaN` (IEEE); no literal produces `NaN` today.
 
@@ -190,6 +218,8 @@ var a = "global";
   branches (`Int`/`Int` → `Int`); the `else` is right-associative.
 - `??` is **nil only**: `0 ?? 5` → `0`, `false ?? true` → `false`, `"" ?? "x"` → `""`;
   `or` still uses truthiness. The right side is evaluated only if the left side is `nil`.
+  The type is the common type of the non-nil left and the right (`I? ?? C` → `I`, `C? ?? D`
+  → `C` when `D` is a subclass); without one, it is the union.
 - `?.` only protects against `nil`: `nil?.x` → `nil`; `a?.b.c` does not protect `b`; use `a?.b?.c`.
   In `a?.m()`, if `a` is nil, the method and the arguments are not evaluated; if `a` is not
   nil but `m` does not exist, it is still an error. `a?.b = c` is invalid.
@@ -260,7 +290,8 @@ for x in xs { print(x) }
   last element, and an empty list is an error (`Can't pop from an empty list.`). `xs.len()` does not exist;
   use `len(xs)`.
 - **`len`**: `len(xs)` is O(1) and returns `Int`; `len(s)` returns the number of code points in the
-  string, and `len(m)` the number of map entries. `len` of another type is a runtime error in the
+  string, `len(b)` the number of bytes in a `Bytes`, and `len(m)` the number of map entries.
+  `len` of another type is a runtime error in the
   tree-walk and a type error under `--check`.
 - **Iteration**: `for x in xs` traverses in insertion order; mutating the list during the loop is an
   error (`Can't modify a list while iterating over it.`), not a silent snapshot.
@@ -278,6 +309,45 @@ for x in xs { print(x) }
 - **Limits**: no slice, list `+`, `map`/`filter`, `contains`, `sort` or string indexing in
   v1. A list literal is not a parameter default or a field initializer; in
   `init`, `this.xs = []` works.
+
+## Bytes
+
+`Bytes` is an **immutable, contiguous sequence of bytes 0..255** — binary data, not text.
+`String` stays UTF-8 text with `len` in code points; `Bytes` has `len` in bytes and no
+UTF-8 validation. See [ADR-0125](../adr/0125-bytes-tipo-binario.md).
+
+```lox
+val data = Bytes.fromText("é")   # UTF-8: 2 bytes
+print(len(data))                 # 2
+print(data[0])                   # 195
+print(data)                      # 0xc3a9
+print(data.toHex())              # c3a9
+```
+
+- **Construction**: `Bytes.empty()`, `Bytes.fromList(xs: List[Int])` (elements 0..255; out of
+  range raises `RuntimeError`), `Bytes.fromText(s)` (UTF-8 encode), `Bytes.fromHex(s)` and
+  `Bytes.fromBase64(s)` (both `Result[Bytes, BytesError]`). Hex accepts lowercase and
+  uppercase; base64 is canonical RFC 4648 (standard alphabet, padding required, no
+  whitespace, non-canonical trailing bits rejected).
+- **Access**: `b[i]` is an `Int` 0..255; a negative or past-the-end index is a runtime error.
+  There is no slice syntax; use `b.slice(start, end)` (half-open, same bounds rules as
+  `substr`).
+- **Methods**: `slice`, `concat(other)`, `toList()`, `toText()`, `toHex()`, `toBase64()`.
+  They are called with `b.slice(...)`; a method reference (`val f = b.toHex`) works in the
+  interpreter and is a declared backend gap (PENDING), like `List.push`.
+- **Text conversion**: `toText()` is strict UTF-8 and returns `Result[String, BytesError]`;
+  invalid input is never replaced. `BytesError` is a built-in enum with
+  `InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`, available
+  without an import; match it to get the detail.
+- **`len` and equality**: `len(b)` counts bytes; `b == c` is structural and O(n), with an
+  identity short-circuit; `b == s` is `false`. Bytes in `Any`, `List`, `Bytes?` and `?.`
+  work like any other value.
+- **Not a `Map` key**: keys remain `String`, `Int` and `Bool` ([ADR-0017](../adr/0017-mapas-hash.md));
+  `Map[Bytes, V]` is a checker error. Use `toHex()` as a key when grouping by content.
+- **No literal or slice syntax**: `b"..."` and `b[a..z]` are not part of the language
+  ([ADR-0066](../adr/0066-orcamento-e-gate-sintatico.md)).
+- **Iteration**: `for byte in b` yields each byte as an `Int` 0..255; `b.toList()` copies
+  when a `List[Int]` is needed.
 
 ## Tuples
 
@@ -419,9 +489,19 @@ for i in 5..2 { ... }             // empty
 | `{ … }` | new scope |
 | `if (c) s elif (c) s else s` | executes the branch according to truthiness; `elif` is `else if` |
 | `while (c) s` | repeats while truthy |
-| `for (init; cond; incr) s` | desugared to a block + `while` (see syntax) |
 | `for x in e s` | iterates `e` (Range/String/List/Map/Tuple today); `x` is `val` per iteration |
 | `return expr?;` | unwinds up to the function call |
+| `break;` | exits the innermost `while`/`for-in` |
+| `continue;` | goes to the next iteration of the innermost loop |
+
+`break`/`continue` are allowed only inside a loop; they do not cross a function or lambda
+boundary. In `for-in`, `continue` advances the iterator and keeps the per-iteration `val`
+binding. In `while`, it rechecks the condition. A `finally` from an enclosing `try` runs
+before the jump; if the `finally` itself leaves, it wins. See
+[ADR-0139](../adr/0139-break-continue.md).
+
+C-style `for (init; cond; incr)` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md));
+use `for-in` or `while`.
 
 The `;` is optional at the end of the line (or EOF); two statements on the same line still require
 it. Expression continuation requires the operator at the **end** of the line; an operator at the
@@ -496,6 +576,29 @@ start of the next line begins another statement. A `return` alone on the line re
   an error; a local and a parameter may shadow them. `clock` is no longer a builtin; it can be used
   as an ordinary name.
 - `range(start, end, step)` is a native of arity 3 and requires `Int`; it returns `Range`.
+### Function values and `is`/`as fn`
+
+A function value can be stored in `Any`, a field, a list or a map. `x is fn(D) -> R` and
+`x as fn(D) -> R` check the closure's **real** signature (arity, `min_params`, variadic,
+parameter and return types) against the target, using the checker's subtyping (parameters
+contravariant, return covariant) **and** identical machine representations (ABI-compatible):
+
+```lox
+fn f(x: Any) -> Int { return 1 }
+val a: Any = f
+print(a is fn(Int) -> Int)   # false: `Any` takes two words, `Int` takes one
+```
+
+`fn(I) -> Int` may be used as `fn(C) -> Int` (both pointers). With a statically known source
+the checker decides (`E3013` when incompatible); from `Any`/a union a mismatch is `R1011` in
+both engines. `if (x is fn(...))` narrows to the function type and the call uses the target
+signature. User functions, lambdas, methods, bound methods and interface defaults are
+supported; native values (already `E4001`), generic functions and **class objects** are
+not: a class object is a nominal value, not a function value
+([ADR-0150](../adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md)). Optional function
+types `(fn(...))?` work for present values,
+including `a ?? f` when `a` is the optional left side ([ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)).
+
 ### Conversions and `math`
 
 Casts are explicit with `as`; there is no implicit conversion:
@@ -513,6 +616,15 @@ val d = anyValue as Dog   # runtime check
   maps use the same check as `is`. `Any` é **top type**: `T` é atribuível a `Any`, mas
   `Any` não é atribuível implicitamente a `T` (armazenamento, argumento, retorno ou
   índice); escreva `x as T` ou estreite com `is`/nil.
+- `Any` has no static shape: member access (`a.x`, `a.m()`), field assignment (`a.x = v`),
+  calling (`a()`) and indexing (`a[i]`) require narrowing first (`if (a is C)` or `a as T`);
+  otherwise the checker reports `E3025`. The backend unboxes the `Any` value at the narrowed
+  use, so both engines agree. Narrowing to an interface is supported (`is I`/`as I`,
+  [ADR-0146](../adr/0146-is-as-interface.md)); function and class-object targets are not
+  supported yet (`E3013`/`E3007`). Value operations stay dynamic on `Any`: arithmetic,
+  comparison, equality, `is`/`as`, `print`/`str`/interpolation, `not`/unary, `??` and
+  `and`/`or`; `len` and `for-in` on an un-narrowed `Any` are declared backend gaps (`E4001`).
+  See [ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md).
 - `T as T` is the identity; `as Any` returns the value. A union target (`Int?`, `Int | String`)
   does not exist yet; use narrowing/`is`.
 - A string does not become a number through a cast; use `parse`.
@@ -665,8 +777,15 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   `List[T]`/`Map[K, V]` (including elements; O(n)) and unions. For a class, the identity is the
   **class object** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
   is true, but a local class with the same name is not the global class. `Any` is always
-  true, `Never` always false; function types are rejected under `--check`. A class
-  as a value is not an instance (`Animal is Animal` is `false`). In the expression, a union on the
+  true, `Never` always false; function types are tested by the runtime signature
+  (arity/parameters/return, [ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)). A class
+  as a value is not an instance (`Animal is Animal` is `false`) and is not a function value
+  ([ADR-0150](../adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md)): `val f = Animal` is
+  callable (`f("Rex")`), but `val f: fn(String) -> Animal = Animal` is a check error, and a
+  class object cannot be stored in a `fn(...)` slot, list or map. Identity between class
+  objects is `==` (`m["c"] == Circle`). A class-typed slot can only be rebound from a class
+  object cast to `Any` (`Base = OtherBase as Any`); a plain `Any` is a check error. In the
+  expression, a union on the
   right side requires parentheses (`x is (Int | String)`); see
   [ADR-0067](../adr/0067-desambiguacao-sintatica.md) and
   [ADR-0025](../adr/0025-is-e-narrowing.md).
@@ -677,22 +796,42 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   Calls that may execute user code (function, method, constructor, function value
   or user iterator) invalidate refinements of a mutable `var` captured by a closure;
   pure native calls (`print`, `len`, `str`, `repr`, `chars`, `range`, `List`/`Map`
-  methods) do not. The body of a function/lambda starts without the caller's refinements. **Fields and literal indices** also narrow
-  (`p.name`, `xs[0]`, `m["k"]`); mutating the path (`p.name = ...`), the root (`p = ...`),
-  **any call** or an assignment to a field/index invalidates all field/index refinements
-  (no aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)), and the normal
-  exit of `while (x != nil)` refines the rest of the block through the false branch.
+  methods) do not. The body of a function/lambda starts without the caller's refinements.
+  **Fields and literal indices** also narrow (`p.name`, `xs[0]`, `m["k"]`), and so does
+  `this.name` inside a method. Mutating the root (`p = ...`) drops every refinement of that
+  root. A **write is finer**: it drops a refinement when the written path is the **same
+  slot** (the same final field or index literal, which another root may reach through an
+  alias), when it is a **contiguous sub-path** of the refinement (the write replaces an
+  ancestor, so the value read below changes), or when the root of the refinement is an object
+  of the written path (`val q = p.a` with a write to `p.a.n`) — but **keeps** the type
+  refinement of a parent
+  (`p.name.n = 5` keeps `p.name: C`, because assigning a field cannot change the class of the
+  object that holds it) and any path with a different final field name (`p.outro = ...`, and
+  even `q.outro = ...`). A dynamic index write (`xs[i] = ...`) and **any call** that may run
+  user code still drop every field/index refinement (no aliasing;
+  [ADR-0045](../adr/0045-narrowing-representacao.md),
+  [ADR-0141](../adr/0141-soundness-de-fluxo-do-checker.md)). When a dropped refinement is
+  needed, the diagnostic names the call/write that dropped it, its line and the last known
+  type, and suggests `is`/`as` or binding the value to a local. The normal
+  exit of `while (x != nil)` refines the rest of the block through the false branch **only
+  when no `break` can leave the loop**; with a reachable `break` the exit joins the entry,
+  the body fallthrough and the break states, and the false-branch refinement is not applied.
+  `break`, `continue`, `return` and `raise` are terminators: the statements after them are
+  still checked, but they do not contribute to the enclosing state.
   `if`/`elif`/`else` join the branches that fall through (intersection of keys, union of
   types); a branch that always returns does not contribute. `while`/`for-in` join the entry with the
-  body exit (zero iterations) and `try` unions the body and the handlers that fall through.
+  body exit (and the break states) and `try` unions the body and the handlers that fall through.
+  Each `match` arm is checked from the state before the `match`; the state after it is the
+  join of the arms, never just the last one.
   Assignment updates the refinement to the assigned type. A dynamic index (`xs[i]`) does not narrow;
-  aliasing and full CFG are outside; see [ADR-0018](../adr/0018-narrowing.md),
+  aliasing and full CFG are outside, and a refinement is kept only when it is proved on
+  every path to the use (soundness; [ADR-0141](../adr/0141-soundness-de-fluxo-do-checker.md));
+  see [ADR-0018](../adr/0018-narrowing.md),
   [ADR-0025](../adr/0025-is-e-narrowing.md), [ADR-0032](../adr/0032-narrowing-campos-indices.md)
   and [ADR-0086](../adr/0086-narrowing-captura-e-merge.md).
 - Type errors are **compile** errors and prevent execution; exit code 65.
 - Current limitations: aliasing/complete effects, generic classes/methods,
-  parameter inference without an annotation, union function types/casts in `is`,
-  and union casts in `as`; lambdas exist, but without trailing closure, single parameter without
+  parameter inference without an annotation and union casts in `as`; lambdas exist, but without trailing closure, single parameter without
   parentheses or implicit block return. Annotating `Float` does not convert the value at runtime
   (the tree-walk remains dynamic).
 
@@ -722,6 +861,13 @@ class ContaPoupanca(Conta) {
 - `class Name(Super) { ... }` declares single inheritance; `class Name < Super` is an error.
 - Fields are **declared** in the body with `val`/`var`; there are no dynamic fields:
   `obj.x = 1` on an undeclared field is an error (`Undefined field 'x'.`).
+- A field may be annotated `Any` (or a scalar union, which lowers to `Any`) and holds any
+  value: `Int`, `Float`, `Bool`, `String`, containers, instances, enums or functions. The
+  value is copied into the field; reading gives back the same value, and `is`/`as`/`==`/
+  `??` work as on any `Any`. Fields are stored inline (`{tag, payload}`, two words), so a
+  class with `Any` fields uses more memory ([ADR-0145](../adr/0145-campo-any-slot-largo.md)).
+  Access still requires narrowing: `c.x.m()` is `E3025`; write `(c.x as C).m()` or
+  `if (c.x is C)` ([ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md)).
 - Every declared field must be initialized: by a constant initializer
   (`var age = 0`) or by an assignment in `init`. At the end of `init`, an uninitialized field is a
   runtime error (`Field 'x' must be initialized.`). Under `--check`, every field without an
@@ -841,8 +987,10 @@ print(shape.description())   # shape:12.56636
   transitively through the superclass; `Interface` is not assignable to `Class`. `I?`,
   `List[I]`, an interface field/parameter/return are valid; the concrete instance remains
   the value at runtime.
-- `is`/`as` with an interface do **not** exist yet: the checker rejects them with a targeted
-  diagnostic (`Interface types aren't supported in 'is' yet.`).
+- `is I`/`as I` are supported ([ADR-0146](../adr/0146-is-as-interface.md)): the runtime
+  checks the descriptor's interface table (own and inherited); `as` from a concrete class
+  that does not implement `I` is a checker error, while `Any`/union/other-interface sources
+  are checked at runtime (`Can't cast value to I.`).
 - Interfaces have no state, generics or inheritance in v1. In the LLVM backend the feature is
   compiled via ABI B2 from
   [ADR-0080](../adr/0080-interfaces-nominais-implementacao.md): deterministic
@@ -869,20 +1017,27 @@ val area = match s {
   `Result.Ok(T)`/`Result.Err(E)`, and cannot be redefined. `Option` remains `T?`.
 - Type: `Shape`, `Result[Int, String]`; arguments are invariant. `is`/`as` accept an enum
   without arguments (`x is Color`); with arguments they are rejected (the runtime erases `T`).
-- `match` is an **expression**: `match e { Pattern => expr ... }`. v1 patterns:
-  `Name.Variant`, `Name.Variant(a, b)` (positional bindings) and `_`. Arms are separated
-  by a line, `;` or `,`; using `match` as a statement discards the result.
-- Exhaustiveness is **mandatory**: all variants covered or `_`; a missing one is an error
-  (`Non-exhaustive match; missing Shape.Rect.`); a duplicate variant/arm after `_` is
-  `Unreachable match arm.` The scrutinee must be an enum (not `Any`/union).
-- Pattern bindings have the payload type (`Result.Ok(v)` → `v: T`); the type of `match`
-  is the union of the arms. Without `--check`, a `match` with no matching arm is a runtime error
-  (`No match arm matched.`).
-- Equality is structural (enum, variant and payload); `print(Color.Green)` →
-  `Color.Green`, `print(Shape.Circle(1.0))` → `Shape.Circle(1.0)`. Enums are not iterable,
-  have no `len` and are not `Map` keys.
-- Outside v1: literal/`nil` patterns, guards, nesting, `|`, `match` on unions and
-  null variants of a generic enum. The backend rejects `enum`/`match` until L6.
+- `match` is an **expression**: `match e { Pattern => expr ... }`. Patterns:
+  - enum: `Name.Variant` and `Name.Variant(a, b)` (positional bindings);
+  - literal: `Int` (including `-1`), `String`, `Bool` and `nil`;
+  - `_` wildcard.
+  Arms are separated by a line, `;` or `,`; using `match` as a statement discards the result.
+- Enum matches are exhaustive: all variants covered or `_`; a missing one is an error
+  (`Non-exhaustive match; missing Shape.Rect.`). Literal matches are open, so they require
+  `_`: without it the error is `Non-exhaustive match; add a '_' arm.` A duplicate
+  variant/literal or an arm after `_` is `Unreachable match arm.`
+- The scrutinee must be an enum, `Int`, `String`, `Bool` or `Nil`; `Any`, unions and
+  optionals are rejected (“narrow it first”). A match is either all enum variants or all
+  literals; mixing them is a type error. `Float` patterns do not exist.
+- Pattern bindings have the payload type (`Result.Ok(v)` → `v: T`); literal patterns bind
+  nothing. The type of `match` is the union of the arms. Without `--check`, a `match` with no
+  matching arm is a runtime error (`No match arm matched.`).
+- Equality is structural for enums and strict for literals: `1` only matches `Int`, `true`
+  only matches `Bool`, `nil` only matches `nil`; there is no `Int`/`Float` promotion in a
+  pattern. `print(Color.Green)` → `Color.Green`, `print(Shape.Circle(1.0))` →
+  `Shape.Circle(1.0)`. Enums are not iterable, have no `len` and are not `Map` keys.
+- Outside this slice: guards, nesting, `|`, structural match (lists/maps/tuples), `match`
+  on unions/`Any`/optionals and `Float` patterns.
 
 ## Exceptions
 
@@ -932,6 +1087,10 @@ try {
   (`human`) or only the header (`short`); catalog and JSON envelope in
   [`erros.md`](erros.md) ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
 - Runtime format: `file:line:col: error[CODE]: message` (no caret, same as the binary).
+- The **entry boundary** (`Err` returned by `main`) has no source position:
+  `error[R1016]: <msg>` on stderr, exit 70 ([ADR-0148](../adr/0148-ponto-de-entrada-main-result.md)).
+  It is a process result, not a throwable: `try` cannot catch it, and an exception escaping
+  `main` still prints `R1010` with position and trace.
 - Messages are in English (compatibility with the book and tests).
 - Compile errors are **accumulated** (the parser tries to recover; the resolver reports
   all of them), ordered by `(file, offset, code)`, without duplicates and limited by
@@ -998,7 +1157,7 @@ Everything else follows the book's jlox, including the messages.
 
 ### stdlib T2
 
-The eleven T2 modules are pure Lox over the kernel and add no syntax
+The T2 modules are pure Lox over the kernel and add no syntax
 ([ADR-0079](../adr/0079-stdlib-t2.md)). The deterministic ones enter the `t2` corpus; the
 **ambient** ones ([ADR-0072](../adr/0072-stdlib-batteries.md) §5) are outside I1 and have tests
 with fixed input.
@@ -1012,13 +1171,21 @@ with fixed input.
   fill = " ")` (on the left), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`
   and `bytes(n)` (B/KiB/MiB/GiB/TiB). No locale; extra/missing arguments and `fixed` outside
   0..15 raise `RuntimeError`.
+- `std.bytes`: `Builder` (incremental byte a byte over `List[Int]`; `push`, `pushByte`,
+  `len`, `build`), `ChunkBuilder` (whole `Bytes` chunks with balanced concatenation; better
+  for large blocks), `compare` (lexicographic, returns -1/0/1), encoders `u16be`/`u16le`/
+  `u32be`/`u32le`/`u64be`/`u64le` and decoders `readU16be`/`readU16le`/`readU32be`/
+  `readU32le`/`readU64be`/`readU64le` (the 64-bit helpers use the two's-complement bit
+  pattern; decoders return `Int?`, nil when the bytes do not fit). Pure and deterministic;
+  in the `t2` corpus.
 - `std.paths` (POSIX, lexical, does not touch the disk): `join` (an absolute second argument wins,
   without normalizing), `dirname`, `basename`, `ext`/`stem` (a leading dot does not count as an
   extension), `normalize` (collapses slashes, resolves `.`/`..`), `isAbsolute` and `split`.
 - `std.fs` **ambient**: `readText -> String?`, `readLines -> List[String]?` (drops the
   final newline), `writeText -> Bool`, `appendText -> Bool` (reads and rewrites; creates the
   file if absent), `exists -> Bool` and `listDir -> List[String]?` (sorted, without
-  `.`/`..`, `nil` if it is not a readable directory).
+  `.`/`..`, `nil` if it is not a readable directory). `File.readBytes(n)` reads up to `n`
+  raw bytes (`Ok(nil)` at EOF), without UTF-8 validation.
 - `std.io`: `write`/`writeErr` (deterministic), `readLine -> String?`, `readAll ->
   String` and `prompt(message) -> String?` (writes and reads a line); reading is ambient.
   Input that is not valid UTF-8 is a `RuntimeError` (without a traceback), not corrupted text.
@@ -1053,8 +1220,9 @@ with fixed input.
   `float` in `[0, 1)`, `bool` and `shuffle(items, r)`; deterministic by seed.
 - `std.log` **ambient**: `Level` enum (`Debug`/`Info`/`Warn`/`Error`) and `Logger`, which
   writes `[LEVEL] message` to stderr; no timestamp.
-- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; the 64-bit one returns the bit
-  pattern in i64 (it may be negative). It is not cryptographic.
+- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; `sha256(text) ->
+  String` (hex) and `sha256Bytes(Bytes) -> Bytes` (raw 32 bytes) are the cryptographic
+  digests. The 64-bit fnv returns the bit pattern in i64 (it may be negative).
 - `std.collections`: generic `Stack`, `Queue`, `Deque` and `PriorityQueue` (heap with an
   explicit comparator `fn(T, T) -> Bool`).
 - `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (strict,
@@ -1068,18 +1236,45 @@ with fixed input.
   because a module does not accept top-level `var`) with `describe`, `it` (runs immediately),
   `beforeEach`/`afterEach` (scoped to `describe`; outer→inner `before`,
   inner→outer `after`, even on failure), `skip`, `report` (TAP + 0/1) and `done`
-  (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`), `expectGt/Ge/Lt/Le`
+  (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`, accepting any value including a
+  dynamically typed `Any`), `expectGt/Ge/Lt/Le`
   (`T: Ord`), `expectNil`/`expectNotNil`, `expectList`/`toContain`,
   `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip` and `Recorder`. No
   reflection/registry; `--filter=`/`--only=` and `--list` (only prints `# test <name>`) come
   from `args()`. The test body is `fn() -> Nil`; an unhandled exception becomes `not ok`.
 - `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`"true"`/`"false"`),
-  `base64Encode/Decode` and `hexEncode/Decode`. No `Bytes` type: they operate on the UTF-8
-  bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)
-  returns `nil`. Hex is lowercase.
+  `base64Encode/Decode` and `hexEncode/Decode`. They are text-based and operate on the
+  UTF-8 bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)
+  returns `nil`. Hex is lowercase. For raw binary use `Bytes`/`std.bytes`.
 
 Instance fields may have a container type (`List`, `Map`, tuple, `Range`, enum) since
 ADR-0079; `Any` as a field is not yet supported by the backend.
+
+Bundled native modules ([ADR-0126](../adr/0126-modulo-nativo-embutido-sqlite.md),
+[ADR-0131](../adr/0131-regex-motor-rust-dois-modos.md)) live in `bundled/` and are imported by
+the short name (`import regex`). The name is reserved: it wins over a project file with the
+same name. Today: `regex`.
+
+- `regex.compile(pattern, caseless = false, multiline = false, dotall = false, extended =
+  false) -> Result[Regex, RegexError]` uses the linear engine (guaranteed linear time);
+  `regex.compileFull(...)` enables backreferences and lookaround with a fixed backtracking
+  limit; `tryCompile`/`tryCompileFull` return `nil` instead of the error. `Regex.isMatch`,
+  `find(text)`, `findFrom(text, start)`, `findAll(text)`, `replace`, `replaceAll`, `split`
+  and `close` (idempotent; there is no finalizer). `Match` carries group 0 (`text`, `start`,
+  `end`) and `groups: List[String?]` for groups 1..n. Replacement expands `$0`..`$9`,
+  `$name` and `${name}` (escape as `\${name}`: `${...}` is string interpolation) and
+  `$$`; an unmatched group expands to the empty string. Match offsets count code points;
+  `RegexError.offset` is a **byte** offset for the syntax error (`-1` when the failure is
+  not a syntax error); when both engines reject the pattern they report the same byte, taken
+  from the linear parser so a delegated fragment's relative span never leaks.
+  `RegexError.kind` is one of `syntax`, `arguments`, `mode`, `size` or `engine`. A pattern
+  that exceeds the per-program compiled-memory limit is `size`, and an analysis/
+  unsupported-pattern error (left recursion, non-constant lookbehind) is `engine`; the Rust
+  engine's allocations are outside the binary's Boehm heap cap (ADR-0131 §2.1). Exceeding the
+  backtracking limit raises `RuntimeError`.
+  The module requires the Rust
+  toolchain: without `cargo`, `run`/`build` refuse with `E3022` before executing, while
+  `check` stays engine-agnostic.
 
 
 - A module is a `.lx` file; a folder is a path namespace, not a module.

@@ -2,12 +2,13 @@
 from collections.abc import Callable
 
 from loxia_core.diagnostics.codes import Code
-from loxia_core.diagnostics.diagnostic import Position
+from loxia_core.diagnostics.diagnostic import Position, Span
 from loxia_core.diagnostics.error_reporter import ErrorReporter
-from loxia_core.execution.numeric import INT_MAX
 from loxia_core.frontend.keywords import KEYWORDS
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.trivia import Trivia, TriviaKind
+from loxia_core.numeric_bounds import INT_MAX
 
 
 class Scanner:
@@ -33,8 +34,13 @@ class Scanner:
         # Linhas interiores de comentários de bloco (protegidas pelo formatter).
         self.block_comment_lines: set[int] = set()
         self.block_comment_starts: set[int] = set()
+        # Comentários/espaços que não viram token; o parser continua vendo só tokens.
+        self.trivia: list[Trivia] = []
+        # Dentro de `${...}` os espaços já fazem parte do lexeme da string.
+        self._suppress_trivia = False
 
     def scan_tokens(self) -> list[Token]:
+        self.trivia = []
 
         while not self._is_at_end():
             self._begin_token()
@@ -109,6 +115,7 @@ class Scanner:
                 self._last_doc_line = 0
                 while self._peek() != "\n" and not self._is_at_end():
                     self._advance()
+                self._record_trivia(TriviaKind.LINE_COMMENT)
             case ".":
                 if self._match("."):
                     if self._match("="):
@@ -136,6 +143,7 @@ class Scanner:
                         "Unexpected character: ! (use 'not' for negation).",
                         Code.UNEXPECTED_CHARACTER,
                     )
+                    self._record_trivia(TriviaKind.OTHER)
                     return
                 self._add_token(TokenType.NOT_EQUAL)
             case "=":
@@ -171,9 +179,9 @@ class Scanner:
                     self._add_token(TokenType.SLASH)
             case " " | "\r" | "\t":
                 # Ignora espaços em branco (a posição é atualizada em `_advance`).
-                pass
+                self._record_trivia(TriviaKind.WHITESPACE)
             case "\n":
-                pass
+                self._record_trivia(TriviaKind.NEWLINE)
             case '"':
                 self._string()
             case "r" if self._peek() == '"':
@@ -189,6 +197,7 @@ class Scanner:
                         f"Unexpected character: {c}",
                         Code.UNEXPECTED_CHARACTER,
                     )
+                    self._record_trivia(TriviaKind.OTHER)
 
     def _block_comment(self) -> None:
         start_line = self._start_line
@@ -217,6 +226,7 @@ class Scanner:
 
         self.block_comment_starts.add(start_line)
         self.block_comment_lines.update(range(start_line + 1, self._line + 1))
+        self._record_trivia(TriviaKind.BLOCK_COMMENT)
 
     def _is_at_end(self) -> bool:
         return self._current >= len(self._source)
@@ -266,6 +276,25 @@ class Scanner:
             text = text[1:]
         self._doc_lines.append(text.rstrip())
         self._last_doc_line = self._start_line
+        self._record_trivia(TriviaKind.DOC_COMMENT)
+
+    def _record_trivia(self, kind: TriviaKind) -> None:
+        if self._suppress_trivia:
+            return
+        text = self._source[self._start : self._current]
+        if not text:
+            return
+        self.trivia.append(
+            Trivia(
+                kind,
+                text,
+                Span(
+                    self._file,
+                    Position(self._start_line, self._start_column, self._start_offset),
+                    Position(self._line, self._column, self._byte_offset),
+                ),
+            )
+        )
 
     def _take_doc(self) -> str | None:
         if not self._doc_lines or self._start_line != self._last_doc_line + 1:
@@ -334,6 +363,7 @@ class Scanner:
                     # Descarta o resto da linha para não gerar erros em cascata.
                     while not self._is_at_end() and self._peek() != "\n":
                         self._advance()
+                    self._record_trivia(TriviaKind.OTHER)
                     return
                 value.append(self._advance())
                 continue
@@ -347,6 +377,11 @@ class Scanner:
 
                 expression = self._scan_expression_tokens(interpolation_start)
                 if expression is None:
+                    self._start = string_start
+                    self._start_line = string_position.line
+                    self._start_column = string_position.column or 1
+                    self._start_offset = string_position.offset or 0
+                    self._record_trivia(TriviaKind.OTHER)
                     return
 
                 parts.append(expression)
@@ -395,6 +430,7 @@ class Scanner:
                 "Unterminated string.",
                 Code.UNTERMINATED_STRING,
             )
+            self._record_trivia(TriviaKind.OTHER)
             return
 
         self._start = string_start
@@ -414,8 +450,10 @@ class Scanner:
         contadas para não confundir o fechamento da interpolação.
         """
         saved = self._tokens
+        saved_suppress = self._suppress_trivia
         tokens: list[Token] = []
         self._tokens = tokens
+        self._suppress_trivia = True
         depth = 0
         closed = False
 
@@ -437,6 +475,7 @@ class Scanner:
                         depth -= 1
         finally:
             self._tokens = saved
+            self._suppress_trivia = saved_suppress
 
         if not closed:
             self._error(start, "Unterminated interpolation.", Code.UNTERMINATED_INTERPOLATION)
@@ -523,6 +562,7 @@ class Scanner:
                 "Invalid number literal.",
                 Code.INVALID_NUMBER,
             )
+            self._record_trivia(TriviaKind.OTHER)
             return
 
         text = raw.replace("_", "")
@@ -537,6 +577,7 @@ class Scanner:
                 "Too large integer literal.",
                 Code.INVALID_NUMBER,
             )
+            self._record_trivia(TriviaKind.OTHER)
             return
 
         self._add_token(TokenType.NUMBER, value)
@@ -561,6 +602,7 @@ class Scanner:
                 "Invalid number literal.",
                 Code.INVALID_NUMBER,
             )
+            self._record_trivia(TriviaKind.OTHER)
             return
 
         value = int(raw.replace("_", ""), base)
@@ -570,6 +612,7 @@ class Scanner:
                 "Too large integer literal.",
                 Code.INVALID_NUMBER,
             )
+            self._record_trivia(TriviaKind.OTHER)
             return
 
         self._add_token(TokenType.NUMBER, value)

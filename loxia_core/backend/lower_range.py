@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from loxia_core.backend import llvm_ir
-from loxia_core.backend.lower_base import LoweringBase
+from loxia_core.backend.lower_base import LoopContext, LoweringBase
 from loxia_core.backend.lower_model import (
     _BOOL,
     _I8_PTR,
@@ -71,7 +71,7 @@ class RangeLowering(LoweringBase):
         return TypeDesc(ValueType.INT)
 
     def _for_in(self, stmt: ForIn) -> None:
-        iterable = self._expr(stmt.iterable)
+        iterable = self._narrowed(stmt.iterable, self._expr(stmt.iterable), stmt.name.line)
         if iterable.ty is ValueType.RANGE:
             self._for_range(stmt, iterable)
             return
@@ -86,6 +86,9 @@ class RangeLowering(LoweringBase):
             return
         if iterable.ty is ValueType.TUPLE:
             self._for_tuple(stmt, iterable)
+            return
+        if iterable.ty is ValueType.BYTES:
+            self._for_bytes(stmt, iterable)
             return
         if iterable.ty is ValueType.INSTANCE:
             self._for_instance(stmt, iterable)
@@ -387,6 +390,39 @@ class RangeLowering(LoweringBase):
         above = self.builder.select(flag, above_in, above)
         return self.builder.select(negative, above, below)
 
+    def _for_bytes(self, stmt: ForIn, iterable: Value) -> None:
+        index = self.builder.alloca(_INT, name="for.bytes")
+        self.builder.store(llvm_ir.constant(_INT, 0), index)
+        length = self.builder.call(
+            self._function("lox_bytes_len", _INT, [_I8_PTR]), [iterable.llvm]
+        )
+
+        def condition() -> Any:
+            return self.builder.icmp_signed("<", self.builder.load(index), length)
+
+        def load() -> Any:
+            return self.builder.call(
+                self._function(
+                    "lox_bytes_at",
+                    _INT,
+                    [_I8_PTR, _INT, _I32, _I32],
+                ),
+                [
+                    iterable.llvm,
+                    self.builder.load(index),
+                    llvm_ir.constant(_I32, stmt.name.line),
+                    llvm_ir.constant(_I32, stmt.name.column),
+                ],
+            )
+
+        def advance() -> None:
+            self.builder.store(
+                self.builder.add(self.builder.load(index), llvm_ir.constant(_INT, 1)),
+                index,
+            )
+
+        self._for_loop(stmt, TypeDesc(ValueType.INT), condition, load, advance)
+
     def _for_string(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.str")
         self.builder.store(llvm_ir.constant(_INT, 0), index)
@@ -419,6 +455,7 @@ class RangeLowering(LoweringBase):
     ) -> None:
         header = llvm_ir.append_block(self._function_ir, "for.cond")
         body = llvm_ir.append_block(self._function_ir, "for.body")
+        advance_block = llvm_ir.append_block(self._function_ir, "for.advance")
         end = llvm_ir.append_block(self._function_ir, "for.end")
         self.builder.branch(header)
 
@@ -428,13 +465,20 @@ class RangeLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(body)
         desc = value_type if isinstance(value_type, TypeDesc) else TypeDesc(value_type)
-        self._for_bind(stmt, desc, load)
+        self._loop_stack.append(LoopContext(end, advance_block, len(self._cleanup_stack)))
+        try:
+            self._for_bind(stmt, desc, load)
+        finally:
+            self._loop_stack.pop()
         if not self.builder.block.is_terminated:
-            keep = advance()
-            if keep is None:
-                self.builder.branch(header)
-            else:
-                self.builder.cbranch(keep, header, end)
+            self.builder.branch(advance_block)
+
+        self.builder = llvm_ir.builder(advance_block)
+        keep = advance()
+        if keep is None:
+            self.builder.branch(header)
+        else:
+            self.builder.cbranch(keep, header, end)
 
         self.builder = llvm_ir.builder(end)
 

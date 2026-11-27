@@ -3,6 +3,7 @@
 # `ERR linha:coluna: mensagem` com exit 65 (ver tests/test_toml_parity.py).
 
 import std.fs as fs
+
 import toml
 
 fn main() -> Nil {

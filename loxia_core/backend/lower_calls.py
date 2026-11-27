@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
@@ -71,7 +71,11 @@ class CallLowering(LoweringBase):
         )
 
     def _call(self, expr: Call) -> Value:
-        if isinstance(expr.callee, Get) and isinstance(expr.callee.object, Variable):
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
+            and self.depths.get(expr.callee.object) is None
+        ):
             primitive = PRIMITIVE_BY_LOX.get(
                 f"{expr.callee.object.name.lexeme}.{expr.callee.name.lexeme}"
             )
@@ -83,18 +87,30 @@ class CallLowering(LoweringBase):
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float"}
             and expr.callee.name.lexeme == "parse"
+            and self.depths.get(expr.callee.object) is None
         ):
             return self._parse_call(expr, self._expr_type_desc(expr, expr.paren.line))
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme == "math"
+            and self.depths.get(expr.callee.object) is None
         ):
             return self._math_call(expr)
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
+            and expr.callee.object.name.lexeme == "Bytes"
+            and self.depths.get(expr.callee.object) is None
+        ):
+            result = self._bytes_static(expr)
+            if result is not None:
+                return cast("Value", result)
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float", "math"}
+            and self.depths.get(expr.callee.object) is None
         ):
             raise _unsupported("Native modules in the backend", expr.paren.line)
 
@@ -109,6 +125,7 @@ class CallLowering(LoweringBase):
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in self._enum_layouts
+            and self.depths.get(expr.callee.object) is None
         ):
             return self._enum_construct(expr)
 
@@ -116,17 +133,27 @@ class CallLowering(LoweringBase):
         if isinstance(expr.callee, Get) and not expr.callee.optional:
             # Avalia o receptor uma vez só: cadeias como `a.m().m()` não podem
             # executar `a.m()` de novo no despacho de lista/mapa.
-            precomputed = self._expr(expr.callee.object)
+            precomputed = self._narrowed(
+                expr.callee.object,
+                self._expr(expr.callee.object),
+                expr.callee.name.line,
+            )
             if precomputed.ty is ValueType.LIST:
                 return self._call_list_method(expr, precomputed)
             if precomputed.ty is ValueType.MAP:
                 return self._call_map_method(expr, precomputed)
+            if precomputed.ty is ValueType.BYTES:
+                return cast("Value", self._call_bytes_method(expr, precomputed))
         elif isinstance(expr.callee, Get):
             receiver = self._expr(expr.callee.object)
             if receiver.ty is ValueType.LIST:
                 return self._call_list_method(expr, receiver)
             if receiver.ty is ValueType.MAP:
                 return self._call_map_method(expr, receiver)
+            if receiver.ty is ValueType.BYTES:
+                if receiver.optional:
+                    return cast("Value", self._call_optional_bytes_method(expr, receiver))
+                return cast("Value", self._call_bytes_method(expr, receiver))
 
         if isinstance(expr.callee, Variable):
             name = expr.callee.name.lexeme
@@ -165,16 +192,17 @@ class CallLowering(LoweringBase):
             assert binding is not None
             assert isinstance(expr.callee, Variable)
             callee = self._load_binding(binding)
-            callee = self._guard_closure(
-                callee,
-                expr.callee.name.lexeme,
-                expr.callee.name.line,
-                expr.callee.name.column,
-            )
+            if not callee.optional:
+                callee = self._guard_closure(
+                    callee,
+                    expr.callee.name.lexeme,
+                    expr.callee.name.line,
+                    expr.callee.name.column,
+                )
         elif isinstance(expr.callee, Get) and precomputed is not None:
             callee = self._get_instance(precomputed, expr.callee)
         else:
-            callee = self._expr(expr.callee)
+            callee = self._narrowed(expr.callee, self._expr(expr.callee), expr.paren.line)
 
         if callee.generic is not None:
             callee = self._call_generic_lambda(callee, expr)
@@ -193,6 +221,11 @@ class CallLowering(LoweringBase):
 
         if callee.optional:
             return self._call_optional(callee, expr)
+
+        if callee.function is None:
+            # Slot de função sem inicializador é a sentinela do runtime: chamar
+            # antes de atribuir é R1001, como `nil(...)` no tree-walk.
+            callee = self._guard_uninitialized_function(callee, expr.paren)
 
         arguments = [self._expr(argument) for argument in expr.arguments]
         effective = info if info is not None else callee.function
@@ -287,6 +320,10 @@ class CallLowering(LoweringBase):
                     default = info.params[index].default
                     assert default is not None
                     values.append(self._expr(default))
+            elif count < len(sig.params):
+                # Sem `FunctionInfo` não há como rebaixar a expressão do default:
+                # recusa declarada (nunca `zip` desencontrado/lowering silencioso).
+                raise _unsupported("Default parameters in indirect function calls", token.line)
             return [
                 self._coerce(value, sig.params[index], token.line)
                 for index, value in enumerate(values)
@@ -306,6 +343,8 @@ class CallLowering(LoweringBase):
                 default = info.params[index].default
                 assert default is not None
                 fixed_values.append(self._expr(default))
+        if len(fixed_values) < fixed and info is None:
+            raise _unsupported("Default parameters in indirect function calls", token.line)
         if len(fixed_values) != fixed:
             self._poison(
                 token,
@@ -333,6 +372,27 @@ class CallLowering(LoweringBase):
                 ],
             )
         return [*fixed_values, Value(ValueType.LIST, raw)]
+
+    def _guard_uninitialized_function(self, callee: Value, token: Token) -> Value:
+        """Rejeita a sentinela de função não inicializada no site da chamada."""
+        is_nil = self.builder.call(
+            self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+            [callee.llvm],
+        )
+        uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
+        bad = llvm_ir.append_block(self._function_ir, "fn.uninitialized")
+        ok = llvm_ir.append_block(self._function_ir, "fn.initialized")
+        self.builder.cbranch(uninitialized, bad, ok)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(
+            token,
+            "Can only call functions and classes.",
+            code=Code.RUNTIME_NOT_CALLABLE,
+        )
+
+        self.builder = llvm_ir.builder(ok)
+        return callee
 
     def _call_optional(self, callee: Value, expr: Call) -> Value:
         sig = callee.sig

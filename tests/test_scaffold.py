@@ -64,6 +64,57 @@ def test_new_cria_template_minimo_e_roda(tmp_path: Path) -> None:
     assert lock.returncode == 0, lock.stderr
 
 
+def test_new_lib_cria_modulo_na_raiz_e_check_limpo(tmp_path: Path) -> None:
+    created = _cli("new", "minha-lib", "--lib", "--no-git", cwd=tmp_path)
+    project = tmp_path / "minha-lib"
+
+    assert created.returncode == 0, created.stderr
+    assert created.stdout == "Created project 'minha_lib' at 'minha-lib'.\n"
+    assert (project / "minha_lib.lx").is_file()
+    assert not (project / "src").exists()
+    assert (project / "minha_lib.lx").read_text(encoding="utf-8") == (
+        "/// Adds two integers.\nfn add(a: Int, b: Int) -> Int {\n  return a + b\n}\n"
+    )
+    check = _cli("check", "--frozen", str(project / "minha_lib.lx"), cwd=tmp_path)
+    assert check.returncode == 0, check.stderr
+
+
+def test_init_lib_em_diretorio_existente(tmp_path: Path) -> None:
+    project = tmp_path / "minha_lib"
+    project.mkdir()
+
+    created = _cli("init", "--lib", "--no-git", cwd=project)
+
+    assert created.returncode == 0, created.stderr
+    assert (project / "minha_lib.lx").is_file()
+    assert _manifest(project)["package"] == {"name": "minha_lib", "version": "0.1.0"}
+
+
+def test_init_nao_sobrescreve_lock_existente(tmp_path: Path) -> None:
+    project = tmp_path / "app"
+    project.mkdir()
+    lock = project / "loxia.lock"
+    lock.write_text("# keep\n", encoding="utf-8")
+
+    result = _cli("init", "--no-git", cwd=project)
+
+    assert result.returncode == 65
+    assert "Directory already contains 'loxia.lock'." in result.stderr
+    assert lock.read_text(encoding="utf-8") == "# keep\n"
+
+
+def test_init_lib_nao_sobrescreve_modulo_existente(tmp_path: Path) -> None:
+    project = tmp_path / "app"
+    project.mkdir()
+    (project / "app.lx").write_text("print(1)\n", encoding="utf-8")
+
+    result = _cli("init", "--lib", "--no-git", cwd=project)
+
+    assert result.returncode == 65
+    assert "Directory already contains 'app.lx'." in result.stderr
+    assert (project / "app.lx").read_text(encoding="utf-8") == "print(1)\n"
+
+
 def test_new_nao_sobrescreve_diretorio_existente(tmp_path: Path) -> None:
     (tmp_path / "app").mkdir()
 

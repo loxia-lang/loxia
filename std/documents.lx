@@ -22,7 +22,7 @@ class Document {
   val text: String
 
   /// Creates a document snapshot.
-  init(uri: String, languageId: String, version: Int, text: String) {
+  fn init(uri: String, languageId: String, version: Int, text: String) {
     this.uri = uri
     this.languageId = languageId
     this.version = version
@@ -43,7 +43,7 @@ class DocumentError {
   val message: String
 
   /// Creates an error with an explicit kind and message.
-  init(kind: String, message: String) {
+  fn init(kind: String, message: String) {
     this.kind = kind
     this.message = message
   }
@@ -59,12 +59,17 @@ class DocumentStore {
   var docs: Map[String, Document]
 
   /// Creates an empty store.
-  init() {
+  fn init() {
     this.docs = {}
   }
 
   /// Registers a document; fails when the URI is already open or the version is negative.
-  fn open(uri: String, languageId: String, version: Int, text: String) -> Result[Bool, DocumentError] {
+  fn open(
+    uri: String,
+    languageId: String,
+    version: Int,
+    text: String,
+  ) -> Result[Bool, DocumentError] {
     if (this.docs.has(uri)) {
       return _fail("already_open", "Document is already open: ${uri}")
     }

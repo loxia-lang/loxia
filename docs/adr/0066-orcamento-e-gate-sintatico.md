@@ -32,20 +32,21 @@ A análise sintática de 2026-11-13 mediu o estado da linguagem:
 
 | Métrica | Valor |
 | --- | --- |
-| palavras-chave | 27 |
+| palavras-chave | 29 |
 | níveis de precedência | 19 (18 de operadores + primário) |
-| formas de statement | 10 |
+| formas de statement | 12 |
 | formas de declaração | 6 |
 | construções sensíveis a newline | ~6 |
 | grafias canônicas por conceito | 1 (regra, com exceções documentadas) |
 
 **O que conta como palavra-chave:** todo lexema de `KEYWORDS` **menos** os literais
-(`true`, `false`, `nil`) e as reservas sem sintaxe (`async`, `await`). Hoje são 32
-lexemas − 5 = **27**; a conta é verificada por
+(`true`, `false`, `nil`) e as reservas sem sintaxe (`async`, `await`). Hoje são 34
+lexemas − 5 = **29**; a conta é verificada por
 `tests/test_docs_consistency.py::test_scoreboard_de_keywords_bate_com_keywords`. `not`
-entrou em 2026-11-13 ([ADR-0068](0068-not-substitui-bang.md)) e `interface` em 2026-11-15
-([ADR-0080](0080-interfaces-nominais-implementacao.md)); `print` saiu em 2026-11-15
-([ADR-0085](0085-print-como-funcao.md)). Sem essa regra explícita o teto não era
+entrou em 2026-11-13 ([ADR-0068](0068-not-substitui-bang.md)), `interface` em 2026-11-15
+([ADR-0080](0080-interfaces-nominais-implementacao.md)) e `break`/`continue` em 2026-11-23
+([ADR-0139](0139-break-continue.md), que revisou o teto de 27 para 29); `print` saiu em
+2026-11-15 ([ADR-0085](0085-print-como-funcao.md)). Sem essa regra explícita o teto não era
 verificável.
 
 O número de features não é o problema: o custo está em **grafias duplicadas** e em
@@ -97,7 +98,7 @@ orçamento.
 
 | Métrica | Teto | Revisão |
 | --- | --- | --- |
-| palavras-chave | 27 | ADR |
+| palavras-chave | 29 | ADR |
 | níveis de precedência | 19 | ADR |
 | formas de statement | 12 | ADR |
 | formas de declaração | 6 | ADR |

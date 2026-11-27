@@ -59,6 +59,9 @@ class StringLowering(LoweringBase):
         match value.ty:
             case ValueType.STRING:
                 return value
+            case ValueType.BYTES:
+                function = self._function("lox_bytes_str", _I8_PTR, [_I8_PTR])
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.INT:
                 function = self._function("lox_str_from_int", _I8_PTR, [_INT])
                 return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
@@ -76,8 +79,8 @@ class StringLowering(LoweringBase):
                 exception = self._exception_text(value)
                 if exception is not None:
                     return cast(Value, exception)
-                display = self._class_display(value.class_name or "?")
-                return self._string_literal(f"{display} instance")
+                function = self._function("lox_str_from_instance", _I8_PTR, [_I8_PTR])
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.CLASS:
                 display = self._class_display(value.class_name or "?")
                 return self._string_literal(display)
@@ -218,7 +221,10 @@ class StringLowering(LoweringBase):
         return self._to_string(arguments[0])
 
     def _len(self, expr: Call) -> Value:
-        arguments = [self._expr(argument) for argument in expr.arguments]
+        arguments = [
+            self._narrowed(argument, self._expr(argument), expr.paren.line)
+            for argument in expr.arguments
+        ]
         if len(arguments) != 1:
             self._poison(
                 expr.paren,
@@ -234,6 +240,9 @@ class StringLowering(LoweringBase):
             return self._map_len(argument)
         if argument.ty is ValueType.TUPLE:
             return self._tuple_len(argument)
+        if argument.ty is ValueType.BYTES:
+            function = self._function("lox_bytes_len", _INT, [_I8_PTR])
+            return Value(ValueType.INT, self.builder.call(function, [argument.llvm]))
         if argument.ty is ValueType.ENUM:
             raise _unsupported("len of Enum", expr.paren.line)
         if argument.ty is not ValueType.STRING:

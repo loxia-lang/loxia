@@ -149,10 +149,7 @@ fn stem(path: String) -> String {
 /// access and no symlink resolution: the result depends only on the input text.
 fn normalize(path: String) -> String {
   val result = _normalize(path)
-  contracts.ensure(
-    isAbsolute(result) == isAbsolute(path),
-    "normalize: absoluteness changed"
-  )
+  contracts.ensure(isAbsolute(result) == isAbsolute(path), "normalize: absoluteness changed")
   return result
 }
 
@@ -186,4 +183,3 @@ fn _normalize(path: String) -> String {
   }
   return _joinParts(stack)
 }
-

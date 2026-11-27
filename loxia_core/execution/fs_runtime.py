@@ -25,8 +25,8 @@ import os
 from dataclasses import dataclass, field
 
 from loxia_core.diagnostics.errors import NativeError
+from loxia_core.execution.limits import MAX_FS_HANDLES
 
-MAX_HANDLES = 256
 KINDS = {
     errno.ENOENT: "notFound",
     errno.EACCES: "permission",
@@ -56,10 +56,10 @@ class FileTable:
     """Handles de arquivo da execução; ids são índices 1-based."""
 
     def __init__(self) -> None:
-        self._handles: list[_Handle | None] = [None] * MAX_HANDLES
+        self._handles: list[_Handle | None] = [None] * MAX_FS_HANDLES
 
     def _slot(self, identifier: int) -> _Handle:
-        if identifier < 1 or identifier > MAX_HANDLES:
+        if identifier < 1 or identifier > MAX_FS_HANDLES:
             raise NativeError("fs: invalid handle.")
         handle = self._handles[identifier - 1]
         if handle is None:
@@ -76,6 +76,8 @@ class FileTable:
                 | (os.O_CREAT | os.O_TRUNC if mode == "w" else 0)
                 | (os.O_CREAT | os.O_APPEND if mode == "a" else 0),
             )
+        except ValueError:
+            raise NativeError("io: invalid path.") from None
         except OSError as error:
             raise NativeError(f"{_kind(error)}: can't open the file.") from None
         for index, slot in enumerate(self._handles):
@@ -124,6 +126,34 @@ class FileTable:
         except UnicodeDecodeError:
             raise NativeError("io: file is not valid UTF-8.") from None
 
+    def read_bytes(self, identifier: int, count: int) -> bytes | None:
+        """Reads at most `count` raw bytes; `None` is immediate EOF.
+
+        The pending text bytes (an incomplete UTF-8 sequence from a previous
+        `read`) are returned first, so switching from text to binary does not
+        lose data. `count == 0` returns empty `Bytes`, not EOF.
+        """
+        handle = self._slot(identifier)
+        if handle.mode != "r":
+            raise NativeError("badMode: handle is not open for reading.")
+        if count < 0:
+            raise NativeError("fs.readBytes() expects a non-negative size.")
+        if count == 0:
+            return b""
+        data = bytearray()
+        if handle.pending:
+            take = min(len(handle.pending), count)
+            data += handle.pending[:take]
+            handle.pending = handle.pending[take:]
+        remaining = count - len(data)
+        if remaining > 0:
+            try:
+                chunk = os.read(handle.fd, remaining)
+            except OSError as error:
+                raise NativeError(f"{_kind(error)}: read failed.") from None
+            data += chunk
+        return bytes(data) if data else None
+
     def write(self, identifier: int, text: str) -> None:
         handle = self._slot(identifier)
         if handle.mode == "r":
@@ -137,7 +167,7 @@ class FileTable:
             raise NativeError(f"{_kind(error)}: write failed.") from None
 
     def close(self, identifier: int) -> None:
-        if identifier < 1 or identifier > MAX_HANDLES:
+        if identifier < 1 or identifier > MAX_FS_HANDLES:
             raise NativeError("fs: invalid handle.")
         handle = self._handles[identifier - 1]
         if handle is None:
@@ -147,7 +177,7 @@ class FileTable:
             os.close(handle.fd)
 
     def close_all(self) -> None:
-        for identifier in range(1, MAX_HANDLES + 1):
+        for identifier in range(1, MAX_FS_HANDLES + 1):
             self.close(identifier)
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import Ty
 
@@ -38,6 +39,7 @@ class Visitor[R](Protocol):
     def visit_super_expr(self, expr: Super) -> R: ...
     def visit_this_expr(self, expr: This) -> R: ...
     def visit_variable_expr(self, expr: Variable) -> R: ...
+    def visit_error_expr(self, expr: ErrorExpr) -> R: ...
 
 
 class Expr(Protocol):
@@ -74,6 +76,7 @@ class Is(Expr):
     left: Expr
     test_type: Ty
     operator: Token
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_is_expr(self)
@@ -84,9 +87,22 @@ class As(Expr):
     left: Expr
     target_type: Ty
     operator: Token
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_as_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ErrorExpr(Expr):
+    """Expressão que não pôde ser parseada; inerte e usada só na árvore recuperada."""
+
+    start: Token
+    end: Token | None = None
+    message: str = ""
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_error_expr(self)
 
 
 @dataclass(frozen=True, eq=False)
@@ -115,6 +131,8 @@ class Lambda(Expr):
     params: list[Param]
     body: list[Stmt]
     return_type: Ty | None = None
+    end: Token | None = None
+    return_type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_lambda_expr(self)
@@ -124,6 +142,7 @@ class Lambda(Expr):
 class ListLiteral(Expr):
     elements: list[Expr]
     bracket: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_list_expr(self)
@@ -133,6 +152,7 @@ class ListLiteral(Expr):
 class MapLiteral(Expr):
     entries: list[tuple[Expr, Expr]]
     brace: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_map_expr(self)
@@ -143,6 +163,7 @@ class Index(Expr):
     object: Expr
     index: Expr
     bracket: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_index_expr(self)
@@ -154,6 +175,7 @@ class IndexSet(Expr):
     index: Expr
     value: Expr
     bracket: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_index_set_expr(self)
@@ -171,13 +193,21 @@ class WildcardPattern:
     token: Token
 
 
-Pattern = VariantPattern | WildcardPattern
+@dataclass(frozen=True, eq=False)
+class LiteralPattern:
+    token: Token
+    value: object
+    end: Token | None = None
+
+
+Pattern = VariantPattern | WildcardPattern | LiteralPattern
 
 
 @dataclass(frozen=True, eq=False)
 class MatchArm:
     pattern: Pattern
     body: Expr
+    arrow: Token | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -185,6 +215,7 @@ class Match(Expr):
     keyword: Token
     scrutinee: Expr
     arms: list[MatchArm]
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_match_expr(self)
@@ -194,6 +225,7 @@ class Match(Expr):
 class TupleLiteral(Expr):
     elements: list[Expr]
     paren: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_tuple_expr(self)

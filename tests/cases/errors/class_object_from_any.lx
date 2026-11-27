@@ -1,0 +1,9 @@
+# #247: um `Any` que não guarda classe não entra num slot de objeto de classe.
+class C {
+  var n: Int = 1
+}
+
+var K = C
+val a: Any = 42
+K = a
+# expect error: Expected the class object C, found `Any`.

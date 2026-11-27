@@ -9,6 +9,7 @@ em envelope estável, sem duração/timestamp (I3).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -26,12 +27,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from xml.sax.saxutils import escape, quoteattr
 
+from loxia.engine import Loxia
 from loxia.test_selection import (
     SelectionError,
     changed_paths,
     select_changed,
     shard_files,
 )
+from loxia_core.diagnostics.diagnostic import Severity
+from loxia_core.diagnostics.render import render_short
+from loxia_core.loader.loader import ModuleError
 from loxia_core.loader.manifest import ManifestError, discover_manifest, parse_manifest
 
 if TYPE_CHECKING:
@@ -923,6 +928,42 @@ def _build_all(
     return binaries, build_errors
 
 
+def _precheck(files: list[Path], args: argparse.Namespace) -> dict[Path, str]:
+    """Checa os tipos de cada arquivo em modo gradual (ADR-0142, fase 1).
+
+    Anotação ausente não reprova (vira aviso e o tipo é `Any`); erro de tipo real sim.
+    Devolve só os arquivos que falharam, com as linhas curtas do diagnóstico. Usa as
+    mesmas flags de dependência do `run`/build, para não resolver o projeto de outro jeito.
+    """
+    failures: dict[Path, str] = {}
+    for path in files:
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            failures[path] = f"cannot read file: {error}"
+            continue
+        lox = Loxia(
+            max_errors=5,
+            # `--native` compila com o checker estrito; o precheck tem que ser estrito
+            # também, senão o build falha depois de o precheck ter aprovado.
+            gradual=not getattr(args, "native", False),
+            frozen=getattr(args, "frozen", False),
+            offline=getattr(args, "offline", False),
+            cache_dir=getattr(args, "cache_dir", None),
+        )
+        lox.use_file(_display(path), module_root=path.resolve().parent)
+        # O loader já reporta o diagnóstico antes de levantar; segue para o resumo.
+        with contextlib.suppress(ModuleError):
+            lox.check(source, emit=False, defer_lowerable=True)
+        if not lox.reporter.had_error:
+            continue
+        errors = [
+            item for item in lox.reporter.batch().diagnostics if item.severity is Severity.ERROR
+        ]
+        failures[path] = "\n".join(render_short(item) for item in errors[:5]) or "type check failed"
+    return failures
+
+
 def run_tests(args: argparse.Namespace) -> int:
     """Executa o subcomando `loxia test`; devolve o código de saída."""
     if getattr(args, "json", False) and getattr(args, "json_lines", False):
@@ -969,16 +1010,21 @@ def run_tests(args: argparse.Namespace) -> int:
     if getattr(args, "cache_dir", None):
         deps.extend(["--cache-dir", args.cache_dir])
     with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
+        # Fase 1 do ADR-0142: checa cada arquivo em modo gradual antes de executar.
+        check_errors = _precheck(files, args)
         binaries: dict[Path, str | None] = {path: None for path in files}
-        build_errors: dict[Path, str] = {}
+        build_errors: dict[Path, str] = dict(check_errors)
         if args.native:
-            binaries, build_errors = _build_all(
-                files,
+            runnable = [path for path in files if path not in check_errors]
+            built, errors = _build_all(
+                runnable,
                 directory,
                 tuple(deps),
                 jobs,
                 use_cache=not getattr(args, "no_cache", False),
             )
+            binaries.update(built)
+            build_errors.update(errors)
         if args.isolate == "test":
             runs = _run_isolated(
                 files,

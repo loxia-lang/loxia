@@ -1,2 +1,2 @@
-print(1e308 ** 2);
+print(1e308 ** 2)
 # expect runtime error: Exponentiation overflow.

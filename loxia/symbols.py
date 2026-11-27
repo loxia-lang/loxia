@@ -10,6 +10,21 @@ from __future__ import annotations
 from dataclasses import dataclass, fields, is_dataclass
 from typing import Any
 
+from loxia.source_symbols import (
+    class_signature as _class_signature,
+)
+from loxia.source_symbols import (
+    display_declaration_name,
+)
+from loxia.source_symbols import (
+    field_signature as _field_signature,
+)
+from loxia.source_symbols import (
+    function_signature as _function_signature,
+)
+from loxia.source_symbols import (
+    param_signature as _param_signature,
+)
 from loxia_core.frontend.destructuring import pattern_names
 from loxia_core.frontend.expr import (
     Call,
@@ -31,7 +46,6 @@ from loxia_core.frontend.stmt import (
     Function,
     If,
     Interface,
-    Param,
     Stmt,
     Try,
     TypeAlias,
@@ -139,7 +153,7 @@ class SymbolIndex:
                     name=statement.name.lexeme,
                     kind="interface",
                     token=statement.name,
-                    signature=f"interface {statement.name.lexeme}",
+                    signature=f"interface {display_declaration_name(statement.name.lexeme)}",
                     doc=statement.doc,
                     container=container,
                 )
@@ -152,7 +166,7 @@ class SymbolIndex:
                     name=statement.name.lexeme,
                     kind="enum",
                     token=statement.name,
-                    signature=f"enum {statement.name.lexeme}",
+                    signature=f"enum {display_declaration_name(statement.name.lexeme)}",
                     doc=statement.doc,
                     container=container,
                 )
@@ -375,49 +389,6 @@ class SymbolIndex:
         if target is None:
             return self.by_token.get(key)
         return self.by_token.get(target)
-
-
-def _function_signature(function: Function) -> str:
-    params = ", ".join(_param_signature(param) for param in function.params)
-    type_params = (
-        "[" + ", ".join(item.lexeme for item in function.type_params) + "]"
-        if function.type_params
-        else ""
-    )
-    signature = f"fn {function.name.lexeme}{type_params}({params})"
-    if function.return_type is not None:
-        signature += f" -> {display(function.return_type)}"
-    return signature
-
-
-def _param_signature(param: Param) -> str:
-    name = f"...{param.name.lexeme}" if param.variadic else param.name.lexeme
-    if param.type_annotation is not None:
-        name += f": {display(param.type_annotation)}"
-    return name
-
-
-def _field_signature(field: Any) -> str:
-    keyword = "var" if field.mutable else "val"
-    signature = f"{keyword} {field.name.lexeme}"
-    if field.type_annotation is not None:
-        signature += f": {display(field.type_annotation)}"
-    return signature
-
-
-def _class_signature(statement: Class) -> str:
-    type_params = (
-        "[" + ", ".join(item.lexeme for item in statement.type_params) + "]"
-        if statement.type_params
-        else ""
-    )
-    superclass = f"({statement.superclass.name.lexeme})" if statement.superclass is not None else ""
-    implements = (
-        " implements " + ", ".join(item.lexeme for item in statement.implements)
-        if statement.implements
-        else ""
-    )
-    return f"class {statement.name.lexeme}{type_params}{superclass}{implements}"
 
 
 def _walk_value(value: object, on_expr: Any) -> None:

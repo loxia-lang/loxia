@@ -1,10 +1,12 @@
 ---
 sources:
   - loxia/mcp.py
+  - loxia/docs_index.py
   - loxia/cli_args.py
   - loxia/cli_commands.py
   - loxia_core/execution/primitives.py
   - loxia_core/execution/interpreter.py
+  - loxia/formatter/edits.py
   - tests/test_mcp.py
   - server.json
   - pyproject.toml
@@ -55,13 +57,46 @@ stdout; diagnostics and internal errors go to stderr.
 | `loxia_check` | `source`, optional `file_name`, `timeout_ms` | exact `check --stdin --json` stdout; parsed envelope in `structuredContent.result` |
 | `loxia_run` | `source`, optional `args`, `file_name`, `timeout_ms` | exact stdout/stderr/exit code from `run --stdin --json --sandbox -- ...` |
 | `loxia_ast` | `source`, optional `file_name` | exact S-expression from `ast --stdin --json` |
+| `loxia_format` | `source` or `path`, optional `range`/`lines`, `check`, `diff`, `max_width`, `timeout_ms` | formatted text + `TextEdit[]`; range expands to whole hunks; never writes |
 | `loxia_spec` | optional `query`, `limit` | section id/page id/free text searched over `loxia/_spec/index.json` (ADR-0111) |
-| `loxia_explain` | `code` | code, phase, severity, description and doc URL |
+| `loxia_explain` | `code` | code, phase, severity, description and doc URL; resolved from the generated catalog at call time |
 | `loxia_version` | none | Loxia version, MCP protocol and docs index version |
 
 For `loxia_check`, `loxia_run` and `loxia_ast`, `structuredContent` preserves the exact
 CLI bytes and the process exit code; the tests compare them with the CLI invocation. The
 server never reimplements parsing, checking or diagnostics.
+
+`loxia_explain` reads the diagnostic catalog from `loxia/_spec/index.json` on every call
+(there is no process cache), falling back to the in-process enum when the index predates
+the catalog. A long-lived server therefore resolves codes added by `make codes`/`make
+docs-sync` — or by a wheel upgrade — without a restart, and `loxia_version` reports the
+on-disk docs version. A genuinely unknown code names the server version and asks for a
+restart.
+
+### Formatter tool
+
+`loxia_format` is the one tool that returns an edit list. It calls
+`fmt --stdin --check --edits=json --max-width N` (the envelope now also carries the
+formatted `text`), so the CLI core remains the only formatter. `source` and `path` are
+exclusive; `path` must be a regular `.lx` file (absolute or relative, at most 1 MiB,
+UTF-8) and is only read. `file_name` is only accepted with `source`.
+
+`range: {"start_line": 3, "end_line": 7}` (1-based, inclusive) and the `lines: "3-7"`
+alias restrict the returned edits to the whole hunks that intersect the selection. A
+hunk that starts or ends outside the range is expanded; the effective range is returned
+in `structuredContent.range`, so a caller can see that a neighbor line moved. The
+formatter still runs over the whole source, which is what preserves comments and keeps
+the output stable. Without `range`/`lines`, `formatted` is the whole canonical file.
+
+`formatted` is always the result of applying the returned `edits` to the normalized
+source. `check` is a dry-run hint (the tool never writes); `diff: true` adds the unified
+diff to `structuredContent.diff` and as a second content block. Invalid source keeps the
+CLI exit 65 diagnostics in `structuredContent` (the envelope is parsed from stderr when
+the CLI writes it there); invalid ranges, paths and ambiguous source/path inputs are tool
+errors. `timeout_ms` defaults to 10 s and caps at 60 s; if the child is killed or times
+out, the tool returns a stable `formatter did not finish within N ms.` error instead of
+an empty result. `file` labels are relative to the server cwd (or a `../`-relative
+fallback), never absolute.
 
 ## Sandbox and limits
 

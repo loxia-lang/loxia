@@ -1,0 +1,10 @@
+# A assinatura real (com default) é checada no cast de união, não no alvo.
+type F = fn(Int) -> Int
+
+fn soma(x: Int, y: Int = 10) -> Int {
+  return x + y
+}
+
+val o: F? = soma
+print((o as fn(Int) -> Int)(1))
+# expect runtime error: Can't cast value to fn(Int) -> Int.

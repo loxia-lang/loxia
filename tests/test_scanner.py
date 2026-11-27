@@ -121,6 +121,15 @@ def test_keywords_async_and_await_are_reserved() -> None:
     ]
 
 
+def test_keywords_break_and_continue_are_reserved() -> None:
+    assert scan_types("break continue break2") == [
+        TokenType.BREAK,
+        TokenType.CONTINUE,
+        TokenType.IDENTIFIER,
+        TokenType.EOF,
+    ]
+
+
 def test_integer_literal_overflow_reports_error() -> None:
     scanner = scan_with_reporter("9223372036854775808")
 

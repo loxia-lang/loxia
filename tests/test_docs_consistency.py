@@ -95,6 +95,19 @@ def test_scoreboard_de_keywords_bate_com_keywords() -> None:
     assert int(line.group(1)) == expected, f"scoreboard diz {line.group(1)}, KEYWORDS dá {expected}"
 
 
+def test_bloco_de_keywords_do_lexico_bate_com_o_scanner() -> None:
+    text = (SPEC_DIR / "lexico.md").read_text(encoding="utf-8")
+    block = re.search(r"^### Keywords\n\n```\n(.*?)\n```", text, re.MULTILINE | re.DOTALL)
+
+    assert block is not None, "docs/spec/lexico.md sem o bloco de keywords"
+
+    listed = set(block.group(1).split())
+    assert listed == set(KEYWORDS), (
+        "bloco de keywords do léxico divergiu do scanner: "
+        f"faltando {sorted(set(KEYWORDS) - listed)}, sobrando {sorted(listed - set(KEYWORDS))}"
+    )
+
+
 def test_adr_numeracao_unica_sequencial_e_titulo_coerente() -> None:
     numbers = [_adr_number(path) for path in _adr_files()]
 

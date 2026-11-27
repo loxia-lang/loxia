@@ -252,7 +252,9 @@ class VariableLowering(LoweringBase):
         value = self._load_binding(binding)
         if value.generic is not None:
             return value
-        if value.ty in (ValueType.FUNCTION, ValueType.CLASS):
+        if value.ty in (ValueType.FUNCTION, ValueType.CLASS) and not value.optional:
+            # Só um slot obrigatório sem valor é "indefinido": num opcional o
+            # ponteiro nulo é o próprio `nil`, valor legítimo.
             return self._guard_closure(value, expr.name.lexeme, expr.name.line, expr.name.column)
         return value
 

@@ -1,2 +1,2 @@
-print({foo: 1})
+print({ foo: 1 })
 # expect runtime error: Undefined variable 'foo'.

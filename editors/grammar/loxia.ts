@@ -267,7 +267,7 @@ const grammar = {
       "name": "punctuation.loxia"
     },
     "builtin-class": {
-      "match": "\\b(?:Exception|Float|Int|Result|RuntimeError)\\b",
+      "match": "\\b(?:Bytes|BytesError|Exception|Float|Int|Result|RuntimeError)\\b",
       "name": "support.class.builtin.loxia"
     },
     "builtin-function": {
@@ -275,7 +275,7 @@ const grammar = {
       "name": "support.function.builtin.loxia"
     },
     "keywords-control": {
-      "match": "\\b(?:elif|else|except|finally|for|if|in|match|raise|return|try|while)\\b",
+      "match": "\\b(?:break|continue|elif|else|except|finally|for|if|in|match|raise|return|try|while)\\b",
       "name": "keyword.control.loxia"
     },
     "keywords-declaration": {

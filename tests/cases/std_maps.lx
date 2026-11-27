@@ -1,17 +1,17 @@
 # std.maps (T1): utilitários para Map[String, V].
 import std.maps as maps
 
-val m: Map[String, Int] = {"a": 1, "b": 2, "c": 3}
+val m: Map[String, Int] = { "a": 1, "b": 2, "c": 3 }
 print(maps.entries(m))
 print(maps.toList(m))
 print(maps.fromEntries([("x", 10), ("y", 20)]))
-print(maps.merge({"a": 1, "b": 2}, {"b": 9, "c": 3}))
+print(maps.merge({ "a": 1, "b": 2 }, { "b": 9, "c": 3 }))
 print(maps.pick(m, ["a", "c", "z"]))
 print(maps.omit(m, ["b"]))
 print(maps.mapValues(m, fn(value) => value * 2))
 print(maps.filterKeys(m, fn(key) => key != "b"))
 print(maps.filterValues(m, fn(value) => value > 1))
-print(maps.invert({"a": "x", "b": "y"}))
+print(maps.invert({ "a": "x", "b": "y" }))
 print(maps.hasValue(m, 2))
 print(maps.hasValue(m, 9))
 print(maps.getOr(m, "b", 0))

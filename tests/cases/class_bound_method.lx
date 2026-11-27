@@ -1,13 +1,14 @@
 class Foo {
-  var x: Int;
-  init() {
-    this.x = 7;
+  var x: Int
+
+  fn init() {
+    this.x = 7
   }
 
-  getX() -> Int {
-    return this.x;
+  fn getX() -> Int {
+    return this.x
   }
 }
 
-var f = Foo().getX;
-print(f());  # expect: 7
+var f = Foo().getX
+print(f()) # expect: 7

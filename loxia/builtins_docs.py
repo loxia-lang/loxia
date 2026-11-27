@@ -316,6 +316,14 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         ambient=True,
     ),
     BuiltinDoc(
+        "fs.readBytes",
+        "fs.readBytes(id: Int, n: Int) -> Bytes?",
+        "Reads at most `n` raw bytes from a file handle, without UTF-8 validation.\n\n"
+        "Ambient. `nil` is immediate end of file and `n == 0` is the empty `Bytes`; a "
+        "handle not open for reading or a negative `n` raises.",
+        ambient=True,
+    ),
+    BuiltinDoc(
         "fs.write",
         "fs.write(id: Int, text: String) -> Nil",
         "Writes all of `text` to a file handle.\n\n"
@@ -327,6 +335,37 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "fs.close(id: Int) -> Nil",
         "Closes a file handle; closing it again is a no-op.\n\n"
         "Ambient. An id that never existed raises.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.rename",
+        "fs.rename(source: String, target: String) -> Nil",
+        "Renames `source` to `target` with POSIX semantics: atomic and replacing an "
+        "existing `target`.\n\n"
+        "Ambient. Failure raises `RuntimeError` with a stable kind prefix "
+        "(`notFound: ...`); across filesystems the kind is `crossDevice`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.remove",
+        "fs.remove(path: String) -> Nil",
+        "Removes a file or symlink.\n\n"
+        "Ambient. A directory is an `isDirectory` error; failure raises `RuntimeError`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.mkdir",
+        "fs.mkdir(path: String) -> Nil",
+        "Creates one directory level.\n\n"
+        "Ambient. An existing path is `alreadyExists`; a missing parent is `notFound`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.stat",
+        "fs.stat(path: String) -> (Int, Int, Bool)",
+        "Returns `(size, mtimeMs, isDir)` for `path`, following symlinks.\n\n"
+        "Ambient. `mtimeMs` is floor milliseconds since the epoch; the filesystem may "
+        "have coarser resolution. Failure raises `RuntimeError`.",
         ambient=True,
     ),
     BuiltinDoc(
@@ -465,6 +504,135 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Ambient. A negative duration raises `RuntimeError`.",
         ambient=True,
     ),
+    BuiltinDoc(
+        "digest.sha256",
+        "digest.sha256(text: String) -> String",
+        "Returns the SHA-256 of the UTF-8 bytes of `text` as 64 lowercase hex "
+        "characters.\n\n"
+        "Deterministic (`core`): same bytes in both engines. This is an integrity "
+        "digest, not a password hash; for a human API use `std.hash.sha256`.",
+    ),
+    BuiltinDoc(
+        "digest.sha256Bytes",
+        "digest.sha256Bytes(data: Bytes) -> Bytes",
+        "Returns the raw 32-byte SHA-256 of `data`.\n\n"
+        "Deterministic (`core`): same bytes in both engines. Use `toHex()` for the "
+        "printable form or `std.hash.sha256Bytes` for the wrapper.",
+    ),
+    BuiltinDoc(
+        "regex_engine.compile",
+        "regex_engine.compile(pattern: String, flags: Int, mode: Int) -> List[Int]",
+        "Compiles a pattern and returns `[1, handle]`; on a failure it returns "
+        "`[0, code, offset]`, where `offset` is the byte offset of a syntax error "
+        "(`-1` when unavailable) and `code` is negative (`-9` is the per-program "
+        "size limit, reported as `size` by the public module).\n\n"
+        "`mode` is `0` (linear, the default: guaranteed linear time) or `1` (full: "
+        "backreferences and lookaround, bounded by a fixed backtracking limit). "
+        "`flags` is a mask: `1` caseless, `2` multiline, `4` dot-all, `8` extended. "
+        "Low level: most programs should use the `regex` module on top of it.",
+    ),
+    BuiltinDoc(
+        "regex_engine.find",
+        "regex_engine.find(handle: Int, subject: String, start: Int) -> List[Int]?",
+        "Matches a compiled pattern starting at the code-point offset `start`.\n\n"
+        "Returns `nil` when there is no match, otherwise the flat span list "
+        "`[start0, end0, start1, end1, ...]`, one pair per group, with `-1` for a group "
+        "that did not participate. Offsets count code points, like every string index. "
+        "Exceeding the backtracking limit raises `RuntimeError`.",
+    ),
+    BuiltinDoc(
+        "regex_engine.groupNames",
+        "regex_engine.groupNames(handle: Int) -> List[String]",
+        "Capture-group names of a compiled pattern, one entry per group.\n\n"
+        "Index `0` is always the empty string; unnamed groups are empty too, so a "
+        "name maps to its index and the public `regex` module expands `$name`.",
+    ),
+    BuiltinDoc(
+        "regex_engine.free",
+        "regex_engine.free(handle: Int) -> Nil",
+        "Releases a compiled pattern.\n\n"
+        "Idempotent: freeing twice, or freeing an unknown handle, is not an error. "
+        "There is no finalizer, so a program that compiles in a loop must free.",
+    ),
+    BuiltinDoc(
+        "Bytes",
+        "Bytes",
+        "Immutable sequence of bytes (0..255).\n\n"
+        "`len(b)` counts bytes; `b[i]` is an `Int` 0..255; `str`/`repr` render "
+        "`0x<hex>`; equality is structural and `b == s` is `false`. `Bytes` is not a "
+        "`Map` key and has no literal syntax. Build with `Bytes.fromText`, `fromList`, "
+        "`fromHex` or `fromBase64`; slice/concat and conversions are value methods.",
+        kind="module",
+    ),
+    BuiltinDoc(
+        "Bytes.empty",
+        "Bytes.empty() -> Bytes",
+        "Returns the empty `Bytes`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromList",
+        "Bytes.fromList(xs: List[Int]) -> Bytes",
+        "Copies a list of integers 0..255 into `Bytes`.\n\n"
+        "A value outside 0..255 (or a non-integer element) raises `RuntimeError`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromText",
+        "Bytes.fromText(text: String) -> Bytes",
+        "Encodes the UTF-8 bytes of `text`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromHex",
+        "Bytes.fromHex(text: String) -> Result[Bytes, BytesError]",
+        "Decodes RFC 4648 base16.\n\n"
+        "Accepts lowercase and uppercase digits; an odd length or a non-hex "
+        "character is `Err(BytesError.InvalidHex(message))`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromBase64",
+        "Bytes.fromBase64(text: String) -> Result[Bytes, BytesError]",
+        "Decodes canonical RFC 4648 base64 (standard alphabet, padding required).\n\n"
+        "Invalid, unpadded or non-canonical input is "
+        "`Err(BytesError.InvalidBase64(message))`.",
+    ),
+    BuiltinDoc(
+        "Bytes.slice",
+        "Bytes.slice(start: Int, end: Int) -> Bytes",
+        "Returns the half-open byte range `start..end`.\n\n"
+        "Same bounds rules as `substr`: negative, inverted or past-the-end ranges "
+        "raise `RuntimeError`.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.concat",
+        "Bytes.concat(other: Bytes) -> Bytes",
+        "Returns a new `Bytes` with `other` appended; neither operand is mutated.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toList",
+        "Bytes.toList() -> List[Int]",
+        "Copies the bytes into a new `List[Int]`.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toText",
+        "Bytes.toText() -> Result[String, BytesError]",
+        "Decodes strict UTF-8; invalid input is "
+        "`Err(BytesError.InvalidUtf8(message))` and is never replaced.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toHex",
+        "Bytes.toHex() -> String",
+        "Returns lowercase RFC 4648 base16.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toBase64",
+        "Bytes.toBase64() -> String",
+        "Returns canonical RFC 4648 base64 with padding.",
+        kind="method",
+    ),
     # ------------------------------------------------------------------
     # Built-in types
     # ------------------------------------------------------------------
@@ -474,6 +642,14 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Built-in generic sum type with `Result.Ok(value)` and `Result.Err(error)`.\n\n"
         "Use an exhaustive `match` to inspect it, or the combinators in "
         "`std.results`.",
+        kind="type",
+    ),
+    BuiltinDoc(
+        "BytesError",
+        "BytesError",
+        "Failure of a `Bytes` conversion.\n\n"
+        "Variants: `BytesError.InvalidHex(message)`, `InvalidBase64(message)` and "
+        "`InvalidUtf8(message)`. Available without an import; use `match` to inspect it.",
         kind="type",
     ),
     BuiltinDoc(

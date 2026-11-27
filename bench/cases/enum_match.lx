@@ -1,8 +1,5 @@
 # Enums e match: construção de variante, payload e dispatch.
-enum Outcome {
-  Ok(Int),
-  Err(String)
-}
+enum Outcome { Ok(Int), Err(String) }
 
 fn classify(n: Int) -> Outcome {
   if (n % 2 == 0) {
@@ -14,10 +11,11 @@ fn classify(n: Int) -> Outcome {
 var i = 0
 var total = 0
 while (i < 30000) {
-  total = total + match classify(i) {
-    Outcome.Ok(v) => v,
-    Outcome.Err(e) => 1,
-  }
+  total = total +
+    match classify(i) {
+      Outcome.Ok(v) => v
+      Outcome.Err(e) => 1
+    }
   i = i + 1
 }
 print(total)

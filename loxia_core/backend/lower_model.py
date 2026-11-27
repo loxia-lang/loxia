@@ -17,6 +17,7 @@ from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Function, Param
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.ty import FnTy, Ty
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -24,7 +25,7 @@ _I32 = llvm_ir.int_type(32)
 _FLOAT = llvm_ir.float_type()
 _VOID = llvm_ir.void_type()
 _I8_PTR = llvm_ir.pointer_type()
-_CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR])
+_CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR, _INT, _INT, _I8_PTR])
 _CLASS_DESC = llvm_ir.literal_struct(
     [_I8_PTR, _INT, _I8_PTR, _I8_PTR, _INT, _I8_PTR, _INT, _INT, _INT, _I8_PTR]
 )
@@ -43,6 +44,7 @@ ANY_TAG_LIST = 9
 ANY_TAG_MAP = 10
 ANY_TAG_TUPLE = 11
 ANY_TAG_ENUM = 12
+ANY_TAG_BYTES = 13
 
 # Mensagens que o interpretador usa em runtime para operando de tipo errado.
 # O checker também reporta esses casos; o backend rebaixa para panic site (ADR-0031).
@@ -83,6 +85,7 @@ class ValueType(Enum):
     FLOAT = auto()
     BOOL = auto()
     STRING = auto()
+    BYTES = auto()
     NIL = auto()
     FUNCTION = auto()
     CLASS = auto()
@@ -124,11 +127,20 @@ class TypeDesc:
     interface_name: str | None = None
 
     def same_as(self, other: TypeDesc) -> bool:
+        enum_name_ok = (
+            self.ty is ValueType.ENUM
+            and other.ty is ValueType.ENUM
+            and (
+                self.class_name is None
+                or other.class_name is None
+                or self.class_name == other.class_name
+            )
+        )
         return (
             self.ty is other.ty
             and self.fn == other.fn
             and self.optional == other.optional
-            and self.class_name == other.class_name
+            and (enum_name_ok or self.class_name == other.class_name)
             and self.interface_name == other.interface_name
         )
 
@@ -179,6 +191,7 @@ class FunctionInfo:
     decl_file: str = ""
     decl_line: int = 0
     decl_column: int = 1
+    fn_ty: FnTy | None = None
 
 
 @dataclass(frozen=True)
@@ -206,6 +219,29 @@ class Value:
         )
 
 
+def merge_callable_metadata(left: Value, right: Value) -> tuple[Any, Any, Any]:
+    """Metadados de chamada comuns aos dois ramos de um `phi`.
+
+    Um ramo `nil` não tem metadados: o valor não-nulo é o único que pode ser
+    chamado. Dois valores de função só compartilham metadados quando são a
+    **mesma** função (ou a mesma lambda genérica); caso contrário o resultado
+    fica sem `FunctionInfo` e a chamada indireta precisa recusar defaults.
+    """
+    if left.ty is ValueType.NIL:
+        return (right.function, right.generic, right.generic_node)
+    if right.ty is ValueType.NIL:
+        return (left.function, left.generic, left.generic_node)
+    if left.function is not None and left.function is right.function:
+        return (left.function, None, None)
+    if (
+        left.generic is not None
+        and left.generic is right.generic
+        and left.generic_node is right.generic_node
+    ):
+        return (None, left.generic, left.generic_node)
+    return (None, None, None)
+
+
 @dataclass(frozen=True)
 class CaptureBinding:
     """Uma captura já resolvida: nome e binding (célula) do escopo externo."""
@@ -223,6 +259,17 @@ class FieldLayout:
     index: int
     line: int
     column: int = 0
+    # Anotação declarada (não achatada em `TypeDesc`), para propagar `List[T]`/
+    # `Map[K, V]` ao lowering de literais em campos.
+    annotation: Ty | None = None
+    # Offset absoluto em palavras de 8 bytes, já contando o header da instância
+    # (`class` + bitmap). Um campo `Any` ocupa duas palavras (ADR-0145).
+    slot: int = 0
+
+
+def field_words(fields: list[FieldLayout]) -> int:
+    """Palavras de 8 bytes ocupadas pelos campos: 2 para `Any`, 1 para o resto."""
+    return sum(2 if field.ty.ty is ValueType.ANY else 1 for field in fields)
 
 
 @dataclass
@@ -289,6 +336,11 @@ class ClassLayout:
     def field_count(self) -> int:
         base = 0 if self.super_layout is None else self.super_layout.field_count()
         return base + len(self.fields)
+
+    def word_count(self) -> int:
+        """Palavras de payload (sem o header) dos campos, incluindo a base."""
+        base = 0 if self.super_layout is None else self.super_layout.word_count()
+        return base + field_words(self.fields)
 
     def all_fields(self) -> list[FieldLayout]:
         base = [] if self.super_layout is None else self.super_layout.all_fields()

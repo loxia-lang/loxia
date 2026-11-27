@@ -8,12 +8,11 @@ e os `xfail` de campos dinâmicos não entram.
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
+from tests.inprocess import run_cli
 from tests.official_annotations import annotate_case
 from tests.test_official_suite import (
     CASES,
@@ -23,13 +22,26 @@ from tests.test_official_suite import (
     parse_expectations,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
-ENTRYPOINT = ROOT / "main.py"
-TIMEOUT_SECONDS = 60
-
 # Sintaxe antiga de superclasse (`< (Foo)`) testada de propósito: não é
 # adaptável para a nossa gramática.
 _CHECK_XFAIL = set(DYNAMIC_FIELD_TESTS) | {"inheritance/parenthesized_superclass.lx"}
+
+# ADR-0144: o checker passou a exigir narrowing antes de membro/chamada em `Any`.
+# A camada dinâmica da suíte oficial anota tudo como `Any`, então estes positivos
+# do livro não passam mais no `--check`; o runtime continua coberto por
+# `test_official_case` (interpretador sem check).
+_ANY_NARROWING_BLOCKED = {
+    "closure/close_over_function_parameter.lx",
+    "closure/close_over_method_parameter.lx",
+    "closure/nested_closure.lx",
+    "function/nested_call_with_arguments.lx",
+    "super/bound_method.lx",
+    "super/closure.lx",
+    "super/super_in_closure_in_inherited_method.lx",
+    "this/closure.lx",
+    "this/nested_closure.lx",
+    "this/this_in_method.lx",
+}
 
 
 def _positive_cases() -> list[pytest.ParameterSet]:
@@ -45,6 +57,19 @@ def _positive_cases() -> list[pytest.ParameterSet]:
         if expectations.compile_errors or expectations.runtime_error:
             continue
         if relative in _CHECK_XFAIL:
+            continue
+        if relative in _ANY_NARROWING_BLOCKED:
+            cases.append(
+                pytest.param(
+                    path,
+                    relative,
+                    id=relative,
+                    marks=pytest.mark.xfail(
+                        strict=True,
+                        reason="E3025: dynamic access on `Any` requires narrowing",
+                    ),
+                )
+            )
             continue
 
         cases.append(pytest.param(path, relative, id=relative))
@@ -66,14 +91,7 @@ def test_oficial_positivo_passa_no_check(path: Path, relative: str, tmp_path: Pa
     script = tmp_path / "caso.lx"
     script.write_text(annotated, encoding="utf-8")
 
-    result = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), "--check", str(script)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=TIMEOUT_SECONDS,
-        check=False,
-    )
+    result = run_cli("--check", str(script))
 
     assert result.returncode == 0, result.stderr
     assert "Traceback" not in result.stderr, result.stderr

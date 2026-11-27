@@ -1,0 +1,7 @@
+# Entry point `main -> Result`: `Err` prints `error[R1016]: <msg>` and exits 70.
+fn main() -> Result[Int, String] {
+  print("before")
+  return Result.Err("boom")
+}
+# expect: before
+# expect runtime error: error[R1016]: boom

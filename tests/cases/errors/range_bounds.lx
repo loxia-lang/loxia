@@ -1,2 +1,2 @@
-print(0.."a");
-# expect runtime error: Range bounds must be integers.
+print(0.."a")
+# expect error: Range bounds must be integers.

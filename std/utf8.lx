@@ -13,9 +13,9 @@ fn byteLen(text: String) -> Int {
     val code = charCodeAt(text, index)
     if (code < 0x80) {
       total = total + 1
-    } else if (code < 0x800) {
+    } elif (code < 0x800) {
       total = total + 2
-    } else if (code < 0x10000) {
+    } elif (code < 0x10000) {
       total = total + 3
     } else {
       total = total + 4

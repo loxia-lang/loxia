@@ -173,6 +173,36 @@ TODO item.
 | [0119](0119-fs-open-handles-e-erro-de-host.md) | File handles plus one `Result` pattern for host failures across the stdlib | accepted (implementation partial) | 2026-11-19 |
 | [0120](0120-localizacao-de-falha-em-excecoes.md) | Caught exceptions expose `e.site` (`file:line:column`) for test failure location | accepted (implemented) | 2026-11-19 |
 | [0121](0121-matriz-de-cobertura-de-features.md) | Curated feature → golden/differential matrix, snapshot and generated coverage page | accepted (implemented) | 2026-11-19 |
+| [0122](0122-contrato-de-data-e-instante.md) | Time is milliseconds; civil date is an `(Int, Int, Int)` tuple; `timex` v2 validates, formats offsets and does calendar arithmetic | proposed | 2026-11-20 |
+| [0123](0123-orcamento-do-kernel-por-grupo.md) | Kernel budget per group with an executable test; `fs` mutation and vendored SHA-256 approved, table stays in Python | proposed | 2026-11-20 |
+| [0124](0124-fmt-self-host-e-pacotes-por-repo.md) | Lox front-end and formatter as the first self-hosted consumer; tooling packages are born as org repos, `glob` is the pilot | proposed | 2026-11-20 |
+| [0125](0125-bytes-tipo-binario.md) | `Bytes`: immutable binary value type, no new syntax, native-module buffer ABI | proposed | 2026-11-21 |
+| [0126](0126-modulo-nativo-embutido-sqlite.md) | Bundled native modules, SQLite first: separate budget, conditional link, vendored amalgamation | proposed | 2026-11-21 |
+| [0127](0127-pacotes-com-codigo-nativo.md) | Third-party native packages: contract recorded, implementation deferred with four triggers | proposed | 2026-11-21 |
+| [0128](0128-contrato-de-motores.md) | Three engine layers (core/ambient/native-only) with an explicit interpreter refusal instead of silent divergence | proposed | 2026-11-21 |
+| [0129](0129-oraculo-do-front-end.md) | Front-end oracle: per-file AST, versioned JSON with spans, and a frozen AST/formatter/diagnostics snapshot | accepted (implemented) | 2026-11-21 |
+| [0130](0130-regex-pcre2-embutido.md) | Regex: vendored PCRE2, one engine behind `run` (ctypes) and `--emit=exe`, `bundled/regex` | superseded by ADR-0131 | 2026-11-22 |
+| [0131](0131-regex-motor-rust-dois-modos.md) | Regex: Rust engine (`regex` linear by default, `fancy-regex` opt-in), own C ABI, two-stage distribution | accepted (implemented in #119) | 2026-11-22 |
+| [0132](0132-nos-de-erro-na-arvore-recuperada.md) | Recovered AST: inert `ErrorStmt`/`ErrorExpr`, line-aware recovery, `--allow-errors` opt-in | accepted (implemented) | 2026-11-22 |
+| [0134](0134-trivia-side-table.md) | Trivia as a scanner side table: exact comments/whitespace, normalized round-trip, deterministic attachment | accepted (implemented) | 2026-11-22 |
+| [0133](0133-suite-rapida-in-process-e-xdist.md) | Fast suite: CLI in-process for case tests, xdist in the local loop, real processes where they matter | accepted (implemented) | 2026-11-22 |
+| [0135](0135-politica-de-erro.md) | Error policy: defect (`RuntimeError`), expected failure (`Result`), user flow (`raise`); one channel per signature, `OrRaise` shell, stdlib allowlist, `Err` at top = exit 70 | accepted (migration tracked) | 2026-11-23 |
+| [0136](0136-formatter-2-doc-ir.md) | Formatter 2.0: Doc IR + item layer, width-aware wrapping, comment preservation, blank-line policy and the `format_source` contract | accepted (implemented) | 2026-11-23 |
+| [0137](0137-mcp-format.md) | MCP `loxia_format`: formatted text + `TextEdit[]`, source/path read-only, range by expanded hunks, check/diff | accepted (implemented) | 2026-11-23 |
+| [0138](0138-remocao-for-c-style.md) | Remove C-style `for (;;)`; keep `for-in`/`while`, targeted migration diagnostic | accepted (breaking; target 2.0) | 2026-11-23 |
+| [0139](0139-break-continue.md) | `break`/`continue` without labels: innermost loop, `finally` cleanup, function boundary; keyword budget 27→29 | accepted (implemented) | 2026-11-23 |
+| [0140](0140-match-literais.md) | Literal `match` patterns: Int/String/Bool/nil, `_` required outside enums; no Float, guards or structural match | accepted (implemented) | 2026-11-23 |
+| [0141](0141-soundness-de-fluxo-do-checker.md) | Checker flow soundness: `break`/`continue` terminate post-loop refinement, `match` forks/joins per arm, jump-aware merges and a flow-policy gate; precision stays with alias/effects/CFG deferred | accepted (implemented; split `TypeOps`/`DeclTable` included) | 2026-11-24 |
+| [0142](0142-check-por-fases.md) | `--check` in phases: gradual mode plus checking in `loxia test`/CI, blocking `run` later; type errors stop being optional | accepted (phases 1–3 implemented; no escape) | 2026-11-24 |
+| [0143](0143-lsp-didchange-coalescing-e-reuso.md) | LSP `didChange`: coalesce changes with a lazy flush, reuse unchanged module parses by content and build the `SymbolIndex` lazily; diagnostics stay full-file and only the latest version is published | accepted (implemented, #191) | 2026-11-25 |
+| [0144](0144-any-dinamico-exige-estreitamento.md) | Dynamic access on `Any` (member get/set, call, index) requires narrowing (`is`/`as`, `E3025`); the backend honors the checker's flow type by unboxing at the use; value operations stay dynamic | accepted (implemented) | 2026-11-25 |
+| [0145](0145-campo-any-slot-largo.md) | `Any` fields take two inline words (`{tag, payload}`) with an absolute `slot` next to the bitmap `index`; instance size comes from `word_count()` and the GC-scanned slab keeps the payload rooted | accepted (implemented) | 2026-11-25 |
+| [0146](0146-is-as-interface.md) | `is I`/`as I`: runtime check against the descriptor's interface table (own + inherited, kind `J<id>`); a cast from a concrete class that does not implement the interface is a static error; no new tag or ABI; functions and class objects remain in issue #213 | accepted (implemented) | 2026-11-25 |
+| [0147](0147-valores-de-funcao-assinatura-runtime.md) | Function values carry a static signature (`min/max` arity, variadic, param/return type trees); `is`/`as fn` compare the actual signature with the target by the checker's subtyping **plus ABI-compatible representations**; no new tag, nested function types supported, natives/class objects out | accepted (implemented) | 2026-11-25 |
+| [0148](0148-ponto-de-entrada-main-result.md) | Opt-in entry point: the entry file's top-level `fn main` returning `Result[T, String]` (no params/generics) runs after top-level statements; `Ok` exits 0, `Err(msg)` prints `error[R1016]: msg` and exits 70; modules/REPL never have one, `main -> Nil` stays an ordinary function, near-miss signatures are `E3026` | accepted (implemented) | 2026-11-26 |
+| [0149](0149-motores-primarios-thir-e-congelamento.md) | Primary engines: `run` compiles with a content-addressed cache (AOT) and the tree-walk becomes REPL/`--interpret`/oracle; THIR (typed, desugared tree) is the seam between the Python checker and the Loxia engines; a backend-internal control IR (blocks/phi/cleanup) honours ADR-0065; Python is frozen per module at parity+soak gates, the oracle migrates to spec+corpus+golden, and self-host has three levels (self-executing, self-hosted, reproducible) | accepted | 2026-11-26 |
+| [0150](0150-objeto-de-classe-nao-e-valor-de-funcao.md) | A class object is a nominal value (callable through its own type, comparable by `==`, printable) and **not** a function value: `ClassObjectTy` is not assignable to `FnTy` in any position, the diagnostic points to the lambda factory; `Type[C]`, `is`/`as fn` for class objects and dynamic construction are deferred (design recorded) because the binary has no tag to tell a class descriptor from a closure and no consumer needed it; class rebinding stays by ADR-0044 | accepted (implemented) | 2026-11-26 |
+| [0151](0151-cache-de-analise-por-arquivo-no-lsp.md) | LSP workspace analysis: module tokens are attributed to the real path (`lox.module_files`), references cross the root while rename refuses to edit outside it, and the fingerprint includes external modules/manifest/lock; the cache has three content-addressed layers (workspace, file and module contribution shared across importers), one workspace at a budget of 2048 files / 512 modules / 200k module tokens, degrading to no retention above it | accepted (implemented, #195) | 2026-11-26 |
 
 
 ## Next decisions that call for an ADR
@@ -183,7 +213,8 @@ Open decisions have an issue labeled `decision`; the ADR is written when the iss
   the syntax remains deferred with triggers (issue #14 closes with this ADR);
 - `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16).
 
-Language decisions still open: `if`/blocks as an expression, recoverable exceptions,
+Language decisions still open: `if`/blocks as an expression (recoverable exceptions were decided in
+[ADR-0042](0042-excecoes.md) and their policy in [ADR-0135](0135-politica-de-erro.md)),
 generic methods/inheritance/reification, constraints in classes and mutable unification.
 Deferred items are consolidated in [ADR-0107](0107-adiados-e-nao-objetivos.md); async has a
 decided direction, but the implementation is pending ([ADR-0037](0037-async-direcao.md)).

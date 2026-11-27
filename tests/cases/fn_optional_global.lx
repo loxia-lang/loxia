@@ -1,0 +1,55 @@
+# Função opcional global (issue #226) e metadados de `??` (issue #225).
+type F = fn(Int) -> Int
+
+fn dobro(x: Int) -> Int {
+  return x * 2
+}
+
+fn inc(x: Int) -> Int {
+  return x + 1
+}
+
+# `val` explícito nil e `var` sem inicializador (val exige inicializador).
+val nada: F? = nil
+print(nada)         # expect: nil
+print(nada == nil)  # expect: true
+
+var vazio: F?
+print(vazio)         # expect: nil
+print(vazio == nil)  # expect: true
+
+# A função opcional não-nil mantém a assinatura.
+val presente: F? = dobro
+print(presente is fn(Int) -> Int)       # expect: true
+print((presente as fn(Int) -> Int)(3))  # expect: 6
+
+# `??` sobre função opcional usa o direito quando nil e o esquerdo quando presente.
+val g: F = nada ?? dobro
+print(g(4)) # expect: 8
+val h: F = presente ?? inc
+print(h(4)) # expect: 8
+
+# Dois operandos opcionais continuam função depois do coalesce.
+val a: F? = nil
+val b: F? = dobro
+val c: F = (a ?? b) ?? inc
+print(c(5)) # expect: 10
+
+# Duas funções passando por condicional + coalesce.
+val escolhida = nil if 1 == 0 else inc
+val d: F = escolhida ?? dobro
+print(d(6)) # expect: 7
+
+# Os defaults sobrevivem quando os dois ramos são a mesma função.
+fn soma(x: Int, y: Int = 10) -> Int {
+  return x + y
+}
+
+val talvez = nil if 1 == 0 else soma
+val comDefault = talvez ?? soma
+print(comDefault(1))     # expect: 11
+print(comDefault(1, 2))  # expect: 3
+
+# `and`/`or` com a mesma função preservam os metadados no phi do curto-circuito.
+val mesmo = soma and soma
+print(mesmo(1)) # expect: 11

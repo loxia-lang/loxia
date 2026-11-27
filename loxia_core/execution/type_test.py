@@ -21,6 +21,7 @@ from loxia_core.execution.lox_tuple import LoxTuple
 from loxia_core.frontend.ty import (
     ANY,
     BOOL,
+    BYTES,
     ERROR,
     FLOAT,
     INT,
@@ -32,6 +33,7 @@ from loxia_core.frontend.ty import (
     ClassTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     NativeFnTy,
@@ -41,10 +43,64 @@ from loxia_core.frontend.ty import (
 )
 
 
+def _rep_code(ty: Ty) -> int:
+    """Representação de máquina (ADR-0147); espelha o runtime C."""
+    if ty is ANY:
+        return 0
+    if ty is INT:
+        return 1
+    if ty is FLOAT:
+        return 2
+    if ty is BOOL:
+        return 3
+    if ty is NIL:
+        return 4
+    pointer_types = (ListTy, MapTy, TupleTy, ClassTy, InterfaceTy, EnumTy, FnTy)
+    if isinstance(ty, pointer_types) or ty in (STRING, BYTES, RANGE):
+        return 5
+    if isinstance(ty, UnionTy):
+        if len(ty.members) == 2:
+            nil = [member for member in ty.members if member is NIL]
+            other = [member for member in ty.members if member is not NIL]
+            if nil and len(other) == 1:
+                payload = other[0]
+                if payload in (INT, FLOAT, BOOL):
+                    return 100 + _rep_code(payload)
+                if isinstance(payload, pointer_types) or payload in (STRING, BYTES, RANGE):
+                    return 5
+        return 0
+    return 0
+
+
+def _fn_abi_compatible(target: FnTy, actual: FnTy) -> bool:
+    if target.variadic != actual.variadic:
+        return False
+    count = len(target.params)
+    if actual.variadic:
+        if len(actual.params) != count:
+            return False
+    elif count != len(actual.params):
+        # O alvo tem que passar todos os parâmetros do callee; defaults só são
+        # preenchidos em chamada estática (o lowering não os inventa no dinâmico).
+        return False
+    for target_param, actual_param in zip(target.params, actual.params, strict=False):
+        if not same_rep(target_param, actual_param):
+            return False
+    return same_rep(target.ret, actual.ret)
+
+
+def same_rep(left: Ty, right: Ty) -> bool:
+    if isinstance(left, FnTy) and isinstance(right, FnTy):
+        return _fn_abi_compatible(left, right)
+    return _rep_code(left) == _rep_code(right)
+
+
 def matches_type(
     value: object,
     ty: Ty,
     class_lookup: Callable[[str], LoxClass | None] | None = None,
+    fn_assignable: Callable[[FnTy, FnTy], bool] | None = None,
+    rep_equal: Callable[[Ty, Ty], bool] | None = None,
 ) -> bool:
     """Devolve se `value` satisfaz `ty` em runtime.
 
@@ -57,6 +113,15 @@ def matches_type(
         return True
     if ty is NEVER or ty is ERROR:
         return False
+    if isinstance(ty, FnTy):
+        actual = getattr(value, "fn_type", None)
+        return (
+            isinstance(actual, FnTy)
+            and fn_assignable is not None
+            and rep_equal is not None
+            and fn_assignable(ty, actual)
+            and rep_equal(ty, actual)
+        )
     if ty is NIL:
         return value is None
     if ty is BOOL:
@@ -67,6 +132,8 @@ def matches_type(
         return numeric.is_float(value)
     if ty is STRING:
         return isinstance(value, str)
+    if ty is BYTES:
+        return isinstance(value, bytes)
     if ty is RANGE:
         return isinstance(value, LoxRange)
     if isinstance(ty, ListTy):
@@ -103,6 +170,8 @@ def matches_type(
         return isinstance(value, LoxEnumValue) and value.enum == ty.name
     if isinstance(ty, ClassObjectTy):
         return isinstance(value, LoxClass) and value.is_subclass_of(ty.name)
+    if isinstance(ty, InterfaceTy):
+        return isinstance(value, LoxInstance) and value.implements_interface(ty.name)
     if isinstance(ty, UnionTy):
         return any(matches_type(value, member, class_lookup) for member in ty.members)
     if isinstance(ty, (FnTy, NativeFnTy)):

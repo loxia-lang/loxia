@@ -1,5 +1,6 @@
 # std.utf8: bytes UTF-8 e unidades UTF-16 do mesmo texto.
 import std.utf8 as utf8
+
 print(utf8.byteLen(""))
 print(utf8.byteLen("abc"))
 print(utf8.byteLen("ação"))

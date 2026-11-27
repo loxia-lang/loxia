@@ -1,2 +1,2 @@
-print(2 ** -1);
+print(2 ** -1)
 # expect runtime error: Negative exponent not allowed for integer power.

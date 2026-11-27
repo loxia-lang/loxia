@@ -31,7 +31,7 @@ from loxia_core.frontend.expr import Call, Expr, Get, Range
 from loxia_core.frontend.stmt import Function, Stmt
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.ty import Ty
+from loxia_core.frontend.ty import ListTy, MapTy, Ty
 
 
 @dataclass
@@ -44,6 +44,20 @@ class CleanupContext:
 
     frame: Any | None
     finally_body: list[Stmt] | None
+    scopes_depth: int
+
+
+@dataclass
+class LoopContext:
+    """Alvos de `break`/`continue` do laço mais interno.
+
+    `cleanup_depth` é o tamanho da pilha de `try` na entrada do laço: ao sair por
+    `break`/`continue`, só os `finally` abertos dentro do laço precisam rodar.
+    """
+
+    break_block: Any
+    continue_block: Any
+    cleanup_depth: int
 
 
 class LoweringBase:
@@ -51,10 +65,12 @@ class LoweringBase:
 
     module: Any
     types: dict[Expr, Ty]
+    flow_types: dict[Expr, Ty]
     depths: dict[Expr, int]
     main: Any
     builder: Any
     _runtime: Any
+    _extern_values: dict[str, Any]
     _messages: Any
     _displays: Any
     _poison_count: int
@@ -75,6 +91,8 @@ class LoweringBase:
     _type_subst: dict[str, Ty]
     _enum_layouts: dict[str, Any]
     _cleanup_stack: list[CleanupContext]
+    _loop_stack: list[LoopContext]
+    _emitting_finally: set[int]
     _enum_names: dict[str, Any]
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None
@@ -258,11 +276,43 @@ class LoweringBase:
     def _box_value(self, value: Value, line: int | None) -> Value:
         raise NotImplementedError
 
-    def _unwrap(self, value: Value, line: int, message: str) -> Value:
+    def _unwrap(
+        self,
+        value: Value,
+        line: int,
+        message: str,
+        *,
+        column: int = 0,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> Value:
         raise NotImplementedError
 
     def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
         raise NotImplementedError
+
+    def _expr_with_expected(self, expr: Expr, ty: Ty | None) -> Value:
+        """Lowers `expr` with `ty` as the expected annotation.
+
+        Mirrors the variable-declaration path: `[]`/`{}` inside a field
+        assignment or initializer pick the declared element/key type, which is
+        what lets the literal choose typed storage.
+        """
+        if ty is not None:
+            ty = self._subst_ty(ty)
+        saved_element = self._list_expected_element
+        saved_key = self._map_expected_key
+        saved_value = self._map_expected_value
+        if isinstance(ty, ListTy):
+            self._list_expected_element = ty.element
+        if isinstance(ty, MapTy):
+            self._map_expected_key = ty.key
+            self._map_expected_value = ty.value
+        try:
+            return self._expr(expr)
+        finally:
+            self._list_expected_element = saved_element
+            self._map_expected_key = saved_key
+            self._map_expected_value = saved_value
 
     def _field_slot(self, value: Value, field: FieldLayout) -> Any:
         raise NotImplementedError
@@ -280,9 +330,15 @@ class LoweringBase:
     ) -> None:
         raise NotImplementedError
 
-    def _push_cleanup(self, frame: Any | None, finally_body: list[Stmt] | None) -> CleanupContext:
+    def _push_cleanup(
+        self,
+        frame: Any | None,
+        finally_body: list[Stmt] | None,
+        *,
+        scopes_depth: int,
+    ) -> CleanupContext:
         """Registra um `try` ativo para o `return` desempilhar frame/finally."""
-        context = CleanupContext(frame, finally_body)
+        context = CleanupContext(frame, finally_body, scopes_depth)
         self._cleanup_stack.append(context)
         return context
 

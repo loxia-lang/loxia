@@ -6,17 +6,20 @@ valida o que é específico do comando e delega para a engine (`loxia.engine.Lox
 `HANDLERS` é a única tabela de despacho: `loxia.cli` só olha o primeiro argumento.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import signal
 import sys
 import time
-from collections.abc import Callable, Iterator
+from collections import Counter
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
-from typing import NoReturn, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 
 from loxia import __version__
 from loxia.cli_args import _validate
@@ -40,16 +43,23 @@ from loxia_core.execution.limits import (
     MAX_CALL_DEPTH,
     STACK_BUDGET_BYTES,
 )
+from loxia_core.execution.primitives import (
+    GROUP_BUDGET,
+    KERNEL_BUDGET,
+    NATIVE_MODULE_BUDGET,
+    PRIMITIVES,
+    kernel_primitives,
+)
 from loxia_core.loader.deps import (
     DependencyError,
     fetch_dependencies,
+    lock_is_current,
     lock_manifest,
 )
 from loxia_core.loader.lock import (
     LOCK_NAME,
     LockError,
     read_lock,
-    render_lock,
     write_lock,
 )
 from loxia_core.loader.manifest import (
@@ -58,6 +68,9 @@ from loxia_core.loader.manifest import (
     ManifestError,
     discover_manifest,
 )
+
+if TYPE_CHECKING:
+    from loxia.formatter.engine import Formatted
 
 _WATCH_INTERVAL_SECONDS = 0.25
 
@@ -116,7 +129,13 @@ def make_loxia(args: argparse.Namespace) -> Loxia:
         offline=getattr(args, "offline", False),
         cache_dir=getattr(args, "cache_dir", None),
         sandbox=getattr(args, "sandbox", False),
+        gradual=getattr(args, "gradual", False),
     )
+
+
+def _normalize_source(text: str) -> str:
+    """Universal newlines também para stdin: o contrato de spans é do texto normalizado."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _read_source(path: str) -> str:
@@ -140,7 +159,7 @@ def _set_source(
 ) -> str:
     if stdin:
         lox.use_file(file_name or "<stdin>", module_root=Path.cwd())
-        return sys.stdin.read()
+        return _normalize_source(sys.stdin.read())
     assert path is not None
     source = _read_source(path)
     lox.use_file(display_path(path), module_root=Path(path).resolve().parent)
@@ -160,7 +179,13 @@ def run_source(
         file_name=args.file_name,
     )
     if command == "ast":
-        lox.dump_ast(source)
+        lox.dump_ast(
+            source,
+            file_only=getattr(args, "file_only", False),
+            output_format=getattr(args, "format", "sexp"),
+            allow_errors=getattr(args, "allow_errors", False),
+            typed=getattr(args, "typed", False),
+        )
         sys.exit(lox.exit_code())
     if command == "check":
         _with_timeout(
@@ -181,15 +206,41 @@ def run_source(
 
 def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     from loxia.formatter import format_source
+    from loxia.formatter.edits import build_edits, edits_json, unified_diff
+    from loxia.formatter.targets import TargetError, TargetNotFoundError, resolve_targets
+    from loxia_core.diagnostics.diagnostic import DiagnosticBatch
 
-    if args.stdin and args.script:
-        parser.error("--stdin cannot be combined with a script")
-    if not args.stdin and not args.script:
-        parser.error("fmt requires a script (or --stdin)")
+    if args.stdin and args.paths:
+        parser.error("--stdin cannot be combined with paths")
+    if not args.stdin and not args.paths:
+        parser.error("fmt requires a path (or --stdin)")
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
+    if args.stdin and args.exclude:
+        parser.error("--exclude requires paths")
     if args.max_errors < 0:
         parser.error("--max-errors must be non-negative")
+    if not 20 <= args.max_width <= 1000:
+        parser.error("--max-width must be between 20 and 1000")
+    if args.edits is not None and not args.check:
+        parser.error("--edits=json requires --check")
+    if args.diff and args.edits is not None:
+        parser.error("--diff cannot be combined with --edits")
+
+    targets: list[Path] = []
+    if not args.stdin:
+        try:
+            targets = resolve_targets(args.paths, excludes=args.exclude)
+        except TargetNotFoundError as exc:
+            print(
+                f"Erro: Arquivo '{display_path(str(exc))}' não encontrado.",
+                file=sys.stderr,
+            )
+            sys.exit(66)
+        except TargetError as exc:
+            parser.error(str(exc))
+        if args.edits is not None and len(targets) != 1:
+            parser.error("--edits=json requires exactly one file")
 
     lox = Loxia(
         error_format=("json" if args.json or args.json_lines else args.error_format),
@@ -197,29 +248,149 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         max_errors=args.max_errors,
         json_lines=args.json_lines,
     )
-    source = _set_source(
-        lox,
-        path=args.script,
-        stdin=args.stdin,
-        file_name=args.file_name,
-    )
-    result = format_source(source, reporter=lox.reporter)
-    if result is None:
-        lox.flush("fmt", exit_code=65, always=True)
-        sys.exit(65)
 
-    if args.check:
-        sys.exit(1 if result.changed else 0)
+    json_batches: list[DiagnosticBatch] = []
+
+    def flush_result(label: str, source: str) -> Formatted | None:
+        lox.reporter.reset()
+        lox.reporter.file = label
+        result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
+        if result is None:
+            if lox.error_format == "json":
+                json_batches.append(lox.reporter.batch())
+                lox.reporter.reset()
+            else:
+                lox.flush("fmt", exit_code=65, always=True)
+        return result
 
     if args.stdin:
+        source = _set_source(lox, path=None, stdin=True, file_name=args.file_name)
+        label = _display_name(args.file_name) if args.file_name else "<stdin>"
+        lox.reporter.file = label
+        result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
+        if result is None:
+            lox.flush("fmt", exit_code=65, always=True)
+            sys.exit(65)
+
+        if args.diff:
+            if result.changed:
+                sys.stdout.write(unified_diff(label, source, result.text))
+            sys.exit(1 if result.changed else 0)
+        if args.check:
+            if args.edits == "json":
+                payload = {
+                    "file": label,
+                    "changed": result.changed,
+                    "max_width": args.max_width,
+                    "text": result.text,
+                    "edits": edits_json(build_edits(source, result.text)),
+                }
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            sys.exit(1 if result.changed else 0)
         sys.stdout.write(result.text)
         sys.stdout.flush()
         return
 
-    assert args.script is not None
-    if result.changed:
-        Path(args.script).write_text(result.text, encoding="utf-8")
+    formatted: list[tuple[Path, str, str, Formatted]] = []
+    labels = _display_labels(targets)
+    failed = False
+    for target, label in zip(targets, labels, strict=True):
+        lox.use_file(label, module_root=target.resolve().parent)
+        try:
+            source = _read_source(str(target))
+        except UnicodeDecodeError:
+            print(f"Erro: '{label}' não é UTF-8 válido.", file=sys.stderr)
+            sys.exit(66)
+        except OSError as exc:
+            print(
+                f"Erro: não foi possível ler '{label}': {exc.strerror or exc}",
+                file=sys.stderr,
+            )
+            sys.exit(66)
+        result = flush_result(label, source)
+        if result is None:
+            failed = True
+            continue
+        formatted.append((target, label, source, result))
+
+    if json_batches:
+        combined = DiagnosticBatch(
+            diagnostics=tuple(
+                diagnostic for batch in json_batches for diagnostic in batch.diagnostics
+            ),
+            suppressed=sum(batch.suppressed for batch in json_batches),
+        )
+        lox.flush_batch(combined, "fmt", exit_code=65, always=True)
+
+    if args.diff:
+        changed = False
+        for _target, label, source, result in formatted:
+            if result.changed:
+                changed = True
+                sys.stdout.write(unified_diff(label, source, result.text))
+        sys.exit(65 if failed else (1 if changed else 0))
+
+    if args.check:
+        if args.edits == "json":
+            if failed or not formatted:
+                sys.exit(65)
+            _target, label, source, result = formatted[0]
+            payload = {
+                "file": label,
+                "changed": result.changed,
+                "max_width": args.max_width,
+                "text": result.text,
+                "edits": edits_json(build_edits(source, result.text)),
+            }
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            sys.exit(1 if result.changed else 0)
+        sys.exit(65 if failed else (1 if any(r.changed for *_, r in formatted) else 0))
+
+    if failed:
+        sys.exit(65)
+    for target, _label, _source, result in formatted:
+        if result.changed:
+            target.write_text(result.text, encoding="utf-8")
     sys.exit(0)
+
+
+def _display_path(path: Path) -> str:
+    """Nome determinístico: relativo ao cwd quando possível, nunca absoluto."""
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _display_labels(paths: Sequence[Path]) -> list[str]:
+    """Labels únicos: basename fora do cwd, com sufixo de diretório quando colidem."""
+    labels = [_display_path(path) for path in paths]
+    counts = Counter(labels)
+    result: list[str] = [""] * len(labels)
+    used: set[str] = set()
+    for index, label in enumerate(labels):
+        if counts[label] == 1:
+            result[index] = label
+            used.add(label)
+    for index, path in enumerate(paths):
+        label = labels[index]
+        if counts[label] == 1:
+            continue
+        parts = path.resolve().parts
+        candidate = label
+        for depth in range(2, len(parts) + 1):
+            candidate = "/".join(parts[-depth:])
+            if candidate not in used:
+                break
+        result[index] = candidate
+        used.add(candidate)
+    return result
+
+
+def _display_name(name: str) -> str:
+    """`--file-name` lógico: preserva nomes relativos, corta qualquer path absoluto."""
+    path = Path(name)
+    return path.name if path.is_absolute() else name
 
 
 def doc_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -268,6 +439,7 @@ def _run_scaffold(
             name=args.name,
             git=not args.no_git,
             require_new=command == "new",
+            library=args.lib,
         )
     except ScaffoldError as error:
         lox.reporter.error(
@@ -459,8 +631,7 @@ def lock_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> N
     try:
         lock = lock_manifest(manifest, offline=args.offline, cache_dir=lox.cache_dir)
         if args.check:
-            current = read_lock(lock_path)
-            if current is None or render_lock(current) != render_lock(lock):
+            if not lock_is_current(read_lock(lock_path), lock):
                 print("loxia.lock is out of date; run 'loxia lock'.", file=sys.stderr)
                 sys.exit(1)
             return
@@ -663,6 +834,26 @@ def _capabilities_payload() -> dict[str, object]:
             "stack_budget_bytes": STACK_BUDGET_BYTES,
             "default_heap_bytes": DEFAULT_HEAP_BYTES,
         },
+        "primitives": [
+            {
+                "name": primitive.lox,
+                "group": primitive.group,
+                "layer": primitive.layer,
+                "ambient": primitive.ambient,
+                "native_only": primitive.native_only,
+                "site": primitive.site,
+            }
+            for primitive in kernel_primitives()
+        ],
+        "native_modules": [
+            {
+                "name": module,
+                "budget": budget,
+                "used": sum(1 for primitive in PRIMITIVES if primitive.group == module),
+            }
+            for module, budget in sorted(NATIVE_MODULE_BUDGET.items())
+        ],
+        "kernel_budget": {"total": KERNEL_BUDGET, "groups": GROUP_BUDGET},
         "warnings": {"codes": ["W1001"], "werror": True},
         "fixes": {
             "applicability": ["safe", "unsafe"],
@@ -677,10 +868,24 @@ def _print_capabilities(as_json: bool) -> None:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
     commands = cast(list[dict[str, object]], payload["commands"])
+    primitives = cast(list[dict[str, object]], payload["primitives"])
+    groups = Counter(str(primitive["group"]) for primitive in primitives)
+    layers = Counter(str(primitive["layer"]) for primitive in primitives)
     print(f"loxia {payload['version']}")
     print("commands: " + ", ".join(str(command["name"]) for command in commands))
     print("error formats: " + ", ".join(cast(list[str], payload["error_formats"])))
     print("jsonl events: " + ", ".join(cast(list[str], payload["jsonl_events"])))
+    print(
+        f"primitives: {len(primitives)} ("
+        + ", ".join(f"{group} {count}" for group, count in sorted(groups.items()))
+        + ")"
+    )
+    print("layers: " + ", ".join(f"{layer} {count}" for layer, count in sorted(layers.items())))
+    modules = cast(list[dict[str, object]], payload["native_modules"])
+    print(
+        "native modules: "
+        + ", ".join(f"{module['name']} {module['used']}/{module['budget']}" for module in modules)
+    )
     print(f"max call depth: {MAX_CALL_DEPTH}")
     print(f"default heap: {DEFAULT_HEAP_BYTES // 1024**2}M")
 

@@ -1,0 +1,12 @@
+fn pick(x: Int) -> Int {
+  val base = 10
+  return match x {
+    0 => base
+    _ => x + base
+  }
+}
+
+print(pick(2))
+print(pick(0))
+# expect: 12
+# expect: 10

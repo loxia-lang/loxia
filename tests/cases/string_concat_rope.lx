@@ -1,0 +1,33 @@
+# Concatenação encadeada e todas as observações: igualdade, ordem, len, chars,
+# repr e UTF-8 (a representação por rope precisa achatar no ponto certo).
+var s = "a"
+s = s + "b"
+s = s + "c"
+print(s)
+print(len(s))
+print(s == "abc")
+print(s < "abd")
+print(s + "d")
+print(chars(s))
+val t = s
+s = s + "!"
+print(t)
+print(s)
+print(len(s))
+var u = "á"
+u = u + "b"
+print(len(u))
+print(str(charCodeAt(u, 0)))
+print(u == "áb")
+# expect: abc
+# expect: 3
+# expect: true
+# expect: true
+# expect: abcd
+# expect: ["a", "b", "c"]
+# expect: abc
+# expect: abc!
+# expect: 4
+# expect: 2
+# expect: 225
+# expect: true

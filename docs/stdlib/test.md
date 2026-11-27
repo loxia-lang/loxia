@@ -127,23 +127,26 @@ Calls `report()` and exits the process with its code.
 
 In `--list` mode it exits 0 immediately.
 
-### `class Expectation[T]`
+### `class Expectation`
 
-Equality assertion for a concrete value (scalar, string, list, map or tuple).
+Equality assertion for any value (scalar, string, list, map, tuple or dynamic `Any`).
 
-#### `val value: T`
+The observed value is `Any` so `expect(x)` also accepts values that are typed
+dynamically; the failure message renders both sides with `repr` (deterministic).
+
+#### `val value: Any`
 
 Observed value.
 
-#### `fn init(value: T)`
+#### `fn init(value: Any)`
 
 Wraps the observed value.
 
-#### `fn toBe(other: T) -> Nil`
+#### `fn toBe(other: Any) -> Nil`
 
 Fails when `value != other`.
 
-#### `fn notToBe(other: T) -> Nil`
+#### `fn notToBe(other: Any) -> Nil`
 
 Fails when `value == other`.
 
@@ -213,9 +216,9 @@ Empties the record.
 
 Fails the current test with `message`.
 
-### `fn expect[T](value: T) -> Expectation[T]`
+### `fn expect(value: Any) -> Expectation`
 
-Wraps a concrete value for `toBe`/`notToBe`.
+Wraps any value, including a dynamically typed `Any`, for `toBe`/`notToBe`.
 
 ### `fn expectGt[T](actual: T, expected: T) -> Nil`
 

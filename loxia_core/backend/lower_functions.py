@@ -114,6 +114,7 @@ class FunctionLowering(LoweringBase):
             decl_file=stmt.name.file,
             decl_line=stmt.name.line,
             decl_column=stmt.name.column,
+            fn_ty=self._function_types.get(stmt),
         )
 
     def _param_desc(self, param: Param) -> TypeDesc:
@@ -224,6 +225,7 @@ class FunctionLowering(LoweringBase):
             decl_file=expr.keyword.file,
             decl_line=expr.keyword.line,
             decl_column=expr.keyword.column,
+            fn_ty=fn_ty,
         )
 
     def _make_captures(self, node: Function | Lambda) -> tuple[CaptureBinding, ...]:
@@ -270,6 +272,7 @@ class FunctionLowering(LoweringBase):
         self.builder.store(self.builder.bitcast(info.ir, _I8_PTR), fn_slot)
         self.builder.store(env, env_slot)
         self.builder.store(self._display_pointer(display), name_slot)
+        self._closure_sig_fields(closure, info.fn_sig, info.fn_ty)
 
         return Value(ValueType.FUNCTION, raw_closure, info.fn_sig)
 
@@ -288,6 +291,8 @@ class FunctionLowering(LoweringBase):
         saved_method_class = self._method_class
         saved_type_subst = self._type_subst
         saved_cleanup = self._cleanup_stack
+        saved_loops = self._loop_stack
+        saved_emitting_finally = self._emitting_finally
 
         self._function_ir = info.ir
         self._type_subst = {**self._type_subst, **(info.type_subst or {})}
@@ -297,6 +302,8 @@ class FunctionLowering(LoweringBase):
         self._scopes = [{}]
         self._captures = {}
         self._cleanup_stack = []
+        self._loop_stack = []
+        self._emitting_finally = set()
         self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
         self._stack_enter(info)
 
@@ -407,6 +414,8 @@ class FunctionLowering(LoweringBase):
         self._method_class = saved_method_class
         self._type_subst = saved_type_subst
         self._cleanup_stack = saved_cleanup
+        self._loop_stack = saved_loops
+        self._emitting_finally = saved_emitting_finally
 
     def _seal_blocks(self, function: Any) -> None:
         """Todo bloco precisa de terminador; continuações de panic ficam `unreachable`."""

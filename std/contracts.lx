@@ -12,7 +12,7 @@
 /// bug and must be caught explicitly (`except ContractError`) or terminate the program.
 class ContractError(Exception) {
   /// Creates the error with the message shown in the diagnostic.
-  init(message: String) {
+  fn init(message: String) {
     this.message = message
   }
 }
@@ -54,12 +54,7 @@ fn checkInvariant(condition: Bool, message: String = "invariant violated") -> Ni
 /// If the body raises, the postcondition is not evaluated.
 ///
 /// The `old` value is a local captured before the call; pass a closure that reads it.
-fn check[T](
-  name: String,
-  pre: fn() -> Bool,
-  body: fn() -> T,
-  post: fn(T) -> Bool
-) -> T {
+fn check[T](name: String, pre: fn() -> Bool, body: fn() -> T, post: fn(T) -> Bool) -> T {
   require(pre(), "${name}: precondition failed")
   val result = body()
   ensure(post(result), "${name}: postcondition failed")
@@ -76,7 +71,7 @@ fn checkMethod[T, R](
   self: T,
   pre: fn(T) -> Bool,
   body: fn(T) -> R,
-  post: fn(T, R) -> Bool
+  post: fn(T, R) -> Bool,
 ) -> R {
   require(pre(self), "${name}: precondition failed")
   val result = body(self)
@@ -88,12 +83,7 @@ fn checkMethod[T, R](
 ///
 /// The postcondition takes no result parameter, which reads better for procedures and
 /// avoids the dummy `Nil` argument that `check` would need.
-fn checkVoid(
-  name: String,
-  pre: fn() -> Bool,
-  body: fn() -> Nil,
-  post: fn() -> Bool
-) -> Nil {
+fn checkVoid(name: String, pre: fn() -> Bool, body: fn() -> Nil, post: fn() -> Bool) -> Nil {
   require(pre(), "${name}: precondition failed")
   body()
   ensure(post(), "${name}: postcondition failed")
@@ -105,7 +95,7 @@ fn checkMethodVoid[T](
   self: T,
   pre: fn(T) -> Bool,
   body: fn(T) -> Nil,
-  post: fn(T) -> Bool
+  post: fn(T) -> Bool,
 ) -> Nil {
   require(pre(self), "${name}: precondition failed")
   body(self)

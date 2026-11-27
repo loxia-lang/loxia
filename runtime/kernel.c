@@ -43,12 +43,15 @@ void *lox_substr(const void *pointer, int64_t start, int64_t end,
     size_t length = (size_t)(finish - begin);
     LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
     char *data = (char *)(result + 1);
-    memcpy(data, string->data + begin, length);
+    memcpy(data, lox_str_bytes(string) + begin, length);
     data[length] = '\0';
     result->byte_len = (int64_t)length;
     result->cp_len = end - start;
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -59,11 +62,11 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     const LoxStr *separator = separator_pointer;
     size_t bytes = 0;
     for (int64_t index = 0; index < parts->count; index++) {
-        const LoxValue *item = &parts->items[index];
-        if (item->tag != 4) {
+        LoxValue item = lox_list_value_at(parts, index);
+        if (item.tag != 4) {
             lox_panic(line, column, "R1000", "join() expects List[String].");
         }
-        bytes += (size_t)((const LoxStr *)item->payload)->byte_len;
+        bytes += (size_t)((const LoxStr *)item.payload)->byte_len;
         if (index + 1 < parts->count) {
             bytes += (size_t)separator->byte_len;
         }
@@ -72,11 +75,11 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     char *data = (char *)(result + 1);
     size_t used = 0;
     for (int64_t index = 0; index < parts->count; index++) {
-        const LoxStr *item = (const LoxStr *)parts->items[index].payload;
-        memcpy(data + used, item->data, (size_t)item->byte_len);
+        const LoxStr *item = (const LoxStr *)lox_list_value_at(parts, index).payload;
+        memcpy(data + used, lox_str_bytes(item), (size_t)item->byte_len);
         used += (size_t)item->byte_len;
         if (index + 1 < parts->count) {
-            memcpy(data + used, separator->data, (size_t)separator->byte_len);
+            memcpy(data + used, lox_str_bytes(separator), (size_t)separator->byte_len);
             used += (size_t)separator->byte_len;
         }
     }
@@ -84,13 +87,16 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     result->byte_len = (int64_t)used;
     result->cp_len = 0;
     for (int64_t index = 0; index < parts->count; index++) {
-        result->cp_len += ((const LoxStr *)parts->items[index].payload)->cp_len;
+        result->cp_len += ((const LoxStr *)lox_list_value_at(parts, index).payload)->cp_len;
         if (index + 1 < parts->count) {
             result->cp_len += separator->cp_len;
         }
     }
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -105,7 +111,7 @@ int64_t lox_char_code_at(const void *pointer, int64_t index, int32_t line,
     }
     int64_t offset = utf8_cp_offset(string, index);
     size_t length = 0;
-    return utf8_decode((const unsigned char *)string->data + offset, &length);
+    return utf8_decode((const unsigned char *)lox_str_bytes(string) + offset, &length);
 }
 
 /* `fromCodePoint`: builds a one-code-point String; rejects surrogates and values
@@ -143,8 +149,11 @@ void *lox_from_code_point(int64_t code_point, int32_t line, int32_t column) {
     data[length] = '\0';
     result->byte_len = (int64_t)length;
     result->cp_len = 1;
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -236,14 +245,14 @@ void *lox_args(void) {
 /* `io.write`: raw bytes + immediate flush (ordering with stderr matters). */
 void lox_io_write(const void *pointer) {
     const LoxStr *text = pointer;
-    fwrite(text->data, 1, (size_t)text->byte_len, stdout);
+    fwrite(lox_str_bytes(text), 1, (size_t)text->byte_len, stdout);
     fflush(stdout);
 }
 
 /* `io.writeErr`: raw bytes to stderr + immediate flush. */
 void lox_io_write_err(const void *pointer) {
     const LoxStr *text = pointer;
-    fwrite(text->data, 1, (size_t)text->byte_len, stderr);
+    fwrite(lox_str_bytes(text), 1, (size_t)text->byte_len, stderr);
     fflush(stderr);
 }
 
@@ -307,7 +316,7 @@ void *lox_io_read_utf8(int64_t count, int32_t line, int32_t column) {
 void *lox_io_read_file(const void *pointer) {
     const LoxStr *path = pointer;
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     FILE *file = fopen(path_copy, "rb");
     if (file == NULL) {
@@ -331,13 +340,13 @@ int32_t lox_io_write_file(const void *path_pointer, const void *text_pointer) {
     const LoxStr *path = path_pointer;
     const LoxStr *text = text_pointer;
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     FILE *file = fopen(path_copy, "wb");
     if (file == NULL) {
         return 0;
     }
-    size_t written = fwrite(text->data, 1, (size_t)text->byte_len, file);
+    size_t written = fwrite(lox_str_bytes(text), 1, (size_t)text->byte_len, file);
     int ok = written == (size_t)text->byte_len;
     if (fclose(file) != 0) {
         ok = 0;
@@ -385,8 +394,11 @@ void *lox_io_read_all(void) {
 /* `fs.exists`: `stat`-based check for any file, directory or other entry. */
 int32_t lox_fs_exists(const void *path_pointer) {
     const LoxStr *path = path_pointer;
+    if (memchr(lox_str_bytes(path), '\0', (size_t)path->byte_len) != NULL) {
+        return 0;
+    }
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     struct stat info;
     return stat(path_copy, &info) == 0 ? 1 : 0;
@@ -406,8 +418,11 @@ int compare_dir_names(const void *left, const void *right) {
  */
 void *lox_fs_list_dir(const void *path_pointer) {
     const LoxStr *path = path_pointer;
+    if (memchr(lox_str_bytes(path), '\0', (size_t)path->byte_len) != NULL) {
+        return NULL;
+    }
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     DIR *dir = opendir(path_copy);
     if (dir == NULL) {
@@ -465,7 +480,7 @@ void lox_os_exit(int64_t code, int32_t line, int32_t column) {
 void *lox_os_getenv(const void *name_pointer) {
     const LoxStr *name = name_pointer;
     char *name_copy = lox_alloc_atomic((size_t)name->byte_len + 1);
-    memcpy(name_copy, name->data, (size_t)name->byte_len);
+    memcpy(name_copy, lox_str_bytes(name), (size_t)name->byte_len);
     name_copy[name->byte_len] = '\0';
     const char *value = getenv(name_copy);
     if (value == NULL) {
@@ -525,7 +540,9 @@ size_t utf8_complete_prefix(const unsigned char *data, size_t length) {
  * File handles: `fs.open`, `fs.read`, `fs.write`, `fs.close` (ADR-0119)
  * --------------------------------------------------------------------------- */
 
+#ifndef LOX_MAX_FS_HANDLES
 #define LOX_MAX_FS_HANDLES 128
+#endif
 
 /* `pending` guards UTF-8 boundaries: an incomplete sequence from the previous
  * read waits here (up to 3 bytes) and is completed by the next call. */
@@ -550,6 +567,8 @@ static const char *fs_kind(int error) {
         case EMFILE:
         case ENFILE: return "tooManyFiles";
         case ENOSPC: return "noSpace";
+        case ENOTEMPTY: return "notEmpty";
+        case EXDEV: return "crossDevice";
         default: return "io";
     }
 }
@@ -570,6 +589,21 @@ static const char *fs_open_message(int error) {
     }
 }
 
+static const char *fs_read_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: read failed.";
+        case EACCES:
+        case EPERM: return "permission: read failed.";
+        case EISDIR: return "isDirectory: read failed.";
+        case ENOTDIR: return "notDirectory: read failed.";
+        case EEXIST: return "alreadyExists: read failed.";
+        case EMFILE:
+        case ENFILE: return "tooManyFiles: read failed.";
+        case ENOSPC: return "noSpace: read failed.";
+        default: return "io: read failed.";
+    }
+}
+
 static const char *fs_write_message(int error) {
     switch (error) {
         case EACCES:
@@ -579,12 +613,145 @@ static const char *fs_write_message(int error) {
     }
 }
 
-static char *fs_c_string(const void *pointer) {
+static const char *fs_rename_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't rename.";
+        case EACCES:
+        case EPERM: return "permission: can't rename.";
+        case EISDIR: return "isDirectory: can't rename over a directory.";
+        case ENOTDIR: return "notDirectory: can't rename.";
+        case ENOTEMPTY: return "notEmpty: can't rename.";
+        case EEXIST: return "alreadyExists: can't rename.";
+        case EXDEV: return "crossDevice: can't rename across filesystems.";
+        case ENOSPC: return "noSpace: can't rename.";
+        default: return "io: can't rename.";
+    }
+}
+
+static const char *fs_remove_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't remove.";
+        case EACCES:
+        case EPERM: return "permission: can't remove.";
+        case EISDIR: return "isDirectory: can't remove a directory.";
+        case ENOTDIR: return "notDirectory: can't remove.";
+        default: return "io: can't remove.";
+    }
+}
+
+static const char *fs_mkdir_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't create the directory.";
+        case EACCES:
+        case EPERM: return "permission: can't create the directory.";
+        case EEXIST: return "alreadyExists: can't create the directory.";
+        case ENOTDIR: return "notDirectory: can't create the directory.";
+        case ENOSPC: return "noSpace: can't create the directory.";
+        default: return "io: can't create the directory.";
+    }
+}
+
+static const char *fs_stat_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't stat.";
+        case EACCES:
+        case EPERM: return "permission: can't stat.";
+        case ENOTDIR: return "notDirectory: can't stat.";
+        default: return "io: can't stat.";
+    }
+}
+
+/* Copia uma string Lox para `char *`; NUL interno é caminho inválido, não
+ * um truncamento silencioso (o Python rejeita com ValueError). */
+static char *fs_c_string(const void *pointer, int32_t line, int32_t column) {
     const LoxStr *string = pointer;
+    if (memchr(lox_str_bytes(string), '\0', (size_t)string->byte_len) != NULL) {
+        lox_panic(line, column, "R1000", "io: invalid path.");
+        return NULL;
+    }
     char *copy = lox_alloc_atomic((size_t)string->byte_len + 1);
-    memcpy(copy, string->data, (size_t)string->byte_len);
+    memcpy(copy, lox_str_bytes(string), (size_t)string->byte_len);
     copy[string->byte_len] = '\0';
     return copy;
+}
+
+/* `fs.rename(src, dst)`: POSIX rename semantics — atomic, replaces the target. */
+void lox_fs_rename(const void *source_pointer, const void *target_pointer, int32_t line,
+                   int32_t column) {
+    char *source = fs_c_string(source_pointer, line, column);
+    char *target = fs_c_string(target_pointer, line, column);
+    if (rename(source, target) != 0) {
+        lox_panic(line, column, "R1000", fs_rename_message(errno));
+    }
+}
+
+/* `fs.remove(path)`: file or symlink; a directory is `isDirectory`. */
+void lox_fs_remove(const void *path_pointer, int32_t line, int32_t column) {
+    char *path = fs_c_string(path_pointer, line, column);
+    if (unlink(path) != 0) {
+        /* macOS returns EPERM for unlink(directory); normalize the kind to match
+         * Linux (EISDIR), so the public `kind` is platform independent. */
+        int error = errno;
+        struct stat info;
+        if (stat(path, &info) == 0 && S_ISDIR(info.st_mode)) {
+            lox_panic(line, column, "R1000", "isDirectory: can't remove a directory.");
+            return;
+        }
+        lox_panic(line, column, "R1000", fs_remove_message(error));
+    }
+}
+
+/* `fs.mkdir(path)`: one level; an existing path is `alreadyExists`. */
+void lox_fs_mkdir(const void *path_pointer, int32_t line, int32_t column) {
+    char *path = fs_c_string(path_pointer, line, column);
+    if (mkdir(path, 0777) != 0) {
+        lox_panic(line, column, "R1000", fs_mkdir_message(errno));
+    }
+}
+
+/* `fs.stat(path)`: `(size, mtimeMs, isDir)`, following symlinks. */
+void *lox_fs_stat(const void *path_pointer, int32_t line, int32_t column) {
+    char *path = fs_c_string(path_pointer, line, column);
+    struct stat info;
+    if (stat(path, &info) != 0) {
+        lox_panic(line, column, "R1000", fs_stat_message(errno));
+        return NULL;
+    }
+    void *tuple = lox_tuple_new(3);
+    /* Tags mirror ANY_TAG_INT/ANY_TAG_BOOL (lower_model.py). */
+    lox_tuple_set(tuple, 0, 1, (int64_t)info.st_size);
+#if defined(__APPLE__)
+    int64_t mtime_ms = (int64_t)info.st_mtimespec.tv_sec * 1000 +
+                       (int64_t)(info.st_mtimespec.tv_nsec / 1000000L);
+#else
+    int64_t mtime_ms = (int64_t)info.st_mtim.tv_sec * 1000 +
+                       (int64_t)(info.st_mtim.tv_nsec / 1000000L);
+#endif
+    lox_tuple_set(tuple, 1, 1, mtime_ms);
+    lox_tuple_set(tuple, 2, 3, S_ISDIR(info.st_mode) ? 1 : 0);
+    return tuple;
+}
+
+/* `digest.sha256(text)`: lowercase hex of the UTF-8 bytes (FIPS 180-4). */
+void *lox_digest_sha256(const void *text_pointer) {
+    const LoxStr *text = text_pointer;
+    unsigned char digest[32];
+    lox_sha256((const unsigned char *)lox_str_bytes(text), (size_t)text->byte_len, digest);
+    static const char hex_digits[] = "0123456789abcdef";
+    char output[64];
+    for (int index = 0; index < 32; index++) {
+        output[index * 2] = hex_digits[digest[index] >> 4];
+        output[index * 2 + 1] = hex_digits[digest[index] & 0x0F];
+    }
+    return string_from_bytes(output, 64, 64);
+}
+
+/* `digest.sha256Bytes(data)`: the raw 32-byte digest (FIPS 180-4). */
+void *lox_digest_sha256_bytes(const void *bytes_pointer) {
+    const LoxBytes *data = bytes_pointer;
+    LoxBytes *output = lox_bytes_new(32);
+    lox_sha256(data->data, (size_t)data->len, output->data);
+    return output;
 }
 
 static LoxFsHandle *fs_handle_at(int64_t id, int32_t line, int32_t column) {
@@ -604,21 +771,21 @@ static LoxFsHandle *fs_handle_at(int64_t id, int32_t line, int32_t column) {
 int64_t lox_fs_open(const void *path_pointer, const void *mode_pointer, int32_t line,
                     int32_t column) {
     const LoxStr *mode = mode_pointer;
-    char *path = fs_c_string(path_pointer);
     int flags;
     int writable = 0;
-    if (mode->byte_len == 1 && mode->data[0] == 'r') {
+    if (mode->byte_len == 1 && lox_str_bytes(mode)[0] == 'r') {
         flags = O_RDONLY;
-    } else if (mode->byte_len == 1 && mode->data[0] == 'w') {
+    } else if (mode->byte_len == 1 && lox_str_bytes(mode)[0] == 'w') {
         flags = O_WRONLY | O_CREAT | O_TRUNC;
         writable = 1;
-    } else if (mode->byte_len == 1 && mode->data[0] == 'a') {
+    } else if (mode->byte_len == 1 && lox_str_bytes(mode)[0] == 'a') {
         flags = O_WRONLY | O_CREAT | O_APPEND;
         writable = 1;
     } else {
         lox_panic(line, column, "R1000", "badMode: expected 'r', 'w' or 'a'.");
         return 0;
     }
+    char *path = fs_c_string(path_pointer, line, column);
     int fd;
     do {
         fd = open(path, flags, 0644);
@@ -681,7 +848,11 @@ void *lox_fs_read(int64_t id, int64_t count, int32_t line, int32_t column) {
         do {
             got = read(handle->fd, buffer + total, want - total);
         } while (got < 0 && errno == EINTR);
-        if (got <= 0) {
+        if (got < 0) {
+            lox_panic(line, column, "R1000", fs_read_message(errno));
+            return NULL;
+        }
+        if (got == 0) {
             eof = 1;
             break;
         }
@@ -714,6 +885,59 @@ void *lox_fs_read(int64_t id, int64_t count, int32_t line, int32_t column) {
                              utf8_code_points((const char *)buffer, total));
 }
 
+/* `fs.readBytes(id, n)`: at most `n` raw bytes (no UTF-8), or NULL at EOF. */
+void *lox_fs_read_bytes(int64_t id, int64_t count, int32_t line, int32_t column) {
+    LoxFsHandle *handle = fs_handle_at(id, line, column);
+    if (handle == NULL) {
+        return NULL;
+    }
+    if (handle->writable) {
+        lox_panic(line, column, "R1000", "badMode: handle is not open for reading.");
+        return NULL;
+    }
+    if (count < 0) {
+        lox_panic(line, column, "R1000",
+                  "fs.readBytes() expects a non-negative size.");
+        return NULL;
+    }
+    if (count == 0) {
+        return lox_bytes_new(0);
+    }
+    LoxBytes *value = lox_bytes_new(count);
+    size_t total = 0;
+    if (handle->pending_len > 0) {
+        size_t take = handle->pending_len < (size_t)count ? handle->pending_len
+                                                           : (size_t)count;
+        memcpy(value->data, handle->pending, take);
+        if (handle->pending_len > take) {
+            memmove(handle->pending, handle->pending + take,
+                    handle->pending_len - take);
+            handle->pending_len -= take;
+        } else {
+            handle->pending_len = 0;
+        }
+        total = take;
+    }
+    if (total < (size_t)count) {
+        ssize_t got;
+        do {
+            got = read(handle->fd, value->data + total, (size_t)count - total);
+        } while (got < 0 && errno == EINTR);
+        if (got < 0) {
+            lox_panic(line, column, "R1000", fs_read_message(errno));
+            return NULL;
+        }
+        if (got > 0) {
+            total += (size_t)got;
+        }
+    }
+    if (total == 0) {
+        return NULL;
+    }
+    value->len = (int64_t)total;
+    return value;
+}
+
 /* `fs.write(id, text)`: writes every byte, retrying EINTR. */
 void lox_fs_write(int64_t id, const void *text_pointer, int32_t line, int32_t column) {
     LoxFsHandle *handle = fs_handle_at(id, line, column);
@@ -725,7 +949,7 @@ void lox_fs_write(int64_t id, const void *text_pointer, int32_t line, int32_t co
         return;
     }
     const LoxStr *text = text_pointer;
-    const char *cursor = text->data;
+    const char *cursor = lox_str_bytes(text);
     size_t remaining = (size_t)text->byte_len;
     while (remaining > 0) {
         ssize_t written = write(handle->fd, cursor, remaining);

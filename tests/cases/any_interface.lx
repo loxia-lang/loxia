@@ -1,0 +1,58 @@
+# `Any` guarda instância que implementa interface; `is`/`as` estreitam (ADR-0146).
+interface Shape {
+  fn area() -> Int
+}
+
+interface Named {
+  fn name() -> String {
+    return "anon"
+  }
+}
+
+class Square implements Shape, Named {
+  var side: Int = 2
+
+  fn area() -> Int {
+    return this.side * this.side
+  }
+
+  fn name() -> String {
+    return "square"
+  }
+}
+
+class Unit implements Named {}
+
+val s: Any = Square()
+print(s is Shape)           # expect: true
+print(s is Named)           # expect: true
+print(s is String)          # expect: false
+print((s as Shape).area())  # expect: 4
+print((s as Named).name())  # expect: square
+if (s is Shape) {
+  print(s.area()) # expect: 4
+}
+
+val i: Named = Square()
+print(i is Named)           # expect: true
+print((i as Shape).area())  # expect: 4
+
+val u: Any = Unit()
+print(u is Named)           # expect: true
+print((u as Named).name())  # expect: anon
+
+val n: Any = 1
+print(n is Shape) # expect: false
+
+class Sub(Square) {}
+
+val sub: Any = Sub()
+print(sub is Named)           # expect: true
+print((sub as Shape).area())  # expect: 4
+
+val xs: List[Named] = [Square()]
+print(xs is List[Named])  # expect: true
+print(xs[0] is Named)     # expect: true
+val m: Map[String, Named] = { "s": Square() }
+print(m is Map[String, Named])  # expect: true
+print(m["s"] is Named)          # expect: true

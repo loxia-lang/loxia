@@ -2,6 +2,5 @@ var x = 1
 -2
 print(x) # expect: 1
 
-val y = 1 +
-  2
+val y = 1 + 2
 print(y) # expect: 3

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.bytes: `read*Result` preservam offset/tamanho; as cascas descartam o motivo (ADR-0135).
+import std.bytes as bytes
+
+val data = Bytes.fromList([18, 52, 86, 120])
+
+match bytes.readU32beResult(data, 0) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.kind)
+}
+
+match bytes.readU32beResult(data, 2) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.message)
+}
+
+match bytes.readU64leResult(data, -1) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(
+    error.kind + " " + str(error.offset) + " " + str(error.wanted) + " " + str(error.length),
+  )
+}
+
+match bytes.readU16beResult(data, 3) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.wanted)
+}
+
+match bytes.readU16leResult(data, 0) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.kind)
+}
+
+match bytes.readU64beResult(data, 0) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.wanted)
+}
+
+match bytes.readU32leResult(data, 3) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.kind + " " + str(error.offset) + " " + str(error.wanted))
+}
+
+print(bytes.readU32be(data, 2) ?? -1)
+print(bytes.readU32le(data, 0))
+print(bytes.readU16be(data, 2) ?? -1)
+
+# expect: 305419896
+# expect: read past end: offset 2, wanted 4, length 4
+# expect: outOfBounds -1 8 4
+# expect: 2
+# expect: 13330
+# expect: 8
+# expect: outOfBounds 3 4
+# expect: -1
+# expect: 2018915346
+# expect: 22136

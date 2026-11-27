@@ -11,7 +11,7 @@ import std.io as io
 /// Test failure (distinct from `RuntimeError`, which is an infrastructure bug).
 class TestFailure(Exception) {
   /// Creates the failure with the message shown in the report.
-  init(message: String) {
+  fn init(message: String) {
     this.message = message
   }
 }
@@ -19,7 +19,7 @@ class TestFailure(Exception) {
 /// Test skipped on purpose; the runner counts it as `skip`, not as a failure.
 class Skip(Exception) {
   /// Creates the skip with the given reason.
-  init(reason: String) {
+  fn init(reason: String) {
     this.message = reason
   }
 }
@@ -54,7 +54,7 @@ class Suite {
   /// Creates an empty suite and reads `--filter=`/`--only=` from `args()`.
   ///
   /// Also detects `--list`, `--protocol=json` and `--token=`.
-  init() {
+  fn init() {
     this.total = 0
     this.passed = 0
     this.failed = 0
@@ -75,11 +75,11 @@ class Suite {
     for argument in args() {
       if (strings.startsWith(argument, "--filter=")) {
         this.filter = strings.slice(argument, 9, len(argument))
-      } else if (strings.startsWith(argument, "--only=")) {
+      } elif (strings.startsWith(argument, "--only=")) {
         this.only = strings.slice(argument, 7, len(argument))
-      } else if (argument == "--protocol=json") {
+      } elif (argument == "--protocol=json") {
         this.protocol = true
-      } else if (strings.startsWith(argument, "--token=")) {
+      } elif (strings.startsWith(argument, "--token=")) {
         this.token = strings.slice(argument, 8, len(argument))
       }
     }
@@ -192,7 +192,7 @@ class Suite {
       } else {
         print("ok ${this.total} - ${full} # SKIP ${skipReason}")
       }
-    } else if (message == "") {
+    } elif (message == "") {
       this.passed = this.passed + 1
       if (this.protocol) {
         this._emit(this._eventResult(full, "pass", "pass", "", ""))
@@ -208,8 +208,8 @@ class Suite {
             "fail",
             (failureKind if failureKind != "" else "exception"),
             message,
-            site
-          )
+            site,
+          ),
         )
       } else {
         this._reportFailure(this.total, full, message, site)
@@ -315,9 +315,19 @@ class Suite {
     status: String,
     kind: String,
     message: String,
-    site: String
+    site: String,
   ) -> String {
-    return "{\"event\":\"result\",\"name\":" + _quote(name) + ",\"status\":" + _quote(status) + ",\"kind\":" + _quote(kind) + ",\"message\":" + _quote(message) + ",\"site\":" + _quote(site) + ",\"location\":null}"
+    return "{\"event\":\"result\",\"name\":" +
+      _quote(name) +
+      ",\"status\":" +
+      _quote(status) +
+      ",\"kind\":" +
+      _quote(kind) +
+      ",\"message\":" +
+      _quote(message) +
+      ",\"site\":" +
+      _quote(site) +
+      ",\"location\":null}"
   }
 
   fn _eventDiscover(name: String) -> String {
@@ -337,15 +347,15 @@ fn _quote(text: String) -> String {
     val code = charCodeAt(ch, 0)
     if (ch == "\"") {
       out = out + "\\" + "\""
-    } else if (ch == "\\") {
+    } elif (ch == "\\") {
       out = out + "\\" + "\\"
-    } else if (ch == "\n") {
+    } elif (ch == "\n") {
       out = out + "\\" + "n"
-    } else if (ch == "\r") {
+    } elif (ch == "\r") {
       out = out + "\\" + "r"
-    } else if (ch == "\t") {
+    } elif (ch == "\t") {
       out = out + "\\" + "t"
-    } else if (code < 32) {
+    } elif (code < 32) {
       out = out + "\\" + "u" + _hex4(code)
     } else {
       out = out + ch
@@ -379,25 +389,28 @@ fn _truncate[T](items: List[T], size: Int) -> Nil {
   }
 }
 
-/// Equality assertion for a concrete value (scalar, string, list, map or tuple).
-class Expectation[T] {
+/// Equality assertion for any value (scalar, string, list, map, tuple or dynamic `Any`).
+///
+/// The observed value is `Any` so `expect(x)` also accepts values that are typed
+/// dynamically; the failure message renders both sides with `repr` (deterministic).
+class Expectation {
   /// Observed value.
-  val value: T
+  val value: Any
 
   /// Wraps the observed value.
-  init(value: T) {
+  fn init(value: Any) {
     this.value = value
   }
 
   /// Fails when `value != other`.
-  fn toBe(other: T) -> Nil {
+  fn toBe(other: Any) -> Nil {
     if (this.value != other) {
       raise TestFailure("expected ${repr(other)}, got ${repr(this.value)}")
     }
   }
 
   /// Fails when `value == other`.
-  fn notToBe(other: T) -> Nil {
+  fn notToBe(other: Any) -> Nil {
     if (this.value == other) {
       raise TestFailure("expected not ${repr(other)}")
     }
@@ -410,7 +423,7 @@ class ListExpectation[T] {
   val items: List[T]
 
   /// Wraps the observed list.
-  init(items: List[T]) {
+  fn init(items: List[T]) {
     this.items = items
   }
 
@@ -421,9 +434,7 @@ class ListExpectation[T] {
         return
       }
     }
-    raise TestFailure(
-      "expected ${repr(this.items)} to contain ${repr(item)}"
-    )
+    raise TestFailure("expected ${repr(this.items)} to contain ${repr(item)}")
   }
 }
 
@@ -433,16 +444,14 @@ class StringExpectation {
   val text: String
 
   /// Wraps the observed text.
-  init(text: String) {
+  fn init(text: String) {
     this.text = text
   }
 
   /// Fails when `text` does not contain `needle`.
   fn contains(needle: String) -> Nil {
     if (not strings.contains(this.text, needle)) {
-      raise TestFailure(
-        "expected ${repr(this.text)} to contain ${repr(needle)}"
-      )
+      raise TestFailure("expected ${repr(this.text)} to contain ${repr(needle)}")
     }
   }
 }
@@ -453,7 +462,7 @@ class Recorder {
   val calls: List[String]
 
   /// Creates an empty recorder.
-  init() {
+  fn init() {
     this.calls = []
   }
 
@@ -495,8 +504,8 @@ fn fail(message: String) -> Nil {
   raise TestFailure(message)
 }
 
-/// Wraps a concrete value for `toBe`/`notToBe`.
-fn expect[T](value: T) -> Expectation[T] {
+/// Wraps any value, including a dynamically typed `Any`, for `toBe`/`notToBe`.
+fn expect(value: Any) -> Expectation {
   return Expectation(value)
 }
 

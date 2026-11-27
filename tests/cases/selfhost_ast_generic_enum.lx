@@ -1,0 +1,10 @@
+# Generic recursive enum: the self-hosted AST shape with type parameters.
+enum Tree[T] { Leaf(T), Node(Tree[T], Tree[T]) }
+
+val t: Tree[Int] = Tree.Node(Tree.Leaf(1), Tree.Leaf(2))
+val value = match t {
+  Tree.Leaf(v) => v
+  Tree.Node(l, r) => 0
+}
+print(value)
+# expect: 0

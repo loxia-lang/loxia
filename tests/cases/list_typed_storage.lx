@@ -1,0 +1,43 @@
+# Listas com armazenamento tipado (Int/Float/Bool/String), set, pop e join.
+val ints: List[Int] = []
+ints.push(1)
+ints.push(2)
+ints.push(3)
+print(ints)
+print(len(ints))
+print(ints[1])
+ints[1] = 20
+print(ints)
+print(ints.pop())
+print(ints)
+val floats: List[Float] = [1.5, 2.5]
+floats.push(3.5)
+print(floats)
+val bools: List[Bool] = [true, false]
+bools.push(true)
+print(bools)
+val strs: List[String] = ["a", "b"]
+strs.push("c")
+print(strs)
+print(join(strs, "-"))
+var total = 0
+for x in ints {
+  total = total + x
+}
+print(total)
+print(ints == [1, 20])
+val any: List[Any] = ["x", 1]
+print(any)
+# expect: [1, 2, 3]
+# expect: 3
+# expect: 2
+# expect: [1, 20, 3]
+# expect: 3
+# expect: [1, 20]
+# expect: [1.5, 2.5, 3.5]
+# expect: [true, false, true]
+# expect: ["a", "b", "c"]
+# expect: a-b-c
+# expect: 21
+# expect: true
+# expect: ["x", 1]
