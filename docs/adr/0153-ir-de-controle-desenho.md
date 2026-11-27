@@ -143,7 +143,7 @@ A implementação é **one-pass**: o modelo e o alvo são construídos juntos, s
   adicionar incoming e desenrolar cleanup.
 - O proxy embrulha o builder do alvo (`llvmlite`, através de `llvm_ir`), materializa
   phi/terminadores e encaminha as demais instruções para o alvo.
-- `verify(ControlFunction)` roda no **modelo**, não no alvo. `dump(ControlFunction)` produz
+- `verify_function(ControlFunction)`/`ControlIR.verify_all` roda no **modelo**, não no alvo. `dump(ControlFunction)` produz
   uma representação determinística (S-expression) para testes.
 - Construtos migrados não chamam `llvm_ir.append_block`/`builder.phi` diretamente; usam o
   `ControlIRBuilder`. Construtos ainda não migrados mantêm o código atual até a sua fatia.
@@ -269,9 +269,10 @@ um erro de linguagem (`not supported by the backend yet` é outra coisa, do I4).
 | **C7** | Rótulos, ordem de blocos, ordem de phi e ordem de incoming são determinísticos; nada de iterar `set`/`dict`/`id()`. | `.ll`/binário não determinístico (I3). |
 | **C8** | Todo caminho de unwind/raise preserva o token/span do site original; nunca linha 0 sintética. | Stack trace/`e.site` no lugar errado; quebra do contrato de diagnóstico. |
 
-C1–C3 e C5 são verificáveis no modelo; C4/C6 precisam de informação de lowering (o builder
-pode registrar a origem dos valores) e podem começar como checagem de debug/teste; C7/C8 são
-policiados por testes de determinismo e pelos casos de erro existentes.
+`verify_function` impõe C1–C7. C4/C6 usam a origem/depth registrada pelo builder e são uma
+**aproximação**: um valor definido e usado dentro do mesmo bloco que atravessa a saída de uma
+região não é distinguido (ver `docs/tech/control-ir.md`). C8 é policiado pelos diagnósticos e
+pelo diferencial, porque o modelo não carrega spans.
 
 ### 6. Determinismo
 
