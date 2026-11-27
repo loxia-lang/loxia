@@ -24,8 +24,8 @@ Scanner ───────────────► list[Token]
    ▼                       ▼
    └──────────────────► Interpreter ──────► effects (`--interpret`, REPL, oráculo)
 
-   (path `run`/`--emit`)  Checker ─────────► Lowerer ──► llvmlite.ir ──► .o ──► cc
-                                                                    └─► `--emit=ll`
+   (path `run`/`--emit`)  Checker ─────────► Lowerer ──► Control IR ──► llvmlite.ir ──► .o ──► cc
+                                                                        └─► `--emit=ll`
 ```
 
 Each phase depends only on the previous one. The **resolver** is mandatory: without it, the
@@ -38,6 +38,12 @@ On the backend path (`loxia run` by default and `--emit`,
 the checker is **mandatory** and strict: lowering consumes concrete types. What has no representation yet
 (`Float`, `String`, variables, functions, classes, `Any`) fails with an explicit compilation
 error — the backend never generates "roughly right" code.
+
+Control flow in lowered functions goes through the backend-internal **control IR**
+([ADR-0153](../adr/0153-ir-de-controle-desenho.md), [`control-ir.md`](control-ir.md)): blocks,
+phi, terminators and the cleanup depth are recorded while the `llvmlite` builder runs, and
+C1-C7 are verified before emission. It is not a public IR and does not replace the future
+THIR.
 
 ## Modules
 
@@ -94,6 +100,7 @@ Packages by phase (dependency only downward):
 | [`loxia_core/loader/lock.py`](../../loxia_core/loader/lock.py) | `loxia.lock` (ADR-0104): strict parse and canonical rendering (sorted, relative posix paths, no timestamp) |
 | [`loxia_core/loader/deps.py`](../../loxia_core/loader/deps.py) | dependency resolution: `.lx` tree hash, lock generation, `--frozen` verification, `fetch`, git mirror/checkout cache and `C0002` |
 | [`loxia_core/loader/gitenv.py`](../../loxia_core/loader/gitenv.py) | clean environment for the `git` calls Loxia spawns (product and tests) |
+| [`loxia_core/backend/control_ir/`](../../loxia_core/backend/control_ir) | backend-internal control IR (ADR-0153): blocks, phi, terminators, cleanup depth and the C1-C7 verifier |
 | [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | single boundary with `llvmlite` (module, target machine, object file) |
 | [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | lowering coordination: program, statements, expressions, arithmetic and control flow |
 | [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | types, values, bindings and field/class layouts (ABI from ADR-0048) |

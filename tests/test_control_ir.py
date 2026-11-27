@@ -202,3 +202,26 @@ def test_verify_all_raises_with_context() -> None:
 
     with pytest.raises(ControlIRError, match=r"\(C5\)"):
         control.verify_all()
+
+
+def test_phi_records_one_incoming_per_predecessor() -> None:
+    control, function, entry = _function()
+    left = control.new_block(function, "left")
+    right = control.new_block(function, "right")
+    end = control.new_block(function, "end")
+
+    condition = llvm_ir.constant(llvm_ir.int_type(1), 1)
+    _builder(control, entry).cbranch(condition, left, right)
+    _builder(control, left).branch(end)
+    _builder(control, right).branch(end)
+    end_builder = _builder(control, end)
+    phi = end_builder.phi(llvm_ir.int_type(64), "merged")
+    phi.add_incoming(llvm_ir.constant(llvm_ir.int_type(64), 1), left)
+    phi.add_incoming(llvm_ir.constant(llvm_ir.int_type(64), 2), right)
+    end_builder.ret(phi)
+
+    record = control.functions[function].blocks[-1].phis[0]
+
+    assert len(record.incoming) == 2
+    assert _errors(control, function) == []
+    assert "(phi merged" in dump(control.functions[function])
