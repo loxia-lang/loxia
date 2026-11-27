@@ -18,9 +18,9 @@ por hash. Medido nesta máquina em 2026-11-26:
 
 | Cenário | Custo |
 | --- | ---: |
-| `_workspace_files()` no repo (554 `.lx`), quente | 9,5 ms (o issue citava 270–285 ms de `rglob`, antes do #199) |
-| fingerprint (554 textos, 0,45 MB) | 0,86 ms |
-| workspace sintético de 5.000 arquivos, quente | 52,6 ms |
+| `_workspace_files()` no repo (555 `.lx`), quente | 8,2 ms (o issue citava 270–285 ms de `rglob`, antes do #199) |
+| fingerprint (555 textos, 0,4 MB) | 0,7 ms |
+| workspace sintético de 5.000 arquivos, quente | 49,2 ms |
 
 Restavam dois problemas — e um terceiro que o issue não via.
 
@@ -89,6 +89,13 @@ workspace. Guardá-la por arquivo — como a primeira versão desta implementaç
 duplicava o closure em cada entrada (`arquivos * closure`) e o cache cresceria de forma
 inaceitável: 50 arquivos importando `std` retinham 31 MB.
 
+Invariantes: a contribuição de um módulo depende só do texto dele e do nome lógico (o
+prefixo `mod$` não vem do importador), e a validade é garantida pelo closure da entry, que
+inclui todos os `watched_files` do `check` — mudar o módulo ou algo que ele importa
+invalida quem o importa. O mesmo arquivo alcançado por dois nomes lógicos gera duas
+contribuições (prefixos de mangling diferentes), por desenho. Entradas de insumo vêm do
+loader ou dos overrides; um insumo ilegível já falha a análise antes de virar cache.
+
 `WorkspaceCache.clear()` (chamado em todo `didChange`) descarta **só** o workspace; as
 camadas por conteúdo continuam válidas. Editar um arquivo refaz a análise dele e mescla
 as outras prontas.
@@ -102,9 +109,10 @@ as outras prontas.
   pior: com 500 arquivos e LRU de 256, cada rebuild reanalisava os despejados e voltava
   aos 25 s.
 - Retenção medida (workspace de arquivos pequenos importando `std.lists`): 50 arquivos →
-  **3,7 MB**; 500 → **29,3 MB**; rebuild depois de editar: **57 ms** e **159 ms**
-  respectivamente (contra ~2,4 s e ~25 s sem o cache por arquivo). `std/` sozinho (30
-  arquivos grandes) retém **19,7 MB**.
+  **4,1 MB** (pico 10,1 MB); 500 → **33,8 MB** (pico 43,1 MB); rebuild depois de editar:
+  **55 ms** e **160 ms** respectivamente (contra ~2,45 s e ~24,5 s do build frio, que
+  analisa todos os arquivos). `std/` sozinho (30 arquivos grandes) retém **19,7 MB**.
+  Números reproduzíveis com `uv run python bench/lsp_workspace.py --memory`.
 
 ## Consequências
 
@@ -116,12 +124,15 @@ as outras prontas.
 - Depois de uma tecla, references custa **1 análise** em vez da workspace inteira:
   bench de ~50 arquivos, `references_after_change` **82,8 ms** (com o fixture realista,
   que agora importa `std`; era 86 ms com módulos sem imports).
-- `workspace_scan` e `workspace_build` ficam medidos separadamente no bench.
+- `workspace_scan` e `workspace_build` ficam medidos separadamente no bench. A baseline do
+`bench/lsp.py` **não é comparável** à anterior: o fixture passou a importar `std.lists`
+(o `references_cold` antigo de ~92 ms era o mesmo build com módulos sem imports); por
+isso `references_cold` e `workspace_build` só se comparam a partir desta baseline.
 
 ### Negativas / custos
 
-- O custo **frio** continua O(arquivos × closure): ~46 ms/arquivo com `std` importado
-  (2,3 s para 51 arquivos; 25 s para 500). É o preço do `check` por arquivo, não do I/O;
+- O custo **frio** continua O(arquivos × closure): ~49 ms/arquivo com `std` importado
+  (2,45 s para 50 arquivos; 24,5 s para 500). É o preço do `check` por arquivo, não do I/O;
   sair disso exige o loader publicar a AST reescrita por módulo (follow-up).
 - Workspaces acima de 2048 arquivos não retêm análise por arquivo; nesse tamanho a
   primeira consulta já custa dezenas de segundos.
@@ -134,7 +145,7 @@ as outras prontas.
 - `didChangeWatchedFiles` continua fora: o stat/fingerprint cobre o caso sem depender do
   cliente.
 - Listagem de diretórios por mtime (sugerida na #195) foi considerada e não entrou: o
-  `os.walk` quente custa 9,5 ms em 554 arquivos e 52,6 ms em 5.000, o fingerprint 0,86 ms
+  `os.walk` quente custa 8,2 ms em 555 arquivos e 49,2 ms em 5.000, o fingerprint 0,7 ms
   e o build domina o custo frio; a poda de diretórios já está no #199.
 
 ## Alternativas consideradas
@@ -152,7 +163,8 @@ as outras prontas.
 
 ```bash
 uv run pytest tests/test_rename_workspace.py tests/test_lsp_navigation.py -q
-uv run python bench/lsp.py --repeat 5   # compara com bench/lsp_baseline.json
+uv run python bench/lsp.py --repeat 5            # compara com bench/lsp_baseline.json
+uv run python bench/lsp_workspace.py --memory    # scan/build/rebuild/retenção
 ```
 
 Testes que policiam a decisão:
@@ -169,8 +181,11 @@ Testes que policiam a decisão:
 - `test_workspace_cache_reanalyzes_only_the_changed_file`,
   `test_workspace_cache_shares_module_contributions`,
   `test_workspace_cache_invalidates_external_module_edit`,
-  `test_workspace_cache_keeps_only_the_current_workspace` e
-  `test_workspace_above_the_budget_is_not_retained`.
+  `test_workspace_cache_keeps_only_the_current_workspace`,
+  `test_workspace_above_the_budget_is_not_retained`,
+  `test_workspace_above_the_budget_drops_the_previous_cache`,
+  `test_workspace_cache_clear_keeps_file_analyses` e
+  `test_workspace_failure_is_not_memoized`.
 
 Revisitar quando: o loader expuser a AST reescrita por módulo (custo frio), o parse
 incremental (#113) mudar o custo por arquivo, ou o workspace típico passar de 2048

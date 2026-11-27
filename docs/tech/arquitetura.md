@@ -230,10 +230,13 @@ arquivo descarta o workspace e refaz só a análise dele. `references`/`rename` 
 símbolo de `std`/`[modules].paths` (antes o token era atribuído a um arquivo inexistente no
 root e a coleta estourava) e o rename recusa editar fora do root. Orçamento: uma workspace
 por vez, ≤2048 arquivos e ≤200k tokens em contribuições de módulo; acima disso o workspace
-é servido sem retenção por arquivo. Medido: rebuild depois de editar em ~50 arquivos
-**57 ms** (era 2,4 s) e em 500 **159 ms** (era 25 s), retendo 3,7 MB e 29,3 MB; descoberta
-quente de 554 arquivos 9,5 ms e fingerprint 0,86 ms. O custo frio continua
-O(arquivos * closure) (~46 ms/arquivo com `std` importado). O `SourceIndex` é construído na
+é servido sem retenção por arquivo. Medido com `bench/lsp_workspace.py`: rebuild depois
+de editar em ~50 arquivos **55 ms** (era 2,45 s) e em 500 **160 ms** (era 24,5 s),
+retendo 4,1 MB e 33,8 MB (pico 10,1/43,1 MB); descoberta quente de 555 arquivos 8,2 ms,
+fingerprint 0,7 ms e 5.000 arquivos 49,2 ms. O custo frio continua
+O(arquivos * closure) (~49 ms/arquivo com `std` importado). Os custos internos (descoberta,
+build frio, rebuild e retenção) saem de `bench/lsp_workspace.py`, que gera os workspaces
+sintéticos em processo e reproduz a tabela do ADR-0151. O `SourceIndex` é construído na
 primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam a caminhada
 do AST; um diagnóstico com nota de proveniência constrói o índice.
 

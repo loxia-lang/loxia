@@ -1168,6 +1168,7 @@ def test_lsp_rename_outside_root_keeps_the_server_alive(tmp_path: Path) -> None:
         response = read(process)
 
         assert "error" in response
+        assert response["error"]["code"] == -32602
         assert "outside the workspace root" in response["error"]["message"]
         # Antes do ADR-0151 o KeyError matava o processo (exit 1).
         assert process.poll() is None

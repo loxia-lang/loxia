@@ -278,27 +278,130 @@ def test_workspace_cache_reanalyzes_only_the_changed_file(
     assert analyzed == ["main.lx"]
 
 
-def test_workspace_cache_keeps_only_the_current_workspace(tmp_path: Path) -> None:
+def _counting_analysis(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    analyzed: list[str] = []
+    original = rename._analyze_file
+
+    def counting(
+        root: Path,
+        path: Path,
+        text: str,
+        overrides: dict[Path, str],
+        module_cache: ModuleCache | None,
+    ) -> object:
+        analyzed.append(path.name)
+        return original(root, path, text, overrides, module_cache)
+
+    monkeypatch.setattr(rename, "_analyze_file", counting)
+    return analyzed
+
+
+def test_workspace_cache_keeps_only_the_current_workspace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analyzed = _counting_analysis(monkeypatch)
+    first = tmp_path / "a.lx"
+    second = tmp_path / "b.lx"
+    first.write_text("val a = 1\n", encoding="utf-8")
+    second.write_text("val b = 2\n", encoding="utf-8")
     cache = rename.WorkspaceCache(max_files=4)
-    for name in ("a.lx", "b.lx"):
-        path = tmp_path / name
-        path.write_text(f"val {name[0]} = 1\n", encoding="utf-8")
-        cache.get(tmp_path, {path: path.read_text(encoding="utf-8")})
 
-    # Uma workspace por vez: o arquivo do workspace anterior sai.
-    assert [path.name for path in cache._entries] == ["b.lx"]
+    cache.get(tmp_path, {first: first.read_text(encoding="utf-8")})
+    cache.get(tmp_path, {second: second.read_text(encoding="utf-8")})
+    analyzed.clear()
+    cache.clear()
+    cache.get(tmp_path, {first: first.read_text(encoding="utf-8")})
+
+    # Uma workspace por vez: o arquivo do workspace anterior não volta de graça.
+    assert analyzed == ["a.lx"]
 
 
-def test_workspace_above_the_budget_is_not_retained(tmp_path: Path) -> None:
-    path = tmp_path / "a.lx"
-    path.write_text("val a = 1\n", encoding="utf-8")
-    cache = rename.WorkspaceCache(max_files=0)
+def test_workspace_above_the_budget_is_not_retained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analyzed = _counting_analysis(monkeypatch)
+    first = tmp_path / "a.lx"
+    second = tmp_path / "b.lx"
+    first.write_text("val a = 1\n", encoding="utf-8")
+    second.write_text("val b = 2\n", encoding="utf-8")
+    files = {first: first.read_text(encoding="utf-8"), second: second.read_text(encoding="utf-8")}
+    cache = rename.WorkspaceCache(max_files=1)
 
-    workspace = cache.get(tmp_path, {path: path.read_text(encoding="utf-8")})
+    workspace = cache.get(tmp_path, files)
+    analyzed.clear()
+    cache.clear()
+    cache.get(tmp_path, files)
 
-    # O workspace é servido, mas nada é retido: sem reter metade, não há thrash.
+    # Acima do orçamento o workspace é servido sem reter nada: sem reter metade,
+    # não há thrash.
     assert not isinstance(workspace, str)
-    assert cache._entries == {} and cache._modules == {}
+    assert sorted(analyzed) == ["a.lx", "b.lx"]
+
+
+def test_workspace_above_the_budget_drops_the_previous_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analyzed = _counting_analysis(monkeypatch)
+    small = tmp_path / "a.lx"
+    big_first = tmp_path / "b.lx"
+    big_second = tmp_path / "c.lx"
+    for path in (small, big_first, big_second):
+        path.write_text(f"val {path.stem} = 1\n", encoding="utf-8")
+    small_files = {small: small.read_text(encoding="utf-8")}
+    big_files = {
+        big_first: big_first.read_text(encoding="utf-8"),
+        big_second: big_second.read_text(encoding="utf-8"),
+    }
+    cache = rename.WorkspaceCache(max_files=1)
+
+    cache.get(tmp_path, small_files)
+    cache.get(tmp_path, big_files)
+    analyzed.clear()
+    cache.clear()
+    cache.get(tmp_path, small_files)
+
+    # O ramo "grande demais" larga o cache anterior em vez de deixá-lo sobreviver
+    # sem reavaliar os tetos de módulos/tokens.
+    assert analyzed == ["a.lx"]
+
+
+def test_workspace_cache_clear_keeps_file_analyses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analyzed = _counting_analysis(monkeypatch)
+    paths = [tmp_path / name for name in ("a.lx", "b.lx", "main.lx")]
+    for path in paths:
+        path.write_text(f"val {path.stem} = 1\n", encoding="utf-8")
+    files = {path: path.read_text(encoding="utf-8") for path in paths}
+    cache = rename.WorkspaceCache()
+
+    first = cache.get(tmp_path, files)
+    analyzed.clear()
+    cache.clear()
+    second = cache.get(tmp_path, files)
+
+    # O workspace é refeito, mas as análises por conteúdo continuam válidas.
+    assert not isinstance(first, str) and not isinstance(second, str)
+    assert second is not first
+    assert analyzed == []
+    assert second.positions == first.positions
+
+
+def test_workspace_failure_is_not_memoized(tmp_path: Path) -> None:
+    project, files, _main, _token = _external_workspace(tmp_path)
+    shared = project.parent / "shared"
+    (shared / "lib.lx").write_text("fn soma( -> Int {\n  return 1\n}\n", encoding="utf-8")
+    cache = rename.WorkspaceCache()
+
+    broken = cache.get(project, files)
+
+    (shared / "lib.lx").write_text(LIB, encoding="utf-8")
+    fixed = cache.get(project, files)
+
+    # Um módulo externo consertado precisa ser visto na request seguinte; falha não
+    # pode virar memo (o fingerprint não cobre a falha).
+    assert isinstance(broken, str)
+    assert not isinstance(fixed, str)
 
 
 def test_workspace_cache_shares_module_contributions(tmp_path: Path) -> None:

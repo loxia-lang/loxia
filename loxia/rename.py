@@ -197,6 +197,9 @@ class WorkspaceCache:
             # Workspace grande demais para reter análise por arquivo: a memoização
             # do workspace continua (uma entrada), mas o rebuild depois de editar
             # paga a análise inteira. Degradação declarada, não thrash de LRU.
+            # Descartar o que era do workspace anterior também reavalia os tetos de
+            # módulos/tokens nesse ramo (senão eles sobrevivem sem auditoria).
+            self._retain(set())
             built = _build_workspace(root, files, module_cache, load_text=loader)
         else:
             built = _build_workspace(
@@ -208,6 +211,12 @@ class WorkspaceCache:
             )
             if not isinstance(built, str):
                 self._retain({path.resolve() for path in files})
+        if isinstance(built, str):
+            # Falha não vira memo: um módulo externo consertado precisa aparecer na
+            # próxima request, e o fingerprint não cobre a falha (não há closure).
+            self._fingerprint = None
+            self._workspace = None
+            return built
         self._fingerprint = fingerprint
         self._workspace = built
         return built
@@ -534,10 +543,10 @@ def _analyze_file(
         module_map,
         tuple(sorted(lox.watched_files)),
     )
-    return _partition(analysis, merged, index)
+    return _partition(root, analysis, merged, index)
 
 
-def _partition(analysis: _Analysis, merged: list[Stmt], index: SymbolIndex) -> _Parsed:
+def _partition(root: Path, analysis: _Analysis, merged: list[Stmt], index: SymbolIndex) -> _Parsed:
     """Separa o que é do próprio arquivo do que é de cada módulo importado.
 
     A AST mesclada repete os tokens do closure em todo arquivo que o importa. A
@@ -551,17 +560,21 @@ def _partition(analysis: _Analysis, merged: list[Stmt], index: SymbolIndex) -> _
     module_tokens: dict[ModuleKey, list[tuple[Path, int, str]]] = {}
     module_declarations: dict[ModuleKey, dict[str, tuple[Path, Token]]] = {}
 
-    def bucket(display: str) -> tuple[ModuleKey | None, Path]:
-        if display and display != entry_display and display in analysis.module_map:
-            path = analysis.module_map[display]
-            return (path.resolve(), display), path
-        return None, entry_path
+    def bucket(display: str, token: Token) -> tuple[ModuleKey | None, Path]:
+        if not display or display == entry_display:
+            return None, entry_path
+        mapped = analysis.module_map.get(display)
+        if mapped is not None:
+            return (mapped.resolve(), display), mapped
+        # Display desconhecido: resolve pelo fallback do token, nunca assume que é a
+        # entrada — isso aplicaria o offset de outro arquivo ao texto da entrada.
+        return None, _token_file(token, root, analysis.path)
 
     for symbol in index.symbols:
         if symbol.container is not None or symbol.kind not in _TOP_LEVEL:
             continue
         display = symbol.token.file or entry_display
-        key, token_path = bucket(display)
+        key, token_path = bucket(display, symbol.token)
         if key is None:
             own_declarations.setdefault(symbol.name, (token_path, symbol.token))
         else:
@@ -571,7 +584,7 @@ def _partition(analysis: _Analysis, merged: list[Stmt], index: SymbolIndex) -> _
     for statement in merged:
         for item in _tokens(statement):
             display = item.file or entry_display
-            key, token_path = bucket(display)
+            key, token_path = bucket(display, item)
             record = (token_path, item.offset, item.lexeme)
             if key is None:
                 own_tokens.append(record)
