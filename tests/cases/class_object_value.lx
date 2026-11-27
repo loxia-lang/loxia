@@ -1,0 +1,36 @@
+# ADR-0150: objeto de classe é um valor nominal; chamá-lo (variável inferida),
+# comparar e imprimir funciona, e o registro de fábrica é uma função explícita.
+class Shape {
+  var name: String = "shape"
+}
+
+class Circle(Shape) {
+  var r: Int = 0
+
+  fn init(r: Int) {
+    this.r = r
+    this.name = "circle"
+  }
+}
+
+fn makeCircle(r: Int) -> Shape {
+  return Circle(r)
+}
+
+val criar = Circle
+val c = criar(3)
+print(c.r)               # expect: 3
+print(c.name)            # expect: circle
+print(c is Circle)       # expect: true
+print(Circle)            # expect: Circle
+print(Circle == Circle)  # expect: true
+print(Circle == Shape)   # expect: false
+
+val any: Any = Circle
+print(any == Circle) # expect: true
+
+val registry: Map[String, fn(Int) -> Shape] = { "circle": makeCircle }
+val make = registry["circle"]
+val s = make(4)
+print(s is Circle)  # expect: true
+print(s.name)       # expect: circle

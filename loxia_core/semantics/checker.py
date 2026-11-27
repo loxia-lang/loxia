@@ -952,16 +952,60 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         ):
             return f"Expected an instance of {expected.name}, found the class {actual.name}."
         if isinstance(expected, FnTy) and isinstance(actual, ClassObjectTy):
-            return f"Expected a function {display(expected)}, found the class {actual.name}."
+            # ADR-0150: objeto de classe não é valor de função; não há coerção
+            # implícita nem `Type[C]` para recuperar a forma chamável.
+            return (
+                f"Expected a function {display(expected)}, found the class {actual.name}. "
+                f"Class objects aren't function values; drop the annotation or wrap the "
+                f"construction in a function."
+            )
+        if isinstance(expected, ClassObjectTy) and actual is ANY:
+            return f"Expected the class object {expected.name}, found `Any`."
         if expected is FLOAT and actual is INT:
             return "Expected Float, found Int. Write `2.0` or use `2 as Float`."
 
         return f"Expected {display(expected)}, found {display(actual)}."
 
     def _any_cast_help(self, expected: Ty, actual: Ty) -> str | None:
+        if isinstance(expected, ClassObjectTy) and actual is ANY:
+            # ADR-0044/0150: o rebinding só aceita um objeto de classe convertido
+            # explicitamente; não existe `as` para recuperar classe de um `Any`
+            # arbitrário (#247).
+            return (
+                "A class slot can only be rebound from a class object cast to `Any` "
+                "(`Base = OtherBase as Any`)."
+            )
         if actual is ANY and expected is not ANY and expected is not ERROR:
             return "Use an explicit `as` cast to narrow `Any` before using it here."
         return None
+
+    def _assignable_value(self, expected: Ty, actual: Ty, expr: Expr) -> bool:
+        """`assignable` com a exceção de rebinding de classe (ADR-0044/0150).
+
+        Um slot de objeto de classe aceita `Any` apenas quando o valor é um objeto de
+        classe convertido explicitamente (`Base = OtherBase as Any`, ADR-0044). Um
+        `Any` arbitrário faria o binário guardar num slot `CLASS` um payload que não é
+        descritor — o tree-walk guardava o valor e os motores divergiam (#247).
+        """
+        if (
+            isinstance(expected, ClassObjectTy)
+            and actual is ANY
+            and not self._is_class_object_cast(expr)
+        ):
+            return False
+        return self._assignable(expected, actual)
+
+    def _is_class_object_cast(self, expr: Expr) -> bool:
+        """`X as Any` com `X` de tipo objeto de classe (o escape do ADR-0044)."""
+        while isinstance(expr, Grouping):
+            expr = expr.expression
+        if not isinstance(expr, As) or self.types.get(expr) is not ANY:
+            return False
+        left = self.types.get(expr.left)
+        return isinstance(left, ClassObjectTy) or (
+            isinstance(left, UnionTy)
+            and all(isinstance(member, ClassObjectTy) for member in left.members)
+        )
 
     def _provenance_notes(self, expression: Expr, token: Token) -> tuple[str, ...]:
         """Nota de proveniência do valor, se a expressão tem nome/caminho.
@@ -1076,7 +1120,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # esperadas (ex.: `return math.sqrt(x)`) daqui.
             self.types[expr] = actual
             self.storage_types[expr] = self._storage_type(expr, actual)
-            if not self._assignable(expected, actual):
+            if not self._assignable_value(expected, actual, expr):
                 self._error(
                     token,
                     self._mismatch_message(expected, actual),
@@ -1094,7 +1138,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if actual is ERROR:
                 return ERROR
             if (
-                not self._assignable(expected, actual)
+                not self._assignable_value(expected, actual, expr)
                 and self._reporter.error_count == errors_before
             ):
                 self._error(
@@ -1151,7 +1195,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # `_check` não passa por `_infer`, então publica aqui.
             self.types[expr] = actual
             self.storage_types[expr] = actual
-            if not self._assignable(expected, actual):
+            if not self._assignable_value(expected, actual, expr):
                 self._error(
                     token,
                     self._mismatch_message(expected, actual),
@@ -1172,7 +1216,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.GENERIC_INFERENCE,
             )
             return ERROR
-        if not self._assignable(expected, actual):
+        if not self._assignable_value(expected, actual, expr):
             self._error(
                 token,
                 self._mismatch_message(expected, actual),
