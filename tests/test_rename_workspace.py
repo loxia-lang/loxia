@@ -259,20 +259,21 @@ def test_workspace_cache_reanalyzes_only_the_changed_file(
         text: str,
         overrides: dict[Path, str],
         module_cache: ModuleCache | None,
+        **kwargs: object,
     ) -> object:
         analyzed.append(path.name)
-        return original(root, path, text, overrides, module_cache)
+        return original(root, path, text, overrides, module_cache, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(rename, "_analyze_file", counting)
     cache = rename.WorkspaceCache()
 
-    assert not isinstance(cache.get(tmp_path, files), str)
+    cache.get(tmp_path, files)
     assert sorted(analyzed) == ["a.lx", "b.lx", "main.lx"]
 
     analyzed.clear()
     changed = dict(files)
     changed[main_path] = "val x: Int = 2\n"
-    assert not isinstance(cache.get(tmp_path, changed), str)
+    cache.get(tmp_path, changed)
 
     # Só o arquivo editado paga check + resolver + checker de novo.
     assert analyzed == ["main.lx"]
@@ -288,9 +289,10 @@ def _counting_analysis(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         text: str,
         overrides: dict[Path, str],
         module_cache: ModuleCache | None,
+        **kwargs: object,
     ) -> object:
         analyzed.append(path.name)
-        return original(root, path, text, overrides, module_cache)
+        return original(root, path, text, overrides, module_cache, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(rename, "_analyze_file", counting)
     return analyzed
@@ -334,7 +336,7 @@ def test_workspace_above_the_budget_is_not_retained(
 
     # Acima do orçamento o workspace é servido sem reter nada: sem reter metade,
     # não há thrash.
-    assert not isinstance(workspace, str)
+    assert workspace.analyses.keys() == files.keys()
     assert sorted(analyzed) == ["a.lx", "b.lx"]
 
 
@@ -382,27 +384,31 @@ def test_workspace_cache_clear_keeps_file_analyses(
     second = cache.get(tmp_path, files)
 
     # O workspace é refeito, mas as análises por conteúdo continuam válidas.
-    assert not isinstance(first, str) and not isinstance(second, str)
     assert second is not first
     assert analyzed == []
     assert second.positions == first.positions
 
 
-def test_workspace_failure_is_not_memoized(tmp_path: Path) -> None:
-    project, files, _main, _token = _external_workspace(tmp_path)
-    shared = project.parent / "shared"
-    (shared / "lib.lx").write_text("fn soma( -> Int {\n  return 1\n}\n", encoding="utf-8")
+def test_workspace_skips_unparseable_files(tmp_path: Path) -> None:
+    good = tmp_path / "main.lx"
+    broken = tmp_path / "broken.lx"
+    good.write_text("fn alvo() -> Int { return 1 }\n", encoding="utf-8")
+    broken.write_text("fn ( ->\n", encoding="utf-8")
+    files = {path: path.read_text(encoding="utf-8") for path in (good, broken)}
     cache = rename.WorkspaceCache()
 
-    broken = cache.get(project, files)
+    workspace = cache.get(tmp_path, files)
 
-    (shared / "lib.lx").write_text(LIB, encoding="utf-8")
-    fixed = cache.get(project, files)
+    # O arquivo quebrado é pulado; o resto do workspace continua analisado (#250).
+    assert good in workspace.analyses
+    assert broken not in workspace.analyses
+    assert workspace.declarations
 
-    # Um módulo externo consertado precisa ser visto na request seguinte; falha não
-    # pode virar memo (o fingerprint não cobre a falha).
-    assert isinstance(broken, str)
-    assert not isinstance(fixed, str)
+    broken.write_text("fn outro() -> Int { return 2 }\n", encoding="utf-8")
+    rebuilt = cache.get(tmp_path, {**files, broken: broken.read_text(encoding="utf-8")})
+
+    # Consertar o arquivo entra na análise seguinte (o fingerprint muda com o texto).
+    assert broken in rebuilt.analyses
 
 
 def test_workspace_cache_shares_module_contributions(tmp_path: Path) -> None:
@@ -415,7 +421,6 @@ def test_workspace_cache_shares_module_contributions(tmp_path: Path) -> None:
 
     workspace = cache.get(tmp_path, files)
 
-    assert not isinstance(workspace, str)
     # Os dois importadores compartilham a mesma contribuição de `std.lists`:
     # guardar os tokens do closure por arquivo faria o cache crescer com
     # `arquivos * closure`.
@@ -424,3 +429,58 @@ def test_workspace_cache_shares_module_contributions(tmp_path: Path) -> None:
     ]
     assert cache._module_tokens > 0
     assert all(len(entry.modules) == 1 for entry in cache._entries.values())
+
+
+def test_top_level_declarations_match_symbol_index() -> None:
+    from loxia.source_symbols import parse_source
+    from loxia.symbols import SymbolIndex
+
+    text = """fn f() -> Int { return 1 }
+class C {
+  val x: Int
+  fn init(x: Int) { this.x = x }
+}
+interface I { fn m() -> Int }
+enum E { A, B }
+type T = Int
+val v: Int = 1
+val (a, b) = (1, 2)
+if (true) { fn dentro() -> Int { return 2 } }
+for x in 0..2 { print(x) }
+try { print(1) } except RuntimeError as e { print(e) }
+"""
+    statements = parse_source(text)
+    assert statements is not None
+    expected = [
+        (symbol.name, symbol.token.offset)
+        for symbol in SymbolIndex(statements, source=text, checker=None, resolver=None).symbols
+        if symbol.container is None
+        and symbol.kind in {"function", "class", "enum", "interface", "type", "variable"}
+    ]
+
+    found = [(name, token.offset) for name, token in rename._top_level_declarations(statements)]
+
+    # O rename não paga `SymbolIndex`; a varredura tem de cobrir os mesmos nomes.
+    assert found == expected
+
+
+def test_workspace_build_does_not_run_the_checker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "lib.lx").write_text("fn soma(a: Int, b: Int) -> Int { return a + b }\n")
+    main = tmp_path / "main.lx"
+    text = "from lib import soma\n\nval t: Int = soma(1, 2)\n"
+    main.write_text(text, encoding="utf-8")
+    files = {path: path.read_text(encoding="utf-8") for path in (main, tmp_path / "lib.lx")}
+
+    def forbidden(*args: object, **kwargs: object) -> int:
+        raise AssertionError("rename não deve rodar o checker (#249)")
+
+    from loxia.engine import Loxia
+
+    monkeypatch.setattr(Loxia, "check", forbidden)
+    cache = rename.WorkspaceCache()
+
+    workspace = cache.get(tmp_path, files)
+
+    assert main in workspace.analyses and (tmp_path / "lib.lx") in workspace.analyses

@@ -5,6 +5,17 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+- **LSP: análise do workspace sem checker e arquivo inválido não bloqueia**
+  ([#249](https://github.com/loxia-lang/loxia/issues/249),
+  [#250](https://github.com/loxia-lang/loxia/issues/250), emenda ao
+  [ADR-0151](docs/adr/0151-cache-de-analise-por-arquivo-no-lsp.md)): o build frio do
+  workspace deixou de rodar resolver/checker e `SymbolIndex` por arquivo (o caminho agora é
+  loader-only, uma engine por build, declarações por varredura sintática e sem
+  `Path.resolve()` por token). Build frio 2,45 s → **0,40 s** em 50 arquivos e 24,5 s →
+  **3,75 s** em 500; rebuild 55/160 ms → **14/136 ms**; `bench/lsp.py`: `references_cold`
+  2314 → **321 ms** e `references_after_change` 83 → **42,5 ms**. Um `.lx` que não parseia
+  é pulado em vez de abortar references/rename do workspace inteiro (usos nele ficam de
+  fora).
 ### Adicionado
 - **Ponto de entrada `main -> Result` e a borda de exit 70** ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md),
   [#142](https://github.com/loxia-lang/loxia/issues/142)): o `fn main` de topo do arquivo de

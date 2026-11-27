@@ -600,6 +600,24 @@ class Loxia:
         sys.stdout.flush()
         return True
 
+    def load_modules(
+        self,
+        source: str,
+        *,
+        module_overrides: dict[Path, str] | None = None,
+        module_cache: ModuleCache | None = None,
+    ) -> list[Stmt] | None:
+        """Parse da entrada + reescrita de imports, sem resolver/checker.
+
+        Caminho de tooling (rename/references): o checker sobre o closure não muda
+        offsets nem declarações e dominava o custo frio do workspace (#249).
+        """
+        return self._parse(
+            source,
+            module_overrides=module_overrides,
+            module_cache=module_cache,
+        )
+
     def check(
         self,
         source: str,

@@ -1174,3 +1174,28 @@ def test_lsp_rename_outside_root_keeps_the_server_alive(tmp_path: Path) -> None:
         assert process.poll() is None
     finally:
         stop(process)
+
+
+def test_lsp_references_and_rename_survive_unparseable_workspace_file(tmp_path: Path) -> None:
+    (tmp_path / "broken.lx").write_text("fn ( ->\n", encoding="utf-8")
+    (tmp_path / "lib.lx").write_text(
+        "fn soma(a: Int, b: Int) -> Int {\n  return a + b\n}\n", encoding="utf-8"
+    )
+    text = "from lib import soma\n\nval total: Int = soma(1, 2)\n"
+    server, document = _open_in_process(tmp_path, text, "main.lx")
+    position, _ = _position_of(text, "soma(1")
+    params = {
+        "textDocument": {"uri": document.uri},
+        "position": position,
+        "context": {"includeDeclaration": True},
+    }
+
+    locations = cast(list[dict[str, Any]], server._references({"params": params}))
+    uris = {item["uri"] for item in locations}
+    assert any(uri.endswith("/lib.lx") for uri in uris)
+
+    renamed = server._rename(
+        {"params": {**_request_params(document, position), "newName": "soma2"}}
+    )
+    assert isinstance(renamed, dict)
+    assert {uri.rsplit("/", 1)[-1] for uri in renamed["changes"]} == {"lib.lx", "main.lx"}
