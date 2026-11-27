@@ -36,7 +36,7 @@ compatibility claim — Loxia has its own syntax, semantics and standard library
 ## A taste of Loxia
 
 <!-- readme-sample -->
-```loxia
+```lox
 enum Shape {
   Circle(Float),
   Rect(Float, Float)
