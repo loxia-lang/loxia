@@ -2735,3 +2735,16 @@ def test_regex_group_names_sozinho_linka_o_motor(
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
     assert "regex handle is closed or unknown." in interpreted.stderr
+
+
+@pytest.mark.backend
+def test_emit_ll_e_deterministico() -> None:
+    """Duas compilações do mesmo programa produzem o mesmo IR textual (I3)."""
+    path = ROOT / "tests/cases/try_return_cleanup.lx"
+
+    first = run_cli("--emit", "ll", str(path), cwd=ROOT)
+    second = run_cli("--emit", "ll", str(path), cwd=ROOT)
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    assert first.stdout == second.stdout

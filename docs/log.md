@@ -1427,4 +1427,21 @@ Intervalo: o commit desta entrega (as fontes são as do F0; o marcador anterior 
   lowering error"), mas a promessa da página — recusa acionável sem degradação silenciosa —
   continua a mesma e a mensagem só ficou correta.
 
-<!-- triaged: 5955843 -->
+## 2026-11-27 — control IR (#245, pré-merge)
+
+Intervalo: `f23f409..HEAD` (pilha da #245; o marcador abaixo é o tip de `dev`, não um
+commit que o squash descarta).
+
+- `docs/decisoes.md` — **updated**: ganhou a linha do ADR-0153 (IR de controle, C1-C7,
+  cleanup e ciclo de vida); a página e o ADR entram no mesmo squash, então o frescor fecha
+  no merge.
+- `docs/tech/mcp.md` — **no-change**: o #262 mudou o `run` para AOT por padrão, mas as
+  tools MCP continuam chamando `run --stdin --json --sandbox`, que implicam `--interpret`
+  ([ADR-0152](adr/0152-run-aot-aceitacao-flags-e-cache.md)); o contrato das tools não mudou.
+- `docs/tech/python-coverage.md` — **no-change**: o #262 só trocou o dogfood do PR title
+  para `--interpret` no CI; comandos, pisos e alvos de cobertura continuam os mesmos.
+- `docs/tech/test-report.md` — **no-change**: o #262 alterou `test_runner.py` para escolher
+  o motor interpretado, mas o envelope, o `schema_version` 1 e a seleção não mudaram.
+
+<!-- triaged: f23f409 -->
+

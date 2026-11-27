@@ -33,6 +33,16 @@ Canonical module map: [`docs/tech/arquitetura.md`](../docs/tech/arquitetura.md).
 - The AST is manual and guarded ([ADR-0117](../docs/adr/0117-ast-manual-e-cobertura-de-visitantes.md));
   do not generate it without a new ADR.
 
+## Backend control flow
+
+- Lowering control goes through [`control_ir/`](backend/control_ir) (ADR-0153): blocks, phi,
+  terminators and cleanup depth. `Lowerer.builder` is wrapped by `ControlIRBuilder`; new code
+  uses `ControlIR.new_block`/`ControlIRBuilder` instead of calling `llvm_ir.append_block` or
+  `builder.phi` directly.
+- `tests/test_control_ir.py` covers C1-C7 and `tests/test_control_ir_docs.py` keeps the
+  reference table complete. The page is [`docs/tech/control-ir.md`](../docs/tech/control-ir.md).
+- The IR is backend-internal: do not serialize it, expose it as API or replace THIR with it.
+
 ## Diagnostics
 
 - One `ErrorReporter` per run, injected into scanner, parser and interpreter. There is no

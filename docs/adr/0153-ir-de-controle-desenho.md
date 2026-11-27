@@ -1,6 +1,6 @@
 # ADR-0153 — IR de controle: modelo, invariantes e ciclo de vida
 
-- **Status:** accepted (design; F1 em andamento — [#245](https://github.com/loxia-lang/loxia/issues/245))
+- **Status:** accepted (implemented, [#245](https://github.com/loxia-lang/loxia/issues/245))
 - **Data:** 2026-11-27
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0065](0065-hir-lite-controle.md) (gatilho da HIR-lite),
@@ -10,11 +10,11 @@
   (ABI de exceções), [ADR-0048](0048-abi-classes-l5.md) (ABI de classes),
   [ADR-0075](0075-diagnosticos-estruturados.md) (diagnósticos) e
   [ADR-0089](0089-stack-trace-de-runtime.md) (site de runtime).
-- **Implementação:** `loxia_core/backend/control_ir/` (F1; modelo e proxy),
+- **Implementação:** `loxia_core/backend/control_ir/` (F1),
   `loxia_core/backend/lower_exceptions.py`, `loxia_core/backend/lower_enums.py`,
   `loxia_core/backend/lower_class_codegen.py`, `loxia_core/backend/lower.py`,
   `loxia_core/backend/lower_base.py` e `tests/test_control_ir.py`. A página
-  `docs/tech/control-ir.md` é criada na fatia de fechamento (ver §9).
+  `docs/tech/control-ir.md` descreve o modelo implementado (ver §9).
 
 ## Contexto
 
@@ -143,7 +143,7 @@ A implementação é **one-pass**: o modelo e o alvo são construídos juntos, s
   adicionar incoming e desenrolar cleanup.
 - O proxy embrulha o builder do alvo (`llvmlite`, através de `llvm_ir`), materializa
   phi/terminadores e encaminha as demais instruções para o alvo.
-- `verify(ControlFunction)` roda no **modelo**, não no alvo. `dump(ControlFunction)` produz
+- `verify_function(ControlFunction)`/`ControlIR.verify_all` roda no **modelo**, não no alvo. `dump(ControlFunction)` produz
   uma representação determinística (S-expression) para testes.
 - Construtos migrados não chamam `llvm_ir.append_block`/`builder.phi` diretamente; usam o
   `ControlIRBuilder`. Construtos ainda não migrados mantêm o código atual até a sua fatia.
@@ -269,10 +269,10 @@ um erro de linguagem (`not supported by the backend yet` é outra coisa, do I4).
 | **C7** | Rótulos, ordem de blocos, ordem de phi e ordem de incoming são determinísticos; nada de iterar `set`/`dict`/`id()`. | `.ll`/binário não determinístico (I3). |
 | **C8** | Todo caminho de unwind/raise preserva o token/span do site original; nunca linha 0 sintética. | Stack trace/`e.site` no lugar errado; quebra do contrato de diagnóstico. |
 
-C1–C3 e C5 são verificáveis no modelo; C4/C6 usam a origem/depth registrada pelo builder e
-são uma **aproximação**: um valor definido e usado dentro do mesmo bloco que atravessa a
-saída de uma região não é distinguido. C7/C8 são policiados por testes de determinismo e
-pelos casos de erro existentes.
+`verify_function` impõe C1–C7. C4/C6 usam a origem/depth registrada pelo builder e são uma
+**aproximação**: um valor definido e usado dentro do mesmo bloco que atravessa a saída de uma
+região não é distinguido (ver `docs/tech/control-ir.md`). C8 é policiado pelos diagnósticos e
+pelo diferencial, porque o modelo não carrega spans.
 
 ### 6. Determinismo
 
@@ -288,7 +288,7 @@ pelos casos de erro existentes.
 
 Fatias, cada uma verde antes da próxima:
 
-1. **Modelo + proxy + verifier + dump + testes**: liga o `ControlIRBuilder` e a profundidade de cleanup no lowering; ainda não migra os construtos.
+1. **Modelo + builder + emitter + verifier + dump + testes** (sem migrar produção).
 2. **Exceções**: `_raise`, `_try`, `_emit_finally`, `_run_cleanups` e `_loop_transfer`
    passam a usar o `ControlIR.new_block` e o proxy de controle. É a maior dor e a maior chance de simplificação.
 3. **`match`**: `_match`/`_match_literal` usam o IR; o phi de resultado passa a ser do modelo.
@@ -314,14 +314,15 @@ global.
 
 Testes e critérios:
 
-- **Unitários do modelo**: um teste por invariante C1–C8, com um caso que passa e um que
-  falha; builder, troca de bloco, phi, unwind e reentrância de `finally`.
-- **Dump dourado**: S-expression determinística para `try/finally`, `match` e `break` dentro
-  de `try`.
+- **Unitários do modelo**: um teste por invariante C1–C7, com um caso que passa e um que
+  falha; C8 é policiado pelos testes de diagnóstico/diferencial. Cobrem builder, troca de
+  bloco, phi/incoming, unwind e reentrância de `finally`.
+- **Dump determinístico**: S-expression de um CFG com phi; os construtos (`try/finally`,
+  `match`, `break`) são cobertos pelo diferencial, não por um golden de IR.
 - **Diferencial**: corpus atual verde; casos novos para as linhas da matriz de cleanup que
   não estiverem cobertas (`return` dentro de `finally`, `raise` dentro de `finally`, `finally`
-  aninhado, `break`/`continue` dentro de `try`, arm de `match` que retorna/levanta, binding de
-  `except` fora do escopo do `finally`).
+  aninhado, `break`/`continue` dentro de `try`, match dentro de um bloco que retorna/levanta,
+  binding de `except` fora do escopo do `finally`).
 - **Determinismo**: compilar duas vezes o mesmo caso e comparar o `.ll`; rodar o binário e
   comparar stdout/stderr/exit.
 - **`--emit=ll`**: inspeção de um caso por construto; não é contrato byte a byte.
@@ -329,14 +330,14 @@ Testes e critérios:
 
 ### 9. Ciclo de vida e documentação
 
-- **Agora**: este ADR é o registro durável do desenho. Não se cria `docs/tech/control-ir.md`
-  antes do código: a regra do repositório é não documentar intenção em página técnica
-  (“se não está no código, não está na página”).
-- **Quando a F1 aterrissar**: `docs/tech/control-ir.md` descreve o modelo implementado,
-  com `sources:` apontando para `control_ir/**` e os lowerers migrados; a tabela de nós é
-  policiada por um teste; `docs/tech/arquitetura.md` e `loxia_core/AGENTS.md` ganham o link.
+- **F1 (2026-11-27)**: este ADR é o registro durável do desenho; `docs/tech/control-ir.md`
+  descreve o modelo implementado, com `sources:` apontando para `control_ir/**` e os lowerers
+  migrados. A tabela de nós é policiada por um teste; `docs/tech/arquitetura.md` e
+  `loxia_core/AGENTS.md` têm o link.
 - **F2 (THIR)**: o THIR muda a **entrada** do lowering, não a existência da IR de controle;
   a página ganha a seção “THIR × control IR”. O THIR, sim, ganha spec/serialização/snapshot.
+- **F3 (THIR eval)**: o interpretador/oráculo congela; a IR de controle não muda, porque
+  pertence ao caminho do compilador.
 - **F4 (compilador Loxia)**: o backend Python congela; a IR de controle é reimplementada em
   Loxia (provavelmente com o LLVM builder fornecendo blocos/phi e um módulo de cleanup para a
   parte específica de Loxia). A página vira insumo de port; depois recebe banner de congelada
@@ -397,18 +398,19 @@ Testes e critérios:
 
 ## Como verificar
 
-- [ ] `loxia_core/backend/control_ir/` com modelo, builder, emitter, verifier e dump.
-- [ ] Testes C1–C8 (um caso válido e um inválido por invariante).
-- [ ] Testes da matriz de cleanup, incluindo reentrância de `finally`.
-- [ ] `lower_exceptions`, `lower_enums` e as partes de controle de `lower_class_codegen`
-      usando o `ControlIRBuilder`; sem `append_block`/`phi` diretos nesses construtos.
-- [ ] Corpus diferencial verde; stdout/stderr/exit iguais ao `--interpret` (I1).
-- [ ] `--emit=ll` inspecionado; duas compilações produzem o mesmo texto (I3).
-- [ ] I4 preservado: nenhum programa com `--check` limpo falha por tipo no lowering.
-- [ ] `make test-backend`, `make test` e `make check` verdes.
-- [ ] Contagem de `append_block`/`phi`/`is_terminated` e profundidade de aninhamento
-      registradas antes/depois; LOC só como contexto.
-- [ ] `docs/tech/control-ir.md` criada a partir do código, com `sources:`, tabela de nós
+- [x] `loxia_core/backend/control_ir/` com modelo, builder, emitter, verifier e dump.
+- [x] Testes C1–C7 (um caso válido e um inválido por invariante); C8 pelos
+      diagnósticos/diferencial.
+- [x] Testes da matriz de cleanup, incluindo `continue` dentro de `try/finally`.
+- [x] `lower_exceptions`, `lower_enums` e as partes de controle de `lower_class_codegen`
+      usando o `ControlIRBuilder`; sem `append_block`/`block_of` diretos nesses arquivos.
+- [x] Corpus diferencial verde; stdout/stderr/exit iguais ao `--interpret` (I1).
+- [x] `--emit=ll` inspecionado; `tests/test_backend.py` compara duas compilações (I3).
+- [x] I4 preservado: nenhum programa com `--check` limpo falha por tipo no lowering.
+- [x] `make test-backend`, `make test` e `make check` verdes.
+- [x] Contagem de `append_block`/`phi`/`is_terminated` registrada nas fatias (16→0 em
+      `lower_class_codegen.py`); LOC só como contexto.
+- [x] `docs/tech/control-ir.md` criada a partir do código, com `sources:`, tabela de nós
       policiada e links em `arquitetura.md`/`AGENTS.md`.
 
 **Critério para revisitar:** a IR passar de ~15 nós ou ganhar consumidor externo; a F4
