@@ -302,7 +302,9 @@ Golden, official-suite and TOML-parity cases call `loxia.cli.main()` **in the py
 process** (`tests/inprocess.py`) instead of one Python boot per case. That keeps the same
 observable contract (stdout/stderr/exit code) at a fraction of the cost. Tests that need a
 real process (hash seeds, signals/timeout, REPL stdin, sandbox, native backend) still use
-`subprocess`; `LOX_GOLDEN_SUBPROCESS=1` forces the old golden path for debugging.
+`subprocess`; golden cases carrying `# requires: rust` also use a subprocess, because the
+native regex engine keeps handles in the process and a case must not inherit another's
+(#239); `LOX_GOLDEN_SUBPROCESS=1` forces the old golden path for debugging.
 
 - `tests/cases/*.lx` are self-explanatory golden cases: `print(1 + 2)  # expect: 3`; errors use
   `# expect runtime error: MSG` (exit 70) or `# expect error: MSG` (exit 65).

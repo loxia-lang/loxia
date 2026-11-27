@@ -176,10 +176,10 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   `test_casos_que_usam_o_motor_de_regex_declaram_rust` — um caso Rust novo sem `slow`/sem
   a diretiva, ou um gate que filtre `slow`, falham a suíte.
 
-  Fora do escopo: a suíte golden (`tests/test_golden.py`, `test-fast`) continua rodando
-  `std_regex/**` no processo — num cache frio o primeiro caso paga o build da lib nativa
-  (~13 s) e os handles `ctypes` são compartilhados entre casos. Os dois efeitos estão
-  registrados na #239.
+  Fora do escopo naquele momento: a suíte golden (`tests/test_golden.py`, `test-fast`)
+  continuava rodando `std_regex/**` no processo — num cache frio o primeiro caso paga o
+  build da lib nativa (~13 s) e os handles `ctypes` eram compartilhados entre casos. Os dois
+  efeitos ficaram na #239; o vazamento foi corrigido em 2026-11-27 (emenda abaixo).
 
   A fixture de sessão para aquecer `native_build` (proposta no issue) ficou de fora: o
   custo é o build do crate, não o primeiro teste — aquecer só move os ~20 s para o começo
@@ -198,6 +198,14 @@ da sessão (168,3 s na medição final, com carga variável), dos quais ~169 s d
   derruba o worker em vez de um teste e a ordem entre testes deixa de ser determinística — o
   caminho serial continua no repositório para reproduzir um erro isolado; em hardware de 2–4
   núcleos o ganho cai, porque o piso é CPU (~340 s de trabalho para a suíte).
+
+- **2026-11-27 — golden de regex isolado por processo (issue #239).** Casos com
+  `# requires: rust` (hoje `tests/cases/std_regex/*.lx`) rodam em subprocesso no runner
+  golden, como o CLI real; o caminho in-process continua para os demais. O motor nativo
+  guarda handles `ctypes` no processo, então um caso podia herdar o handle de outro
+  (`groupNames` deixava de ser "unknown"); o teste de regressão deixa um handle aberto
+  in-process e prova o erro em processo novo. O build frio do crate (~13 s) continua, pago
+  no primeiro caso.
 
 ## Referências
 

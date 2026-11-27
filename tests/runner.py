@@ -10,8 +10,10 @@ Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):
 
 O runner executa o CLI (`loxia.cli.main`) para testar a saída e o exit code de
 verdade. Por padrão roda no próprio processo do pytest — o import é pago uma vez e
-cada caso custa poucos milissegundos; `LOX_GOLDEN_SUBPROCESS=1` restaura um
-processo por caso (boot do Python incluído) para depurar isolamento.
+cada caso custa poucos milissegundos. Casos com `# requires: rust` (motor nativo)
+rodam em subprocesso, porque o motor guarda handles no processo (#239); os demais
+continuam in-process. `LOX_GOLDEN_SUBPROCESS=1` restaura um processo por caso (boot do
+Python incluído) para depurar isolamento.
 """
 
 from __future__ import annotations
@@ -134,8 +136,14 @@ def _without_snippet(stderr: str) -> str:
     return "\n".join(line for line in stderr.splitlines() if not SNIPPET_LINE.match(line))
 
 
-def execute(path: Path, timeout: int = TIMEOUT_SECONDS) -> Executed:
-    if not USE_SUBPROCESS:
+def execute(path: Path, timeout: int | None = None) -> Executed:
+    # O motor nativo de regex guarda handles no processo (#239): um caso que exige
+    # o crate roda em processo novo, como o CLI real, para não herdar handles de
+    # outro caso.
+    source = path.read_text(encoding="utf-8")
+    if timeout is None:
+        timeout = timeout_for(source)
+    if not USE_SUBPROCESS and "rust" not in requirements(source):
         result: Result = run_cli(str(path))
         return Executed(
             stdout=result.stdout.splitlines(),
