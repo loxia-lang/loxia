@@ -8,7 +8,7 @@ name: Release
 # The tag is created by `gh release create --target`, not pushed by a maintainer, and the
 # workflow deliberately has no `push: tags` trigger: a manual tag push no longer starts a
 # release (use this workflow instead). A PyPI failure after the tag exists is recovered by
-# re-running the failed `pypi` job — the tag/release are not recreated.
+# dispatching this workflow with `publish_only=true`; the tag/release are not recreated.
 #
 # It does not run the test suite: a release is cut from a commit whose CI is already green.
 #
@@ -21,11 +21,15 @@ on:
       version:
         description: "Version to release, without the leading 'v' (must match pyproject.toml)"
         required: true
-        default: "1.1.0"
+        default: "1.2.0"
       dry_run:
         description: "Validate and build without creating the tag/release or publishing"
         type: boolean
         default: true
+      publish_only:
+        description: "Publish the existing GitHub Release; skip build and tag"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,6 +42,7 @@ concurrency:
 jobs:
   build:
     name: Build and attest
+    if: inputs.publish_only == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -102,7 +107,7 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -173,7 +178,7 @@ jobs:
   github-release:
     name: Tag and GitHub Release
     needs: build
-    if: inputs.dry_run == false
+    if: inputs.publish_only == false && inputs.dry_run == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -204,20 +209,45 @@ jobs:
 
   pypi:
     name: Publish to PyPI
-    needs: github-release
-    if: inputs.dry_run == false
+    needs: [build, github-release]
+    if: >-
+      always() && inputs.dry_run == false &&
+      (inputs.publish_only || (needs.build.result == 'success' && needs.github-release.result == 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
       name: pypi
       url: https://pypi.org/p/loxia
     permissions:
+      contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - name: Download build artifact
+        if: inputs.publish_only == false
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
+      - name: Download the published release assets
+        if: inputs.publish_only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          mkdir -p dist
+          gh release view "v$VERSION" >/dev/null
+          gh release download "v$VERSION" \
+            --pattern '*.whl' \
+            --pattern '*.tar.gz' \
+            --dir dist \
+            --clobber
+      - name: Keep only PyPI distributions
+        # The `dist` artifact also carries the release provenance JSONL. PyPI rejects it as
+        # an unknown distribution, so it must never reach the publish action.
+        run: |
+          find dist -maxdepth 1 -type f ! -name '*.whl' ! -name '*.tar.gz' -delete
+          ls -l dist
       - name: Publish
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
