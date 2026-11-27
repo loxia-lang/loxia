@@ -190,7 +190,7 @@ Python **3.13** (`.python-version`, `pyproject.toml`). The code uses PEP 695 gen
 uv run main.py                  # REPL
 uv run main.py script.lx        # run a script
 uv run python -m loxia          # same, via package
-uv run main.py --version        # loxia 1.2.0
+uv run main.py --version        # loxia 1.3.0
 uv run main.py --dump-ast s.lx  # AST as S-expression, no execution
 uv run main.py --check s.lx     # type check (does not run)
 uv run main.py --debug s.lx     # check Int overflow at runtime

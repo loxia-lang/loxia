@@ -13,9 +13,8 @@ stdout, stderr and exit codes on a declared corpus. The lineage is declared, not
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
 > **Status:** 1.x, released. The language semantics are frozen; tooling and packaging are
-> still moving. **1.2.0** is the current release, the first PyPI release with the MCP
-> server. The specification is in English; the ADRs and roadmap are in Portuguese
-> (pt-BR). See [Documentation](#documentation).
+> still moving. **1.3.0** is the current release. The specification is in English; the ADRs
+> and roadmap are in Portuguese (pt-BR). See [Documentation](#documentation).
 
 ## Why Loxia
 
@@ -69,9 +68,9 @@ area = 6.0
 | Native backend | L0–L6 + T7: strings, classes, closures, containers, enums, exceptions |
 | Standard library | T1–T3: `json`, `fmt`, `fs`, `io`, `proc`, `sets`, `csv`, `hash`, `property`… |
 | Tooling | formatter, LSP, MCP, test runner, `fix`, `doc`, `explain`, `capabilities` |
-| Packaging | on PyPI (1.1.0 and 1.2.0) |
+| Packaging | on PyPI (1.1.0, 1.2.0 and 1.3.0) |
 
-Current version: **1.2.0**. The detailed, generated status by level is in
+Current version: **1.3.0**. The detailed, generated status by level is in
 [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Install
@@ -114,7 +113,7 @@ loxia run hello/src/main.lx
 loxia hello.lx                     # run a file
 loxia check hello.lx               # type-check only
 loxia build hello.lx --emit=exe -o hello
-loxia --version                    # loxia 1.2.0
+loxia --version                    # loxia 1.3.0
 ```
 
 ## CLI
