@@ -1387,4 +1387,27 @@ manuais foram lidas contra o diff das fontes.
   mas o envelope `start`/`result`/`discover`/`end`, o schema v1 e o `--capture` não mudaram;
   `tests/test_test_runner.py` só ganhou `git_env()` no helper.
 
+## 2026-11-27 — F0: `run` AOT, cache e `--interpret` (#244, ADR-0152)
+
+Intervalo: o commit desta entrega (as fontes são as do F0; o marcador anterior segue no fim).
+
+- `docs/spec/erros.md` — **updated**: o `run` compila com o check estrito, `--interpret`
+  mantém o gradual, as flags de tooling caem no tree-walk e a toolchain ausente é `E4004`;
+  a tabela de códigos foi regenerada (`make codes`, `E4004`).
+- `docs/spec/garantias.md` — **updated**: I1 declara o `--interpret` como oráculo normativo e
+  o AOT como subconjunto declarado; native-only roda no `run` (recusa é `--interpret`/REPL);
+  princípio 4 separa o check estrito do AOT do gradual do interpretador; novas exclusões
+  (flags de interpretador, toolchain mínima).
+- `docs/tech/arquitetura.md` — **updated**: pipeline com `run`/`--interpret` e a linha do
+  `loxia/native_cache.py`.
+- `docs/roadmap.md` — **updated**: F0 entregue; o corte da 2.0 herda a mudança do `run` padrão.
+- `docs/plano-de-motores.md` — **updated**: bloco "Medição F0" (cold/warm P50/P95) e status
+  do issue macro.
+- `docs/adr/0152-run-aot-aceitacao-flags-e-cache.md`, `docs/adr/README.md`,
+  `docs/decisoes.md` — **novo/updated**: a decisão de aceitação, flags e cache.
+- `README.md` — **updated**: `run` compila (flags novas), comando `loxia cache` e o diagrama
+  do pipeline.
+- `AGENTS.md` e `tests/AGENTS.md` — **updated**: `run` compila; golden/oráculo usam
+  `--interpret`.
+
 <!-- triaged: e083e73 -->
