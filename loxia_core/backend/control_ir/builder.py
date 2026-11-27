@@ -165,6 +165,9 @@ class ControlIRBuilder:
     def _sync(self) -> None:
         self._control.observe(self)
 
+    def append_basic_block(self, name: str = "") -> Any:
+        raise ControlIRError("create blocks through ControlIR.new_block, not the raw builder")
+
     def branch(self, target: Any) -> Any:
         self._sync()
         result = self._inner.branch(target.llvm if isinstance(target, Block) else target)

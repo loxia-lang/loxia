@@ -52,6 +52,14 @@ def test_valid_function_has_no_errors() -> None:
     assert _errors(control, function) == []
 
 
+def test_builder_rejects_raw_block_creation() -> None:
+    control, _function_ir, entry = _function()
+    builder = _builder(control, entry)
+
+    with pytest.raises(ControlIRError, match="new_block"):
+        builder.append_basic_block("ghost")
+
+
 def test_c1_block_without_terminator() -> None:
     control, function, _entry = _function()
 
