@@ -106,7 +106,7 @@
     "tests/cases/errors/any_index.lx": "dfdf6a78fa4f63a75ef2e3b46c61db8cb40023c3f3ed8325884702aabe8c6cf7",
     "tests/cases/errors/any_interface_cast.lx": "2331751638837006aa5a085030738a009eda1c09036869e958cab0ccf0a18625",
     "tests/cases/errors/any_member.lx": "f4b5ca68847cfbdcea7678c6c23144dcda84cdc0fc812f270ae1fbef8a89dee5",
-    "tests/cases/errors/any_narrowing_lost.lx": "013561907e31321920cd166120f609609fdd9e82159ba6665bb4b2db48b3cb23",
+    "tests/cases/errors/any_narrowing_lost.lx": "7e6723986366c60a5900a8ac380e6a1cf1893d6f07bfed21767221a2e062cd30",
     "tests/cases/errors/any_set.lx": "4d71058d7fbae5dbf68dc41896319be1a5a25ab306768d9f56357a548cd448db",
     "tests/cases/errors/arity.lx": "4356b7dca346926aac9e4279b34ae65c0723b9174d2e075ea7acd5e55d028949",
     "tests/cases/errors/arity_default_max.lx": "771ad15af954af938431b82093332d393454db157e38f7f1d9462b36eb88be23",
@@ -277,7 +277,7 @@
     "tests/cases/method_fn_keyword.lx": "fc0c28c9a39c13a98407c16e70c539ece7de39283f5a8dfbd9ddea4a24995623",
     "tests/cases/multiline_strings.lx": "e1a85e212b8fb34081d9e7c31b0b689ceade4288e8610308c35f994fb5e4929d",
     "tests/cases/narrowed_index.lx": "7b5df42632afe8e6aa6288fb1745637d872e75a5afb08909442667160ff3da90",
-    "tests/cases/narrowing_write_shape.lx": "38f81f34ce466332cfdcfd8f156d4f9a2c891e5842b0caaff03311483317f638",
+    "tests/cases/narrowing_write_shape.lx": "4d82042a4c7200b443f03c86a913ce93fa11c96596dae41b54383bbe3c7bc1cd",
     "tests/cases/nested_destructure.lx": "d424451187beb0bbf463e531ac4184e76e7924024c94e6139f8fac99aa678f83",
     "tests/cases/nil_aware.lx": "c801481ef1a9ef6e1b97bb3bffff24eaed3a5b694b2f8a9fe456863d062d464a",
     "tests/cases/nil_value.lx": "14ecc14c4bf4c11f0f76bc47a3c012ff19a7adc3c905b91da3576e251563649f",
@@ -366,7 +366,7 @@
     "tests/cases/super_in_closure.lx": "9314c2f08d7f7ce03c43cfe6502d8510990115af5a7f0ddb3b3904ae7dc5eb63",
     "tests/cases/super_with_this.lx": "30155e4b8d1ed6a2662015a2824ab24da2e8de48a4792b5f8b6fa357f16c88b1",
     "tests/cases/ternary.lx": "1abde3c2a7eb4ca2a35438d214bc2d64fc211d9d523eead46e6f0871905fe53c",
-    "tests/cases/this_field_narrowing.lx": "c60ea1a7f2527c97a9fbe8a063d9b65c54b582201940b555f314acc418ed665e",
+    "tests/cases/this_field_narrowing.lx": "9f2d17f6cf56e5f76c35353cfe59f76e6a0c8ba9e551a472731d667e9abcfb9a",
     "tests/cases/this_in_lambda.lx": "f22cf20c9242e41932c32736f0a4969a5e065bf437a326cd54fd7dbb7008f480",
     "tests/cases/trailing_comma.lx": "07eed2ae50fef2a2e6a5b66a1f41795147858a19dc6521187b613e90ceae1961",
     "tests/cases/try_finally_scope.lx": "2a77b2e94728e7126ec1e0838aa50341c659afc97c2357410b0fc447f1c7633f",
@@ -555,13 +555,13 @@
           "end": {
             "column": 20,
             "line": 17,
-            "offset": 267
+            "offset": 270
           },
           "file": "tests/cases/errors/any_narrowing_lost.lx",
           "start": {
             "column": 19,
             "line": 17,
-            "offset": 266
+            "offset": 269
           }
         }
       }

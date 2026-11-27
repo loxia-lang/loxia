@@ -6,25 +6,25 @@ class C {
 class P {
   var alvo: C? = nil
 
-  init(alvo: C?) {
+  fn init(alvo: C?) {
     this.alvo = alvo
   }
 
-  tem() -> Bool {
+  fn tem() -> Bool {
     if (this.alvo != nil) {
       return true
     }
     return false
   }
 
-  valor() -> Int {
+  fn valor() -> Int {
     if (this.alvo != nil) {
       return this.alvo.n
     }
     return 0
   }
 
-  negado() -> Int {
+  fn negado() -> Int {
     if (this.alvo == nil) {
       return -1
     }
@@ -32,9 +32,9 @@ class P {
   }
 }
 
-print(P(C()).tem()) # expect: true
-print(P(nil).tem()) # expect: false
-print(P(C()).valor()) # expect: 1
-print(P(nil).valor()) # expect: 0
-print(P(C()).negado()) # expect: 1
-print(P(nil).negado()) # expect: -1
+print(P(C()).tem())     # expect: true
+print(P(nil).tem())     # expect: false
+print(P(C()).valor())   # expect: 1
+print(P(nil).valor())   # expect: 0
+print(P(C()).negado())  # expect: 1
+print(P(nil).negado())  # expect: -1

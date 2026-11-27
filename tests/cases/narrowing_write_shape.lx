@@ -18,8 +18,8 @@ h.x = C()
 # Escrever o sub-campo `n` mantém `h.x` como `C` (a classe do objeto não muda).
 if (h.x is C) {
   h.x.n = 5
-  print(h.x.n) # expect: 5
-  print(h.x.m()) # expect: 7
+  print(h.x.n)    # expect: 5
+  print(h.x.m())  # expect: 7
 }
 
 # Escrever outro caminho da mesma raiz mantém `h.x`.
@@ -33,7 +33,7 @@ class P {
   var alvo: C? = nil
   var outro: Int = 0
 
-  init(alvo: C?) {
+  fn init(alvo: C?) {
     this.alvo = alvo
   }
 }
@@ -48,11 +48,11 @@ if (p.alvo != nil) {
 class Conta {
   var alvo: C? = nil
 
-  init(alvo: C?) {
+  fn init(alvo: C?) {
     this.alvo = alvo
   }
 
-  ler() -> Int {
+  fn ler() -> Int {
     if (this.alvo != nil) {
       return this.alvo.n
     }
@@ -60,5 +60,5 @@ class Conta {
   }
 }
 
-print(Conta(C()).ler()) # expect: 1
-print(Conta(nil).ler()) # expect: -1
+print(Conta(C()).ler())  # expect: 1
+print(Conta(nil).ler())  # expect: -1

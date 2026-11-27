@@ -2,7 +2,7 @@
 class P {
   var nome: String? = nil
 
-  init(nome: String?) {
+  fn init(nome: String?) {
     this.nome = nome
   }
 }
