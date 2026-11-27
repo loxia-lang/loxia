@@ -350,6 +350,11 @@ def _with_gc_hint(error: BackendError) -> BackendError:
 
 
 def _compiler() -> str:
+    configured = os.environ.get("CC")
+    if configured:
+        # `$CC` é contrato do toolchain C e entra na identidade do cache
+        # (`loxia/native_cache.py`); ignorá-lo aqui deixaria a chave mentindo.
+        return configured
     for candidate in ("cc", "clang", "gcc"):
         found = shutil.which(candidate)
         if found is not None:
@@ -367,7 +372,9 @@ def _run(command: list[str]) -> None:
         process = subprocess.run(command, capture_output=True, text=True, check=False)
     except OSError as error:
         raise BackendError(
-            f"internal error: failed to run {Path(command[0]).name}: {error}"
+            f"cannot run '{command[0]}': {error}. "
+            "Install a C compiler (build-essential, clang or gcc) or set CC.",
+            code=Code.NATIVE_TOOLCHAIN,
         ) from error
     if process.returncode == 0:
         return

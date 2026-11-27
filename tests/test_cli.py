@@ -365,6 +365,31 @@ def test_max_heap_requires_native_path_on_run(tmp_path: Path) -> None:
     assert "--max-heap requires the native path" in result.stderr
 
 
+def test_no_cache_requires_native_path_on_run(tmp_path: Path) -> None:
+    script = tmp_path / "ok.lx"
+    script.write_text("print(1);\n", encoding="utf-8")
+
+    result = run_cli("run", "--json", "--no-cache", str(script))
+
+    assert result.returncode == 2
+    assert "--no-cache requires the native path" in result.stderr
+
+
+def test_keyboard_interrupt_sai_130(monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia import cli_commands as commands_module
+    from tests.inprocess import run_cli as run_inprocess
+
+    def boom(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setitem(commands_module.HANDLERS, "check", boom)
+
+    result = run_inprocess("check", "x.lx")
+
+    assert result.returncode == 130
+    assert "KeyboardInterrupt" not in result.stderr
+
+
 def test_parse_heap_size_accepts_units_and_bytes() -> None:
     assert parse_heap_size("512M") == 512 * 1024**2
     assert parse_heap_size("2g") == 2 * 1024**3

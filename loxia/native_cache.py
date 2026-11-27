@@ -226,6 +226,8 @@ def toolchain_stamp() -> str:
                 },
             )
 
+    # CPATH/LIBRARY_PATH mudam o que o `cc` enxerga (headers/bibliotecas, ex.:
+    # libgc) e, portanto, o binário; o `test --native` já os incluía na chave.
     return "\0".join(
         (
             __version__,
@@ -233,6 +235,8 @@ def toolchain_stamp() -> str:
             platform.machine(),
             fingerprint,
             identity,
+            os.environ.get("CPATH", ""),
+            os.environ.get("LIBRARY_PATH", ""),
         )
     )
 

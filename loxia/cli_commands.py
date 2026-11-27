@@ -310,6 +310,7 @@ def _run_native(lox: Loxia, args: argparse.Namespace, *, source: str) -> NoRetur
         "emit=exe",
         f"debug={int(lox.debug)}",
         f"heap={max_heap or 0}",
+        f"werror={int(getattr(args, 'werror', False))}",
     ]
     for name in ("frozen", "offline"):
         if getattr(args, name, False):
@@ -341,6 +342,8 @@ def _run_native(lox: Loxia, args: argparse.Namespace, *, source: str) -> NoRetur
             stem=entry.stem,
             max_heap=max_heap,
             command="run",
+            # `run` não emite warnings (o binário também não; I1 compara stderr).
+            warn_unused=False,
         )
         return None if ok else "native build failed"
 

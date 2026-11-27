@@ -693,6 +693,7 @@ class Loxia:
         stem: str,
         max_heap: int | None = None,
         command: str = "build",
+        warn_unused: bool = True,
     ) -> bool:
         statements = self.prepare(source)
         if statements is None:
@@ -706,6 +707,7 @@ class Loxia:
             stem=stem,
             max_heap=max_heap,
             command=command,
+            warn_unused=warn_unused,
         )
 
     def compile_prepared(
@@ -717,9 +719,15 @@ class Loxia:
         stem: str,
         max_heap: int | None = None,
         command: str = "build",
+        warn_unused: bool = True,
     ) -> bool:
-        """Resolver + checker estrito + lowering; `statements` vem de `prepare`."""
-        resolver = Resolver(self.interpreter, self.reporter)
+        """Resolver + checker estrito + lowering; `statements` vem de `prepare`.
+
+        `warn_unused=False` é o contrato do `run` (AOT ou não): o programa não
+        emite warnings e o stderr tem que bater com o do interpretador (I1). O
+        `build` mantém os avisos, que são úteis para quem está compilando.
+        """
+        resolver = Resolver(self.interpreter, self.reporter, warn_unused=warn_unused)
         resolver.resolve(statements)
         if self.reporter.had_error:
             self.flush(command, exit_code=65, always=True)

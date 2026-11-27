@@ -165,6 +165,7 @@ def test_run_native_reusa_o_cache_e_no_cache_rebuilda(
         stem: str,
         max_heap: int | None = None,
         command: str = "build",
+        warn_unused: bool = True,
     ) -> bool:
         assert output is not None
         output.write_bytes(b"binario")
@@ -223,6 +224,7 @@ def test_cache_da_run_fica_na_raiz_configurada(
         stem: str,
         max_heap: int | None = None,
         command: str = "build",
+        warn_unused: bool = True,
     ) -> bool:
         assert output is not None
         output.write_bytes(b"binario")
@@ -246,6 +248,46 @@ def test_cache_da_run_fica_na_raiz_configurada(
     assert binaries
     assert os.access(binaries[0], os.X_OK)
     assert native_cache.cache_size(tmp_path / "cache") > 0
+
+
+def test_run_native_aplica_o_limite_do_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("LOX_BUILD_CACHE", str(cache))
+    monkeypatch.setenv("LOX_BUILD_CACHE_MAX", "1M")
+    stale = cache / "run" / "antigo" / "bin"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"x" * (2 * 1024**2))
+    os.utime(stale, (1_000_000, 1_000_000))
+    lox, _entry = _lox(tmp_path)
+
+    def fake_compile(
+        statements: object,
+        *,
+        emit: str,
+        output: Path | None,
+        stem: str,
+        max_heap: int | None = None,
+        command: str = "build",
+        warn_unused: bool = True,
+    ) -> bool:
+        assert output is not None
+        output.write_bytes(b"binario")
+        return True
+
+    monkeypatch.setattr(lox, "compile_prepared", fake_compile)
+    monkeypatch.setattr(
+        cli_commands,
+        "_execute_native",
+        lambda lox, args, binary: (_ for _ in ()).throw(SystemExit(0)),
+    )
+
+    with pytest.raises(SystemExit):
+        _run_native(lox, _args(), source="print(1)\n")
+
+    assert not stale.exists(), "o limite configurado precisa podar o cache antigo"
+    assert native_cache.cache_size(cache) <= 1024**2
 
 
 def test_fonte_com_erro_de_sintaxe_sai_65(tmp_path: Path) -> None:

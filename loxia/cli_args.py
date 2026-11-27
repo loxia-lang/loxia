@@ -308,7 +308,10 @@ def _add_timeout(container: argparse._ActionsContainer) -> None:
         "--timeout",
         type=int,
         metavar="MS",
-        help="tempo limite em milissegundos (0 = sem limite)",
+        help=(
+            "tempo limite em milissegundos (0 = sem limite); no run AOT cobre a "
+            "execução do binário, não o build"
+        ),
     )
 
 
@@ -562,13 +565,14 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help=(
                 "executa no tree-walk (oráculo/legado) em vez de compilar; "
-                "--json, --json-lines, --sandbox e --stdin já implicam isto"
+                "--json, --json-lines, --error-format diferente de human, "
+                "--sandbox, --stdin e --color=always já implicam isto"
             ),
         )
         groups.execution.add_argument(
             "--no-cache",
             action="store_true",
-            help="força o build nativo; não reusa binário do cache",
+            help="força o build nativo; não reusa binário do cache (exige o caminho AOT)",
         )
         groups.execution.add_argument(
             "--max-heap",
@@ -959,23 +963,24 @@ def _validate(
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
         parser.error(f"{command} requires a script (or --stdin)")
     if command == "run":
-        interpret = getattr(args, "interpret", False)
-        if interpret and getattr(args, "no_cache", False):
-            parser.error("--no-cache cannot be combined with --interpret")
-        if getattr(args, "max_heap", None) is not None and (
-            interpret
+        native_blockers = (
+            getattr(args, "interpret", False)
             or args.stdin
             or getattr(args, "sandbox", False)
             or getattr(args, "json", False)
             or getattr(args, "json_lines", False)
             or args.error_format != "human"
             or getattr(args, "color", "auto") == "always"
-        ):
-            parser.error(
-                "--max-heap requires the native path "
-                "(--interpret, --json, --json-lines, --sandbox, --stdin and "
-                "--error-format other than human run on the tree-walk)"
+        )
+        if native_blockers:
+            reason = (
+                "--interpret, --json, --json-lines, --error-format other than human, "
+                "--sandbox, --stdin and --color=always run on the tree-walk"
             )
+            if getattr(args, "max_heap", None) is not None:
+                parser.error(f"--max-heap requires the native path ({reason})")
+            if getattr(args, "no_cache", False):
+                parser.error(f"--no-cache requires the native path ({reason})")
     if command == "build":
         if args.stdin:
             parser.error("build does not support --stdin yet")

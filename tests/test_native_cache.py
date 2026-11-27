@@ -111,6 +111,19 @@ def test_memo_da_toolchain_evita_o_subprocesso_do_cc(
     assert (cache / "toolchain.json").is_file()
 
 
+def test_stamp_inclui_cpath_e_library_path(cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # O `cc` lê CPATH/LIBRARY_PATH; mudá-los muda o binário e tem que invalidar.
+    base = native_cache.toolchain_stamp()
+
+    monkeypatch.setenv("CPATH", "/opt/loxia-test/include")
+    with_cpath = native_cache.toolchain_stamp()
+    assert with_cpath != base and "opt/loxia-test/include" in with_cpath
+
+    monkeypatch.setenv("LIBRARY_PATH", "/opt/loxia-test/lib")
+    with_library = native_cache.toolchain_stamp()
+    assert with_library != with_cpath and "opt/loxia-test/lib" in with_library
+
+
 def test_memo_e_reescrito_quando_a_versao_muda(
     cache: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

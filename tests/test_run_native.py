@@ -9,8 +9,10 @@ próprio para não herdar binário de outro nem poluir o cache da máquina.
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -29,6 +31,14 @@ def cache(tmp_path: Path) -> Path:
     return tmp_path / "cache"
 
 
+def _environment(cache: Path, env: dict[str, str] | None = None) -> dict[str, str]:
+    merged = dict(os.environ)
+    merged["LOX_BUILD_CACHE"] = str(cache)
+    merged.setdefault("NO_COLOR", "1")
+    merged.update(env or {})
+    return merged
+
+
 def _run(
     args: list[str],
     *,
@@ -37,10 +47,7 @@ def _run(
     env: dict[str, str] | None = None,
     cwd: Path = ROOT,
 ) -> subprocess.CompletedProcess[str]:
-    merged = dict(os.environ)
-    merged["LOX_BUILD_CACHE"] = str(cache)
-    merged.setdefault("NO_COLOR", "1")
-    merged.update(env or {})
+    merged = _environment(cache, env)
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), *args],
         cwd=cwd,
@@ -263,6 +270,77 @@ def test_paridade_de_canais_com_o_interpretador(name: str, tmp_path: Path, cache
     assert compiled.returncode == oracle.returncode
     assert compiled.stdout == oracle.stdout
     assert compiled.stderr == oracle.stderr
+
+
+def test_warnings_nao_vazam_no_aot(tmp_path: Path, cache: Path) -> None:
+    """`run` não emite warnings: o stderr tem que bater com o interpretador (I1)."""
+    script = _write(
+        tmp_path,
+        "fn f() -> Int {\n  val unused = 1\n  return 2\n}\nprint(f())\n",
+    )
+
+    compiled = _run(["run", str(script)], cache=cache)
+    oracle = _run(["run", "--interpret", str(script)], cache=cache)
+    strict = _run(["run", "-Werror", str(script)], cache=cache)
+
+    assert compiled.returncode == oracle.returncode == 0
+    assert compiled.stdout == oracle.stdout == "2\n"
+    assert compiled.stderr == oracle.stderr == ""
+    assert strict.returncode == 0 and strict.stderr == ""
+
+
+def test_debug_muda_a_aceitacao_e_a_chave(tmp_path: Path, cache: Path) -> None:
+    script = _write(tmp_path, "print(9223372036854775807 + 1)\n")
+
+    wrapped = _run(["run", str(script)], cache=cache)
+    checked = _run(["run", "--debug", str(script)], cache=cache)
+    oracle = _run(["run", "--interpret", "--debug", str(script)], cache=cache)
+
+    assert wrapped.returncode == 0
+    assert wrapped.stdout.strip() == "-9223372036854775808"
+    assert checked.returncode == 70
+    assert "Integer overflow." in checked.stderr
+    assert checked.returncode == oracle.returncode
+    assert checked.stderr == oracle.stderr
+
+
+def test_cc_invalido_recusa_com_e4004(tmp_path: Path, cache: Path) -> None:
+    script = _annotated(tmp_path)
+
+    result = _run(
+        ["run", "--no-cache", str(script)],
+        cache=cache,
+        env={"CC": str(tmp_path / "nao-existe")},
+    )
+
+    assert result.returncode == 65
+    assert "E4004" in result.stderr
+    assert "cannot run" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="SIGINT/POSIX")
+def test_sigint_sai_130_nos_dois_motores(tmp_path: Path, cache: Path) -> None:
+    script = _write(tmp_path, "while (true) {\n}\n")
+    environment = _environment(cache)
+    # Aquece o cache: a interrupção não pode cair no meio do build.
+    _run(["run", "--timeout", "50", str(script)], cache=cache)
+
+    for arguments in (["run", str(script)], ["run", "--interpret", str(script)]):
+        process = subprocess.Popen(
+            [sys.executable, str(ENTRYPOINT), *arguments],
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=environment,
+        )
+        time.sleep(0.7)
+        process.send_signal(signal.SIGINT)
+        _stdout, stderr = process.communicate(timeout=30)
+
+        assert process.returncode == 130
+        assert "KeyboardInterrupt" not in stderr
 
 
 def test_timeout_mata_o_binario_com_124(tmp_path: Path, cache: Path) -> None:
