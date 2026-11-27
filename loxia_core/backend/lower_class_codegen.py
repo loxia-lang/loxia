@@ -159,7 +159,7 @@ class ClassCodegenLowering(LoweringBase):
         self._in_init = False
         self._scopes = [{}]
         self._captures = {}
-        self.builder = llvm_ir.builder(llvm_ir.block_of(thunk, "entry"))
+        self.builder = llvm_ir.builder(self._control.new_block(thunk, "entry"))
         self._emit_thunk_call(thunk, sig, result)
         self._seal_blocks(thunk)
         (
@@ -550,7 +550,7 @@ class ClassCodegenLowering(LoweringBase):
         self._method_class = None
         self._scopes = [{}]
         self._captures = {}
-        self.builder = llvm_ir.builder(llvm_ir.block_of(ctor, "entry"))
+        self.builder = llvm_ir.builder(self._control.new_block(ctor, "entry"))
         if not layout.synthetic_exception:
             self._stack_enter_class(layout)
 
@@ -649,8 +649,8 @@ class ClassCodegenLowering(LoweringBase):
                 self.builder.and_(bitmap, mask),
                 llvm_ir.constant(_INT, 0),
             )
-            ok = llvm_ir.append_block(self._function_ir, "init.ok")
-            bad = llvm_ir.append_block(self._function_ir, "init.bad")
+            ok = self._control.new_block(self._function_ir, "init.ok")
+            bad = self._control.new_block(self._function_ir, "init.bad")
             self.builder.cbranch(present, ok, bad)
 
             self.builder = llvm_ir.builder(bad)
@@ -928,8 +928,8 @@ class ClassCodegenLowering(LoweringBase):
 
         resolved = target_ty if target_ty is not None else expr.target_type
         matches = self._is_any(value, self._expand_alias(resolved), target_desc, line)
-        ok = llvm_ir.append_block(self._function_ir, "as.ok")
-        bad = llvm_ir.append_block(self._function_ir, "as.bad")
+        ok = self._control.new_block(self._function_ir, "as.ok")
+        bad = self._control.new_block(self._function_ir, "as.bad")
         self.builder.cbranch(matches.llvm, ok, bad)
         self.builder = llvm_ir.builder(bad)
         self._poison(
@@ -945,11 +945,11 @@ class ClassCodegenLowering(LoweringBase):
         payload = self.builder.extract_value(value.llvm, 1)
         is_int = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_INT))
         is_float = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT))
-        int_ok = llvm_ir.append_block(self._function_ir, "as.int")
-        float_check = llvm_ir.append_block(self._function_ir, "as.float?")
-        float_ok = llvm_ir.append_block(self._function_ir, "as.float")
-        bad = llvm_ir.append_block(self._function_ir, "as.bad")
-        end = llvm_ir.append_block(self._function_ir, "as.end")
+        int_ok = self._control.new_block(self._function_ir, "as.int")
+        float_check = self._control.new_block(self._function_ir, "as.float?")
+        float_ok = self._control.new_block(self._function_ir, "as.float")
+        bad = self._control.new_block(self._function_ir, "as.bad")
+        end = self._control.new_block(self._function_ir, "as.end")
 
         self.builder.cbranch(is_int, int_ok, float_check)
         self.builder = llvm_ir.builder(float_check)
@@ -984,11 +984,11 @@ class ClassCodegenLowering(LoweringBase):
         payload = self.builder.extract_value(value.llvm, 1)
         is_int = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_INT))
         is_float = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT))
-        int_ok = llvm_ir.append_block(self._function_ir, "as.int")
-        float_check = llvm_ir.append_block(self._function_ir, "as.float?")
-        float_ok = llvm_ir.append_block(self._function_ir, "as.float")
-        bad = llvm_ir.append_block(self._function_ir, "as.bad")
-        end = llvm_ir.append_block(self._function_ir, "as.end")
+        int_ok = self._control.new_block(self._function_ir, "as.int")
+        float_check = self._control.new_block(self._function_ir, "as.float?")
+        float_ok = self._control.new_block(self._function_ir, "as.float")
+        bad = self._control.new_block(self._function_ir, "as.bad")
+        end = self._control.new_block(self._function_ir, "as.end")
 
         self.builder.cbranch(is_int, int_ok, float_check)
         self.builder = llvm_ir.builder(float_check)
@@ -1100,8 +1100,8 @@ class ClassCodegenLowering(LoweringBase):
                 code=Code.RUNTIME_CAST,
             )
         check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
-        ok = llvm_ir.append_block(self._function_ir, "as.ok")
-        bad = llvm_ir.append_block(self._function_ir, "as.bad")
+        ok = self._control.new_block(self._function_ir, "as.ok")
+        bad = self._control.new_block(self._function_ir, "as.bad")
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
@@ -1185,7 +1185,7 @@ class ClassCodegenLowering(LoweringBase):
         self._in_init = False
         self._scopes = [{}]
         self._captures = {}
-        self.builder = llvm_ir.builder(llvm_ir.block_of(thunk, "entry"))
+        self.builder = llvm_ir.builder(self._control.new_block(thunk, "entry"))
 
         self._emit_thunk_call(thunk, sig, result)
         self._seal_blocks(thunk)
