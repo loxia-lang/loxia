@@ -38,6 +38,19 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **`run` não imprime warnings e o stderr bate com o interpretador**: o caminho AOT roda o
+  resolver com `warn_unused=False` (antes o build check vazava `W1001` no stderr do `run`, e
+  `--interpret` era silencioso — violação do I1). `build` continua reportando os avisos e
+  `-Werror` vale para `check`/`build`, não muda a aceitação do `run`.
+- **`$CC` passa a ser respeitado pelo backend**: antes o driver sempre escolhia
+  `cc`/`clang`/`gcc`, embora a identidade do cache já considerasse `CC`; agora o compilador
+  configurado é usado e um `CC` inválido vira `E4004` acionável, não erro interno.
+- **Chave do cache cobre `CPATH`/`LIBRARY_PATH`**: eles mudam headers/bibliotecas que o `cc`
+  enxerga (outra `libgc`, por exemplo) e podem mudar o binário; com um hit a toolchain não é
+  consultada (o binário guardado é autossuficiente).
+- **Ctrl-C sai 130 nos dois motores, sem traceback**: o interpretador imprimia
+  `KeyboardInterrupt` do Python; o CLI agora trata a interrupção e o binário é encerrado com
+  130, como o `--timeout` já fazia com 124.
 - **Erro estático adiado em fronteira tipada vira panic site, não erro interno**: um valor
   `<error>` (ex.: variável indefinida) chegando a retorno/argumento/atribuição de tipo
   `String`/`Enum` estourava `E4002 internal lowering error` e o binário recusava um programa

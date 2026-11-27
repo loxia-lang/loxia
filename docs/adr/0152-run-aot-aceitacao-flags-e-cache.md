@@ -81,12 +81,17 @@ resto.
 - A toolchain (Python + runtime C) entra por um **fingerprint de `mtime_ns`/tamanho**, não
   por hash de conteúdo: qualquer edição invalida (direção segura), e o caminho quente não lê
   ~140 arquivos. A identidade do `cc` é memoizada em `toolchain.json`, validada pelo `mtime`
-  do binário do compilador — um hit não roda `cc --version`.
+  do binário do compilador — um hit não roda `cc --version`. `$CC` é respeitado pelo driver
+  (antes era ignorado) e entra na identidade; `CPATH`/`LIBRARY_PATH` também entram, porque
+  mudam os headers/bibliotecas que o `cc` enxerga (por exemplo, outra `libgc`).
 - O build é atômico (temporário + `os.replace` + `chmod 755`); dois `run` concorrentes não
   veem binário pela metade. `--no-cache` compila num diretório temporário.
 - O cache é **só desempenho**: não muda bytes, não entra na saída, não esconde erro. Um
   limite total (default **1 GiB**, `LOX_BUILD_CACHE_MAX`) e `loxia cache prune` removem os
   binários mais antigos por `mtime`.
+- Um **hit não consulta a toolchain**: o binário guardado é autossuficiente e roda mesmo se
+  `cc`/`libgc`/`cargo` sumirem depois. As recusas `E4004`/`E3022` valem para o build frio
+  (e para `--no-cache`), não para um hit.
 
 ### 5. O que muda no contrato observável
 
@@ -98,6 +103,10 @@ resto.
 | erro rebaixável | panic site → 70 no ponto | 70 no ponto |
 | `--json`/`--json-lines`/`--error-format≠human`/`--sandbox`/`--stdin`/`--color=always` | cai no interpretador | executa |
 | toolchain ausente | 65 `E4004` + dica | executa |
+
+`run` **não emite warnings** em nenhum dos motores (o binário também não, e o I1 compara
+stderr): o caminho AOT roda o resolver com `warn_unused=False`. Por isso `-Werror` não muda a
+aceitação do `run`; ele vale para `check`/`build`, que continuam reportando `W1001`.
 
 Os testes de contrato do interpretador (golden, suíte oficial, docs, exemplos, determinismo)
 passam a pedir `--interpret` explicitamente: o oráculo é o tree-walk, e o binário herdaria o
@@ -112,8 +121,9 @@ em processo real (`tests/test_run_native.py`).
   binário aparece em programa real (~0,57 s → ~0,01 s no `loop_sum`).
 - Aceitação, degradação e cache são **declarados e testados**, não emergentes.
 - `E4004` transforma uma falha de ambiente em diagnóstico acionável.
-- `loxia test --native` e `loxia run` compartilham a infraestrutura de cache e o mesmo
-  fingerprint de toolchain.
+- `loxia test --native` e `loxia run` compartilham a **raiz** do cache e o padrão de store
+  atômico; a chave do `test` continua conservadora (hash de conteúdo do projeto), então os
+  binários não são compartilhados entre os dois comandos.
 
 ### Negativas / custos
 

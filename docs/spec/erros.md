@@ -521,8 +521,11 @@ and the same deferral applies. There is no silent fallback between engines.
 `--json`, `--json-lines`, `--error-format` other than `human`, `--sandbox`, `--stdin` and
 `--color=always` execute on the tree-walk (they are interpreter output contracts, not binary
 ones); the `--help` of `run` says so. Without `llvmlite`/`libgc`/`cc` the AOT path refuses
-with `E4004` and an install hint, and `--interpret` still runs. The REPL checks each snippet
-and only warns, so an interactive snippet never blocks.
+with `E4004` and an install hint, and `--interpret` still runs; a **cache hit does not consult
+the toolchain** (the stored binary is standalone), so that refusal applies to a cold build and
+to `--no-cache`. `run` does not print warnings in either engine (I1 compares stderr); `-Werror`
+therefore does not change `run` acceptance, only `check`/`build`. The REPL checks each
+snippet and only warns, so an interactive snippet never blocks.
 
 | Message | When |
 | --- | --- |
