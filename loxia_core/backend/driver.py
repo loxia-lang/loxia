@@ -337,6 +337,9 @@ def _with_gc_hint(error: BackendError) -> BackendError:
     message = error.message
     code = error.code
     if "gc.h" in message or "lgc" in message or "libgc" in message:
+        # A falha de link nasce como `BACKEND_INTERNAL`; ao promover para
+        # `NATIVE_TOOLCHAIN` o prefixo "internal lowering error" deixa de valer.
+        message = message.removeprefix(BackendError.INTERNAL_PREFIX)
         message = (
             f"{message}\n"
             "The native backend requires libgc (bdw-gc). Install libgc-dev "

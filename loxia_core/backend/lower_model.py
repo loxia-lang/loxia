@@ -65,6 +65,8 @@ _OPERAND_MESSAGES: dict[TokenType, str] = {
 class BackendError(Exception):
     """Erro de compilação do backend (exit 65). `line` é `None` quando o nó não tem."""
 
+    INTERNAL_PREFIX = "internal lowering error: "
+
     def __init__(
         self,
         message: str,
@@ -73,7 +75,7 @@ class BackendError(Exception):
         code: Code = Code.BACKEND_INTERNAL,
     ) -> None:
         if code is Code.BACKEND_INTERNAL and not message.startswith("internal "):
-            message = f"internal lowering error: {message}"
+            message = f"{self.INTERNAL_PREFIX}{message}"
         super().__init__(message)
         self.message = message
         self.line = line
