@@ -1141,3 +1141,35 @@ def test_lsp_references_see_external_module_edit(tmp_path: Path) -> None:
         if item["uri"].endswith("/shared/lib.lx")
     )
     assert 5 in external_lines
+
+
+def test_lsp_rename_outside_root_keeps_the_server_alive(tmp_path: Path) -> None:
+    text = "import std.lists as lists\n\nval xs = [1, 2, 3]\nval total: Int = lists.sum(xs)\n"
+    path = tmp_path / "main.lx"
+    path.write_text(text, encoding="utf-8")
+    process = start_with_root(tmp_path)
+    try:
+        open_document(process, path, text)
+        position, _ = _position_of(text, "sum(xs)")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": path.as_uri()},
+                    "position": position,
+                    "newName": "soma",
+                },
+            },
+        )
+
+        response = read(process)
+
+        assert "error" in response
+        assert "outside the workspace root" in response["error"]["message"]
+        # Antes do ADR-0151 o KeyError matava o processo (exit 1).
+        assert process.poll() is None
+    finally:
+        stop(process)

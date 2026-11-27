@@ -673,3 +673,20 @@ def test_remove_inexistente_falha(tmp_path: Path) -> None:
 
     assert result.returncode == 65
     assert "not declared" in result.stderr
+
+
+def test_watched_files_incluem_manifest_lock_e_modulos(tmp_path: Path) -> None:
+    from loxia.engine import Loxia
+
+    app, _dep = _project(tmp_path)
+    result = _cli("lock", cwd=app)
+    assert result.returncode == 0, result.stderr
+    lox = Loxia(error_format="json", color="never", max_errors=0)
+    lox.use_file("main.lx", module_root=app)
+
+    lox.check((app / "main.lx").read_text(encoding="utf-8"), emit=False)
+
+    # O rename/LSP usa `watched_files` como insumo de resolução: sem o lock, um
+    # checkout trocado deixaria a análise (e o cache) apontando para o antigo.
+    watched = {path.name for path in lox.watched_files}
+    assert {"loxia.toml", "loxia.lock", "base.lx"} <= watched

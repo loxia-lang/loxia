@@ -70,7 +70,10 @@ ser a lista de inputs da análise.
 A chave do workspace é `(root, todos os textos de files)` mais o digest de cada insumo
 fora de `files` (módulos externos, manifest, lock). Editar o `loxia.toml`, o lock ou um
 módulo de dependência invalida o workspace na próxima request, sem `didChangeWatchedFiles`
-(depender do cliente seria uma fonte de stale silencioso).
+(depender do cliente seria uma fonte de stale silencioso). O lock passou a ser reportado
+por `watched_files`: o `_parse` o adicionava antes do loader e depois substituía o set,
+então nem o watch nem o fingerprint o viam (corrigido em `loxia/engine.py`, com
+`test_watched_files_incluem_manifest_lock_e_modulos`).
 
 ### 4. Cache em três camadas, endereçado por conteúdo
 
@@ -130,6 +133,9 @@ as outras prontas.
 - O `WorkspaceCache` fica no `loxia/rename.py` (tooling), não no engine.
 - `didChangeWatchedFiles` continua fora: o stat/fingerprint cobre o caso sem depender do
   cliente.
+- Listagem de diretórios por mtime (sugerida na #195) foi considerada e não entrou: o
+  `os.walk` quente custa 9,5 ms em 554 arquivos e 52,6 ms em 5.000, o fingerprint 0,86 ms
+  e o build domina o custo frio; a poda de diretórios já está no #199.
 
 ## Alternativas consideradas
 
@@ -157,6 +163,9 @@ Testes que policiam a decisão:
   `test_lsp_prepare_rename_refuses_module_outside_root`,
   `test_lsp_rename_module_outside_root_returns_message` e
   `test_lsp_references_see_external_module_edit` (end-to-end, in-process).
+- `test_lsp_rename_outside_root_keeps_the_server_alive` (processo real: resposta de erro,
+  servidor vivo).
+- `test_watched_files_incluem_manifest_lock_e_modulos` (o lock entra nos insumos).
 - `test_workspace_cache_reanalyzes_only_the_changed_file`,
   `test_workspace_cache_shares_module_contributions`,
   `test_workspace_cache_invalidates_external_module_edit`,
