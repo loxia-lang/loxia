@@ -67,8 +67,8 @@ class VariableLowering(LoweringBase):
 
     def _guard_closure(self, value: Value, name: str, line: int, column: int = 0) -> Value:
         is_null = self.builder.icmp_signed("==", value.llvm, llvm_ir.null_pointer())
-        ok = llvm_ir.append_block(self._function_ir, "fn.ok")
-        bad = llvm_ir.append_block(self._function_ir, "fn.null")
+        ok = self._control.new_block(self._function_ir, "fn.ok")
+        bad = self._control.new_block(self._function_ir, "fn.null")
         self.builder.cbranch(is_null, bad, ok)
 
         self.builder = llvm_ir.builder(bad)

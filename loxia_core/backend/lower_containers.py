@@ -466,9 +466,9 @@ class ContainerLowering(LoweringBase):
             return Value(ValueType.NIL)
 
         if desc.optional:
-            some = llvm_ir.append_block(self._function_ir, "list.some")
-            nothing = llvm_ir.append_block(self._function_ir, "list.nil")
-            end = llvm_ir.append_block(self._function_ir, "list.end")
+            some = self._control.new_block(self._function_ir, "list.some")
+            nothing = self._control.new_block(self._function_ir, "list.nil")
+            end = self._control.new_block(self._function_ir, "list.end")
             present = self.builder.icmp_signed("!=", tag, llvm_ir.constant(_INT, 0))
             self.builder.cbranch(present, some, nothing)
             self.builder = llvm_ir.builder(nothing)

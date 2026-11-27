@@ -124,9 +124,9 @@ class RangeLowering(LoweringBase):
             next_return.interface_name,
         )
 
-        header = llvm_ir.append_block(self._function_ir, "for.iter")
-        body = llvm_ir.append_block(self._function_ir, "for.iter.body")
-        end = llvm_ir.append_block(self._function_ir, "for.end")
+        header = self._control.new_block(self._function_ir, "for.iter")
+        body = self._control.new_block(self._function_ir, "for.iter.body")
+        end = self._control.new_block(self._function_ir, "for.end")
         self.builder.branch(header)
 
         self.builder = llvm_ir.builder(header)
@@ -278,8 +278,8 @@ class RangeLowering(LoweringBase):
         """Emite R1012 quando o container mudou desde o início do `for-in`."""
         current = self.builder.call(self._function(getter, _INT, [_I8_PTR]), [iterable])
         changed = self.builder.icmp_signed("!=", current, self.builder.load(version))
-        bad = llvm_ir.append_block(self._function_ir, "for.mutated")
-        ok = llvm_ir.append_block(self._function_ir, "for.stable")
+        bad = self._control.new_block(self._function_ir, "for.mutated")
+        ok = self._control.new_block(self._function_ir, "for.stable")
         self.builder.cbranch(changed, bad, ok)
         self.builder = llvm_ir.builder(bad)
         self._poison(line, message, column=column, code=Code.RUNTIME_ITERATION)
@@ -453,10 +453,10 @@ class RangeLowering(LoweringBase):
         load: Any,
         advance: Any,
     ) -> None:
-        header = llvm_ir.append_block(self._function_ir, "for.cond")
-        body = llvm_ir.append_block(self._function_ir, "for.body")
-        advance_block = llvm_ir.append_block(self._function_ir, "for.advance")
-        end = llvm_ir.append_block(self._function_ir, "for.end")
+        header = self._control.new_block(self._function_ir, "for.cond")
+        body = self._control.new_block(self._function_ir, "for.body")
+        advance_block = self._control.new_block(self._function_ir, "for.advance")
+        end = self._control.new_block(self._function_ir, "for.end")
         self.builder.branch(header)
 
         self.builder = llvm_ir.builder(header)
