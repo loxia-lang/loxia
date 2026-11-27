@@ -1346,7 +1346,12 @@ class Lowerer(
                     code=Code.BACKEND_UNSUPPORTED,
                 )
         else:
-            value = self._coerce(self._expr(stmt.value), self._return_type_desc, stmt.keyword.line)
+            value = self._coerce(
+                self._expr(stmt.value),
+                self._return_type_desc,
+                stmt.keyword.line,
+                source=stmt.value,
+            )
             if self._return_type_desc.ty is ValueType.NIL:
                 value = None
 

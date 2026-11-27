@@ -207,6 +207,10 @@ class Value:
     generic: Any = None
     generic_node: Any = None
     interface_name: str | None = None
+    # `True` quando o valor é um zero de recheio depois de um panic site: a
+    # avaliação já emitiu o `Rxxxx` e o código é inalcançável. A coerção troca
+    # esse lixo por um zero do tipo esperado em vez de estourar (I1/#244).
+    error: bool = False
 
     @property
     def desc(self) -> TypeDesc:

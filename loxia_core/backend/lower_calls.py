@@ -23,7 +23,7 @@ from loxia_core.backend.lower_model import (
 )
 from loxia_core.diagnostics.codes import Code
 from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
-from loxia_core.frontend.expr import Call, Get, Variable
+from loxia_core.frontend.expr import Call, Expr, Get, Variable
 from loxia_core.frontend.tokens import Token
 
 
@@ -217,7 +217,7 @@ class CallLowering(LoweringBase):
                 "Can only call functions and classes.",
                 code=Code.RUNTIME_NOT_CALLABLE,
             )
-            return self._zero(ValueType.INT)
+            return Value(ValueType.INT, llvm_ir.constant(_INT, 0), error=True)
 
         if callee.optional:
             return self._call_optional(callee, expr)
@@ -231,7 +231,14 @@ class CallLowering(LoweringBase):
         effective = info if info is not None else callee.function
         sig = effective.fn_sig if effective is not None else callee.sig
         assert sig is not None
-        prepared = self._prepare_call_arguments(sig, effective, arguments, expr.spread, expr.paren)
+        prepared = self._prepare_call_arguments(
+            sig,
+            effective,
+            arguments,
+            expr.spread,
+            expr.paren,
+            sources=list(expr.arguments),
+        )
         if prepared is None:
             return self._zero_desc(sig.ret)
         arguments = prepared
@@ -271,9 +278,18 @@ class CallLowering(LoweringBase):
         values: list[Value],
         spread: bool,
         token: Token,
+        sources: list[Expr] | None = None,
     ) -> list[Value] | None:
         fixed = len(sig.params) - 1 if sig.variadic else len(sig.params)
         count = len(values)
+        # `sources` acompanha `values` (expressão de cada argumento) para que a
+        # coerção consiga reconhecer um argumento `<error>` adiado — o panic site
+        # já foi emitido e o valor é um zero de recheio (I1, ver `_coerce`).
+        args = list(sources) if sources is not None else None
+
+        def coerce(index: int, value: Value, expected: TypeDesc) -> Value:
+            source = args[index] if args is not None and index < len(args) else None
+            return self._coerce(value, expected, token.line, source=source)
 
         if spread:
             if not sig.variadic:
@@ -302,7 +318,7 @@ class CallLowering(LoweringBase):
                 )
                 return None
             fixed_values = [
-                self._coerce(value, sig.params[index], token.line)
+                coerce(index, value, sig.params[index])
                 for index, value in enumerate(values[:fixed])
             ]
             return [*fixed_values, rest]
@@ -320,14 +336,13 @@ class CallLowering(LoweringBase):
                     default = info.params[index].default
                     assert default is not None
                     values.append(self._expr(default))
+                    if args is not None:
+                        args.append(default)
             elif count < len(sig.params):
                 # Sem `FunctionInfo` não há como rebaixar a expressão do default:
                 # recusa declarada (nunca `zip` desencontrado/lowering silencioso).
                 raise _unsupported("Default parameters in indirect function calls", token.line)
-            return [
-                self._coerce(value, sig.params[index], token.line)
-                for index, value in enumerate(values)
-            ]
+            return [coerce(index, value, sig.params[index]) for index, value in enumerate(values)]
 
         if count < sig.min_params:
             self._poison(
@@ -343,6 +358,8 @@ class CallLowering(LoweringBase):
                 default = info.params[index].default
                 assert default is not None
                 fixed_values.append(self._expr(default))
+                if args is not None:
+                    args.append(default)
         if len(fixed_values) < fixed and info is None:
             raise _unsupported("Default parameters in indirect function calls", token.line)
         if len(fixed_values) != fixed:
@@ -354,14 +371,13 @@ class CallLowering(LoweringBase):
             return None
 
         fixed_values = [
-            self._coerce(value, sig.params[index], token.line)
-            for index, value in enumerate(fixed_values)
+            coerce(index, value, sig.params[index]) for index, value in enumerate(fixed_values)
         ]
         element = sig.vararg_element
         assert element is not None
         raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
-        for value in values[fixed:]:
-            coerced = self._coerce(value, element, token.line)
+        for offset, value in enumerate(values[fixed:]):
+            coerced = coerce(fixed + offset, value, element)
             boxed = self._box_value(coerced, token.line)
             self.builder.call(
                 self._function("lox_list_push", _I8_PTR, [_I8_PTR, _INT, _INT]),
@@ -427,7 +443,12 @@ class CallLowering(LoweringBase):
         if sig.variadic:
             values = [self._expr(argument) for argument in expr.arguments]
             prepared = self._prepare_call_arguments(
-                sig, callee.function, values, expr.spread, expr.paren
+                sig,
+                callee.function,
+                values,
+                expr.spread,
+                expr.paren,
+                sources=list(expr.arguments),
             )
             if prepared is None:
                 raise _unsupported(
@@ -437,7 +458,12 @@ class CallLowering(LoweringBase):
             arguments = prepared
         else:
             arguments = [
-                self._coerce(self._expr(argument), expected, expr.paren.line)
+                self._coerce(
+                    self._expr(argument),
+                    expected,
+                    expr.paren.line,
+                    source=argument,
+                )
                 for argument, expected in zip(expr.arguments, sig.params, strict=True)
             ]
         fnptr = self._closure_field(payload, 0)

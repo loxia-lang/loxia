@@ -287,7 +287,14 @@ class LoweringBase:
     ) -> Value:
         raise NotImplementedError
 
-    def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
+    def _coerce(
+        self,
+        value: Value,
+        expected: TypeDesc,
+        line: int | None,
+        *,
+        source: Expr | None = None,
+    ) -> Value:
         raise NotImplementedError
 
     def _expr_with_expected(self, expr: Expr, ty: Ty | None) -> Value:

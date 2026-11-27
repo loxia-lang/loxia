@@ -43,6 +43,7 @@ from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import BOOL as TY_BOOL
 from loxia_core.frontend.ty import BYTES as TY_BYTES
+from loxia_core.frontend.ty import ERROR as TY_ERROR
 from loxia_core.frontend.ty import FLOAT as TY_FLOAT
 from loxia_core.frontend.ty import INT as TY_INT
 from loxia_core.frontend.ty import NIL as TY_NIL
@@ -550,8 +551,25 @@ class OptionalLowering(LoweringBase):
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
         return value
 
-    def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
-        """Converte `nil`/`T` para `T?` e faz unwrap checado de `T?` para `T`."""
+    def _coerce(
+        self,
+        value: Value,
+        expected: TypeDesc,
+        line: int | None,
+        *,
+        source: Expr | None = None,
+    ) -> Value:
+        """Converte `nil`/`T` para `T?` e faz unwrap checado de `T?` para `T`.
+
+        `source` é a expressão que produziu `value`. Quando o checker a marcou como
+        `<error>`, a avaliação já emitiu o panic site (`Rxxxx`) e o código é
+        inalcançável: devolver o zero do tipo esperado evita que a coerção transforme
+        um erro estático adiado em `internal lowering error` — o binário precisa do
+        mesmo `Rxxxx` do tree-walk (I1).
+        """
+        if value.error or (source is not None and self.types.get(source) == TY_ERROR):
+            return self._zero_desc(expected)
+
         if expected.interface_name is not None:
             return self._coerce_interface(value, expected, line)
 

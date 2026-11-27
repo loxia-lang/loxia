@@ -121,12 +121,12 @@ def _write(tmp_path: Path, source: str, name: str = "caso.lx") -> Path:
 
 def _interpret(path: Path) -> Result:
     """Oráculo in-process: mesmo contrato do CLI (stdout, stderr, exit code)."""
-    return run_cli(str(path), cwd=ROOT)
+    return run_cli("--interpret", str(path), cwd=ROOT)
 
 
 def _interpret_process(path: Path) -> subprocess.CompletedProcess[str]:
     """Oráculo em processo real; usado quando o objeto do teste é o processo."""
-    return _run([sys.executable, str(ENTRYPOINT), str(path)])
+    return _run([sys.executable, str(ENTRYPOINT), "--interpret", str(path)])
 
 
 def _as_result(done: subprocess.CompletedProcess[str]) -> Result:
@@ -2267,6 +2267,43 @@ def test_i4_lacunas_declaradas(tmp_path: Path) -> None:
         built, _binary = _build(path, tmp_path)
         assert built.returncode == 65, built.stderr
         assert "not supported by the backend yet" in built.stderr, built.stderr
+
+
+DEFERRED_ERROR_AT_TYPED_BOUNDARY = [
+    pytest.param("fn f() -> String { return naoExiste }\nf()\n", id="retorno"),
+    pytest.param(
+        "fn f(s: String) -> Nil { print(s) }\nf(naoExiste)\n",
+        id="argumento",
+    ),
+    pytest.param('var s: String = "a"\ns = naoExiste\n', id="atribuicao"),
+    pytest.param(
+        "fn main() -> Result[Nil, String] {\n  return Ok(nil)\n}\n",
+        id="retorno-enum",
+    ),
+]
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize("source", DEFERRED_ERROR_AT_TYPED_BOUNDARY)
+def test_erro_adiado_em_fronteira_tipada_vira_panic_site(source: str, tmp_path: Path) -> None:
+    """Erro estático adiado não pode virar `internal lowering error` (E4002).
+
+    O tree-walk adia o erro rebaixável e levanta `Rxxxx` no ponto; o lowering tem
+    que fazer o mesmo. Sem o fix, a coerção de um valor `<error>` para `String`/`Enum`
+    estourava com E4002 e o `run` AOT (#244) recusava um programa que o interpretador
+    executa — a mensagem interna ainda vazava para o usuário.
+    """
+    path = _write(tmp_path, source)
+    interpreted = _oracle(path)
+    assert interpreted.returncode == 70, interpreted.stderr
+
+    built, binary = _build(path, tmp_path)
+    assert built.returncode == 0, built.stderr
+    compiled = _run([str(binary)])
+
+    assert compiled.returncode == interpreted.returncode
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
 
 
 @pytest.mark.backend
