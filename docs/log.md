@@ -1555,4 +1555,21 @@ com corpo vazio; mais R1–R3).
 - `docs/spec/garantias.md` — **no-change**: gerado; nenhum nível/promessa mudou.
 - Demais páginas — **no-change**: nenhuma superfície pública, CLI, spec ou stdlib mudou.
 
-<!-- triaged: eb0be6d -->
+## 2026-11-28 — converge do port: fechamento e cobertura
+
+Intervalo: `eb0be6d..HEAD` (fechamento dos achados do re-check; o `lower_tuples` tinha
+caído para 76% no ratchet de cobertura do CI).
+
+- `docs/tech/thir.md` — **updated**: números do diff e do dispatch medidos no commit do
+  port, com a receita de cada linha; a métrica A9 passou a apontar o commit do port
+  (o range `..HEAD` inclui este próprio commit, então o número cresceria a cada rodada).
+- `docs/spec/erros.md` — **no-change**: nenhum código de diagnóstico novo; `E3015` e
+  `E4002` já estavam documentados e o comportamento deles não mudou.
+- `docs/spec/semantica.md` — **no-change**: `abstract` já era semântica do interpretador
+  (assinatura × default); o THIR passou a carregar a mesma decisão.
+- `docs/spec/garantias.md` — **no-change**: gerado; níveis e promessas iguais.
+- `docs/tech/control-ir.md` — **no-change**: a IR de controle é interna e não foi tocada.
+- `docs/tech/python-coverage.md` — **no-change**: pisos iguais; `lower_tuples.py` subiu
+  para 92% (piso 78%) removendo o caminho morto de tipagem por elemento.
+
+<!-- triaged: f0cbbf3 -->

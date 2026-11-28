@@ -248,9 +248,10 @@ conta:
 | leituras de side table no backend (`self.` nas 6 tabelas) | 46 | **0** | `git grep -E "self\.(types\|flow_types\|depths\|generic_instances\|generic_class_sites\|generic_classes)\b" <rev> -- loxia_core/backend \| wc -l` |
 | arquivos do backend que importam `frontend.expr`/`frontend.stmt` | 21 | **0** | `git grep -l -E "from loxia_core\.frontend\.(expr\|stmt)" <rev> -- loxia_core/backend \| wc -l` |
 | `backend/captures.py` | 402 linhas | apagado | `git show 7561f36:loxia_core/backend/captures.py \| wc -l` |
-| diff do port | — | +1883/−1695 em 35 arquivos | `git diff --shortstat 7561f36..HEAD` |
+| diff do port | — | +1883/−1695 em 35 arquivos | `git diff --shortstat 7561f36..0c04be3` |
+| diff da fatia (port + triagem + converge) | — | +2112/−1802 em 36 arquivos | `git diff --shortstat 7561f36..HEAD` |
 
-O dispatch continua sendo `isinstance` (41 sítios em `_expr`/`_stmt`), agora sobre nós `T*`;
+O dispatch continua sendo `isinstance` (40 sítios em `_expr`/`_stmt`), agora sobre nós `T*`;
 o ganho não é "menos branches", é **uma** árvore e nenhuma tabela por identidade de nó.
 
 Renomes mecânicos:

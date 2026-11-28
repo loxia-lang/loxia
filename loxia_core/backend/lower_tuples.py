@@ -38,17 +38,11 @@ from loxia_core.thir import (
 
 class TupleLowering(LoweringBase):
     def _tuple_types(self, expr: Any, line: int | None) -> tuple[TypeDesc, ...]:
-        ty = expr.storage_ty
+        # O produtor publica o tipo do agregado; o fluxo cobre a lacuna declarada
+        # (`storage_ty` do literal), sem re-inferir elemento a elemento.
+        ty = expr.storage_ty or expr.ty
         if isinstance(ty, TupleTy):
             return tuple(self._type_desc(self._subst_ty(item), line) for item in ty.items)
-        if isinstance(expr, TupleLiteral) and expr.items:
-            result = []
-            for element in expr.items:
-                item_ty = element.storage_ty
-                if item_ty is None:
-                    raise _unsupported("Tuple element type", line)
-                result.append(self._type_desc(item_ty, line))
-            return tuple(result)
         raise _unsupported("Tuple element types", line)
 
     def _tuple_literal(self, expr: TupleLiteral) -> Value:
