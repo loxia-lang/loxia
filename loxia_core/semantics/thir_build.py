@@ -28,7 +28,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from loxia_core.diagnostics.diagnostic import Span
-from loxia_core.frontend.destructuring import pattern_names
+from loxia_core.frontend.destructuring import (
+    DestructurePattern,
+    NamePattern,
+    TuplePattern,
+)
 from loxia_core.frontend.expr import (
     As,
     Assign,
@@ -50,6 +54,7 @@ from loxia_core.frontend.expr import (
     Logical,
     MapLiteral,
     Match,
+    MatchArm,
     Pattern,
     Range,
     Set,
@@ -87,7 +92,7 @@ from loxia_core.frontend.stmt import (
     While,
 )
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.ty import ClassTy, FnTy, Ty
+from loxia_core.frontend.ty import ClassTy, FnTy, TupleTy, Ty, display
 from loxia_core.thir.model import (
     Decl,
     DeclId,
@@ -107,6 +112,7 @@ from loxia_core.thir.model import (
     TConditional,
     TConst,
     TContinue,
+    TDestructurePattern,
     TDestructureStmt,
     TEnum,
     TEnumDecl,
@@ -135,6 +141,7 @@ from loxia_core.thir.model import (
     TMatch,
     TMatchArm,
     TModule,
+    TNamePattern,
     TParam,
     TPattern,
     TRaise,
@@ -146,6 +153,7 @@ from loxia_core.thir.model import (
     TThis,
     TTry,
     TTuple,
+    TTuplePattern,
     TTypeAlias,
     TUnary,
     TVar,
@@ -219,6 +227,7 @@ class _Builder:
         type_aliases: dict[str, Ty] | None = None,
         function_types: dict[Any, FnTy] | None = None,
         entry: Function | None = None,
+        globals_scope: dict[str, Ty] | None = None,
         source_path: str = "<lox>",
     ) -> None:
         self._storage = storage_types
@@ -229,6 +238,11 @@ class _Builder:
         self._function_types = function_types or {}
         self._type_aliases = dict(type_aliases or {})
         self._entry_node = entry
+        # Escopo global do checker: a autoridade sobre nomes pré-declarados
+        # (builtins, namespaces nativos, classes de exceção) que não têm declaração
+        # no fonte. Só consultado depois do escopo léxico.
+        self._globals_scope = globals_scope or {}
+        self._predeclared: dict[object, DeclId] = {}
         self._source_path = source_path
 
         self._drafts: list[_DeclDraft] = []
@@ -245,19 +259,57 @@ class _Builder:
     # --- API ---
 
     def build(self, statements: list[Stmt]) -> TModule:
+        self._predeclare_toplevel(statements)
         body = tuple(self._stmt(statement) for statement in statements)
-        for klass in self._generic_classes:
+        # `generic_classes` é um `set`: iterar direto vazaria ordem de hash no
+        # contrato (I3). A chave é canônica e total, então a inserção é determinística.
+        for klass in sorted(
+            self._generic_classes,
+            key=lambda item: (item.name, tuple(display(arg) for arg in item.args)),
+        ):
             self._add_instance(klass.name, klass.args)
         return TModule(
             source_path=self._source_path,
             statements=body,
             decls=self._frozen_decls(),
-            instances=tuple(self._instances.values()),
+            instances=tuple(
+                sorted(
+                    self._instances.values(),
+                    key=lambda item: (
+                        item.name,
+                        tuple(display(arg) for arg in item.type_args),
+                    ),
+                )
+            ),
             type_aliases=tuple(
                 (name, self._type_aliases[name]) for name in sorted(self._type_aliases)
             ),
             entry=self._entry_id,
         )
+
+    def _predeclare_toplevel(self, statements: list[Stmt]) -> None:
+        """Declara os nomes que o checker pré-declara antes de checar os corpos.
+
+        Sem isto uma referência para frente (`fn a() { return b() }` + `fn b()`) viraria
+        `UNRESOLVED`, embora o programa passe no `--check`. O checker pré-declara
+        funções, classes, interfaces e enums; `val`/`var` de topo continuam sequenciais.
+        """
+        for statement in statements:
+            name: Token | None = None
+            kind = DeclKind.VAR
+            if isinstance(statement, Function):
+                name, kind = statement.name, DeclKind.FUNCTION
+            elif isinstance(statement, Class):
+                name, kind = statement.name, DeclKind.CLASS
+            elif isinstance(statement, Interface):
+                name, kind = statement.name, DeclKind.INTERFACE
+            elif isinstance(statement, EnumDecl):
+                name, kind = statement.name, DeclKind.ENUM
+            if name is None:
+                continue
+            decl = self._new_decl(name.lexeme, None, False, kind, self._tok(name))
+            self._declare(name.lexeme, decl)
+            self._predeclared[statement] = decl
 
     # --- declarações e escopos ---
 
@@ -309,10 +361,17 @@ class _Builder:
                 guard += 1
                 if guard > 10_000:
                     raise ThirBuildError(f"capture chain too deep for '{name}'")
+            if unit is None:
+                raise ThirBuildError(f"binding '{name}' is not an ancestor of the current function")
             self._cells.add(binding.decl)
             return Ref(storage=Storage.CAPTURE, decl=binding.decl, name=name)
 
-        # Nome não declarado: o checker já reportou e o lowering vira panic site.
+        # Nome pré-declarado pelo checker sem declaração no fonte: builtin ou
+        # namespace nativo. O motor resolve pelo nome (é o que o lowering faz hoje).
+        if name in self._globals_scope:
+            return Ref(storage=Storage.BUILTIN, decl=None, name=name)
+
+        # Nome inexistente: o checker já reportou e o motor emite o panic site.
         return Ref(storage=Storage.UNRESOLVED, decl=None, name=name)
 
     # --- anotações e spans ---
@@ -430,15 +489,17 @@ class _Builder:
             span=self._tok(param.name),
         )
 
+    def _named_decl(self, stmt: object, token: Token, kind: DeclKind) -> DeclId:
+        """Reaproveita o `Decl` da pré-declaração de topo ou cria um novo."""
+        existing = self._predeclared.get(stmt)
+        if existing is not None:
+            return existing
+        decl = self._new_decl(token.lexeme, None, False, kind, self._tok(token))
+        self._declare(token.lexeme, decl)
+        return decl
+
     def _function_decl(self, stmt: Function) -> TFunction:
-        decl = self._new_decl(
-            stmt.name.lexeme,
-            None,
-            False,
-            DeclKind.FUNCTION,
-            self._tok(stmt.name),
-        )
-        self._declare(stmt.name.lexeme, decl)
+        decl = self._named_decl(stmt, stmt.name, DeclKind.FUNCTION)
         if stmt is self._entry_node:
             self._entry_id = decl
         return self._function(
@@ -499,11 +560,11 @@ class _Builder:
 
         if isinstance(stmt, Destructure):
             initializer = self._expr(stmt.initializer)
-            decls = tuple(
-                self._declare_pattern_name(name, stmt.type_annotation, stmt.mutable)
-                for name in pattern_names(stmt.pattern)
-            )
-            return TDestructureStmt(span=span, decls=decls, initializer=initializer)
+            declared = stmt.type_annotation
+            if declared is None:
+                declared = initializer.storage_ty or initializer.ty
+            pattern = self._destructure_pattern(stmt.pattern, declared, stmt.mutable)
+            return TDestructureStmt(span=span, pattern=pattern, initializer=initializer)
 
         if isinstance(stmt, If):
             return TIf(
@@ -620,6 +681,34 @@ class _Builder:
 
         raise ThirBuildError(f"unhandled statement: {type(stmt).__name__}")
 
+    def _destructure_pattern(
+        self, pattern: DestructurePattern, ty: Ty | None, mutable: bool
+    ) -> TDestructurePattern:
+        """Padrão de `val`/`var` com o aninhamento preservado e tipo por elemento.
+
+        O motor precisa da forma do padrão para desestruturar posicionalmente e do tipo
+        de cada nome (não do tipo da tupla inteira): copiar a anotação para todos os
+        nomes daria slot com representação errada (`(Int, String)` em cada um).
+        """
+        span = self._span(pattern)
+        if isinstance(pattern, NamePattern):
+            decl = self._declare_pattern_name(pattern.name, ty, mutable)
+            return TNamePattern(span=span, decl=decl)
+        if isinstance(pattern, TuplePattern):
+            item_types: tuple[Ty, ...] | None = None
+            if isinstance(ty, TupleTy) and len(ty.items) == len(pattern.elements):
+                item_types = ty.items
+            elements = tuple(
+                self._destructure_pattern(
+                    element,
+                    item_types[index] if item_types is not None else None,
+                    mutable,
+                )
+                for index, element in enumerate(pattern.elements)
+            )
+            return TTuplePattern(span=span, elements=elements)
+        raise ThirBuildError(f"unhandled destructuring pattern: {type(pattern).__name__}")
+
     def _declare_pattern_name(self, name: Token, ty: Ty | None, mutable: bool) -> DeclId:
         decl = self._new_decl(name.lexeme, ty, mutable, DeclKind.PATTERN, self._tok(name))
         self._declare(name.lexeme, decl)
@@ -628,8 +717,7 @@ class _Builder:
     # --- declarações compostas ---
 
     def _class(self, stmt: Class) -> TClass:
-        decl = self._new_decl(stmt.name.lexeme, None, False, DeclKind.CLASS, self._tok(stmt.name))
-        self._declare(stmt.name.lexeme, decl)
+        decl = self._named_decl(stmt, stmt.name, DeclKind.CLASS)
 
         fields: list[TField] = []
         for field_ in stmt.fields:
@@ -673,10 +761,7 @@ class _Builder:
         )
 
     def _interface(self, stmt: Interface) -> TInterface:
-        decl = self._new_decl(
-            stmt.name.lexeme, None, False, DeclKind.INTERFACE, self._tok(stmt.name)
-        )
-        self._declare(stmt.name.lexeme, decl)
+        decl = self._named_decl(stmt, stmt.name, DeclKind.INTERFACE)
         saved_method_class = self._method_class
         self._method_class = stmt.name.lexeme
         try:
@@ -692,8 +777,7 @@ class _Builder:
         )
 
     def _enum(self, stmt: EnumDecl) -> TEnum:
-        decl = self._new_decl(stmt.name.lexeme, None, False, DeclKind.ENUM, self._tok(stmt.name))
-        self._declare(stmt.name.lexeme, decl)
+        decl = self._named_decl(stmt, stmt.name, DeclKind.ENUM)
         variants = tuple(
             TEnumVariant(
                 name=variant.name.lexeme,
@@ -733,6 +817,7 @@ class _Builder:
                 storage_ty=storage,
                 span=span,
                 ref=self._use(expr.name.lexeme),
+                name_span=self._tok(expr.name),
                 value=self._expr(expr.value),
             )
 
@@ -912,7 +997,7 @@ class _Builder:
                 storage_ty=storage,
                 span=span,
                 scrutinee=self._expr(expr.scrutinee),
-                arms=tuple(self._arm(arm.pattern, arm.body) for arm in expr.arms),
+                arms=tuple(self._arm(arm.pattern, arm.body, arm) for arm in expr.arms),
             )
 
         if isinstance(expr, Lambda):
@@ -937,14 +1022,14 @@ class _Builder:
 
         raise ThirBuildError(f"unhandled expression: {type(expr).__name__}")
 
-    def _arm(self, pattern: Pattern, body: Expr) -> TMatchArm:
+    def _arm(self, pattern: Pattern, body: Expr, arm: MatchArm) -> TMatchArm:
         self._scopes.append({})
         try:
             thir_pattern = self._pattern(pattern)
             thir_body = self._expr(body)
         finally:
             self._scopes.pop()
-        return TMatchArm(pattern=thir_pattern, body=thir_body)
+        return TMatchArm(span=self._span(arm), pattern=thir_pattern, body=thir_body)
 
     def _pattern(self, pattern: Pattern) -> TPattern:
         span = self._span(pattern)
@@ -976,6 +1061,7 @@ def build_thir(
     type_aliases: dict[str, Ty] | None = None,
     function_types: dict[Any, FnTy] | None = None,
     entry: Function | None = None,
+    globals_scope: dict[str, Ty] | None = None,
     source_path: str = "<lox>",
 ) -> TModule:
     """Constrói o THIR de um programa já resolvido e checado."""
@@ -988,6 +1074,7 @@ def build_thir(
         type_aliases=type_aliases,
         function_types=function_types,
         entry=entry,
+        globals_scope=globals_scope,
         source_path=source_path,
     )
     return builder.build(statements)

@@ -21,7 +21,7 @@ from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.spans import node_span
 from loxia_core.frontend.stmt import Function, Stmt
-from loxia_core.frontend.ty import INT
+from loxia_core.frontend.ty import INT, STRING, display
 from loxia_core.semantics.checker import Checker
 from loxia_core.semantics.resolver import Resolver
 from loxia_core.semantics.thir_build import build_thir
@@ -33,6 +33,7 @@ from loxia_core.thir import (
     TBinary,
     TCall,
     TClassDecl,
+    TDestructureStmt,
     TExpr,
     TExprStmt,
     TFnDecl,
@@ -41,6 +42,8 @@ from loxia_core.thir import (
     TLambda,
     TMatch,
     TModule,
+    TNamePattern,
+    TTuplePattern,
     TVar,
     TVariantPattern,
 )
@@ -74,6 +77,7 @@ def _thir(source: str) -> TModule:
         type_aliases=checker.type_aliases(),
         function_types=checker.function_types,
         entry=checker.entry,
+        globals_scope=checker.global_scope,
         source_path="case.lx",
     )
 
@@ -285,6 +289,68 @@ def test_grouping_is_erased() -> None:
     assert isinstance(call.arguments[0], TBinary)
 
 
+def test_nested_destructure_keeps_the_pattern() -> None:
+    module = _thir(
+        """
+        val (a, (b, c)) = (1, (2, 3))
+        print(a + b + c)
+        """
+    )
+    destructure = next(
+        statement for statement in module.statements if isinstance(statement, TDestructureStmt)
+    )
+    assert isinstance(destructure.pattern, TTuplePattern)
+    assert len(destructure.pattern.elements) == 2
+    nested = destructure.pattern.elements[1]
+    assert isinstance(nested, TTuplePattern)
+    assert len(nested.elements) == 2
+    for element in (destructure.pattern.elements[0], *nested.elements):
+        assert isinstance(element, TNamePattern)
+        (decl,) = [decl for decl in module.decls if decl.id == element.decl]
+        assert decl.ty == INT, f"{decl.name} deveria ser Int, veio {decl.ty}"
+
+
+def test_destructure_annotation_is_distributed_per_element() -> None:
+    module = _thir(
+        """
+        val (c, d): (Int, String) = (3, "x")
+        print(c)
+        print(d)
+        """
+    )
+    destructure = next(
+        statement for statement in module.statements if isinstance(statement, TDestructureStmt)
+    )
+    assert isinstance(destructure.pattern, TTuplePattern)
+    first, second = destructure.pattern.elements
+    assert isinstance(first, TNamePattern) and isinstance(second, TNamePattern)
+    (c,) = [decl for decl in module.decls if decl.id == first.decl]
+    (d,) = [decl for decl in module.decls if decl.id == second.decl]
+    assert c.ty == INT
+    assert d.ty == STRING
+
+
+def test_instances_are_ordered_canonically() -> None:
+    module = _thir(
+        """
+        class Box[T] {
+          val item: T
+          init(item: T) { this.item = item }
+        }
+        fn identidade[T](x: T) -> T { return x }
+        print(identidade(1))
+        val caixa = Box(1)
+        print(caixa.item)
+        """
+    )
+    keys = [
+        (instance.name, tuple(display(argument) for argument in instance.type_args))
+        for instance in module.instances
+    ]
+    assert keys == sorted(keys)
+    assert {name for name, _ in keys} >= {"Box", "identidade"}
+
+
 def test_match_arms_bind_their_own_decls() -> None:
     module = _thir(
         """
@@ -398,6 +464,7 @@ def _build(statements: list[Stmt], checker: Checker, path: str = "case.lx") -> T
         type_aliases=checker.type_aliases(),
         function_types=checker.function_types,
         entry=checker.entry,
+        globals_scope=checker.global_scope,
         source_path=path,
     )
 
@@ -441,6 +508,8 @@ def test_corpus_produces_thir(case: str) -> None:
     assert sum(1 for decl in module.decls if decl.cell) == len(analysis.captured_decls), (
         f"{case}: número de células diverge do backend"
     )
+    unresolved = {ref.name for ref in _refs(module) if ref.storage is Storage.UNRESOLVED}
+    assert not unresolved, f"{case}: nomes não resolvidos em programa check-limpo: {unresolved}"
 
 
 def _ast_functions(statements: list[Stmt]) -> list[Function | Lambda]:

@@ -36,7 +36,7 @@ lugar certo.
 | --- | --- | --- |
 | `ty` (fluxo) | todo `TExpr` | narrowings: `if (x != nil)` estreita o **uso**, não a declaração |
 | `storage_ty` | todo `TExpr` | tipo declarado/sem narrowing (ADR-0045) |
-| `span` | todo nó | diagnóstico e stack trace no ponto certo (ADR-0075/0089) |
+| `span` | todo nó de expressão/statement/padrão/declaração | diagnóstico e stack trace no ponto certo (ADR-0075/0089); `TModule` e `TInstance` não têm site próprio |
 | `Ref` | `TVar`/`TAssign`/`TThis`/`TSuper` | binding resolvido; nada de busca por nome no motor |
 | `Decl.cell` | `Decl` | o binding é célula compartilhada (ADR-0046) |
 | `TFunction.captures` | função/lambda | o `env` que o motor monta, em ordem canônica |
@@ -51,7 +51,13 @@ Um `Ref` responde “onde este nome vive”, e só isso:
 | `LOCAL` | frame da função corrente | slot do `Decl` no frame |
 | `CAPTURE` | célula carregada no `env` | índice do `Decl` em `TFunction.captures` |
 | `GLOBAL` | escopo de topo | slot global do `Decl` |
+| `BUILTIN` | nome pré-declarado sem declaração no fonte | pelo nome (kernel, namespace nativo, enum/classe de prelude) |
 | `UNRESOLVED` | nome inexistente | o `--check` já reportou; vira panic site |
+
+`BUILTIN` cobre `print`, `len`, `Int`, `math`, `Result`, `Exception` e afins: o checker os
+declara no escopo global (`Checker.global_scope`), não há `Decl` no programa. Confundir
+`BUILTIN` com `UNRESOLVED` seria transformar `print(1)` em panic site — foi assim que a
+revisão da fatia 1 pegou o bug.
 
 A ordem de `captures` é **canônica: por nome**. Dois produtores independentes (o Python de
 hoje e o checker em Loxia da F6) chegam ao mesmo índice, e o snapshot não muda por causa de
@@ -88,7 +94,7 @@ aparece no diff do snapshot — que é o comportamento desejado para um contrato
 | `TThis` / `TSuper` | receptor | `super` leva o `Ref` do `this` léxico |
 | `TIs` / `TAs` | teste/conversão | |
 | `TMatch` | `Match` | arms com bindings próprios |
-| `TMatchArm` | arm | `pattern` + `body` |
+| `TMatchArm` | arm | `pattern` + `body` + `span` |
 | `TPattern` | padrão | base de `TVariantPattern`, `TWildcardPattern`, `TLiteralPattern` |
 | `TLambda` | lambda | `TFunction` aninhada |
 
@@ -100,6 +106,15 @@ aparece no diff do snapshot — que é o comportamento desejado para um contrato
 `TStmt` é a base (só `span`). `TExprStmt`, `TVarStmt`, `TDestructureStmt`, `TBlock`, `TIf`, `TWhile`, `TForIn`, `TFnDecl`,
 `TReturn`, `TBreak`, `TContinue`, `TClassDecl`, `TInterfaceDecl`, `TEnumDecl`, `TTry`,
 `TRaise`, `TTypeAlias`.
+
+`TDestructureStmt` carrega o **padrão**, não uma lista achatada: `TDestructurePattern` é a
+base de `TNamePattern` (um nome) e `TTuplePattern` (grupo), e o aninhamento de
+`val (a, (b, c))` é significativo — o motor desestrutura por posição. O tipo de cada nome é o
+do **elemento**, distribuído a partir da anotação ou do tipo do inicializador; copiar a
+anotação da tupla para todos os nomes daria representação errada.
+
+O `Decl` do `TForIn` é um só: a declaração é estática. O ambiente novo por iteração (para a
+closure ver o valor daquela volta) é decisão do motor, não do contrato.
 
 `Import` não aparece: o loader o resolve antes do checkout.
 
@@ -129,6 +144,12 @@ identidade de nó do checker (`types`, `flow_types`, instanciações genéricas)
 tipo: copia a decisão do checker (I4). Lacuna de entrada vira `ty is None`, nunca um tipo
 inventado.
 
+Nomes que o checker pré-declara sem `Decl` no fonte (builtins, namespaces nativos) viram
+`BUILTIN`; referências para frente de topo (`fn a` que chama `fn b` declarada depois) são
+resolvidas por uma pré-declaração de top-level que espelha o checker — sem ela, um programa
+check-limpo nasceria cheio de `UNRESOLVED` e o motor emitiria panic sites falsos.
+`tests/test_thir.py` policia os dois casos e exige **zero** `UNRESOLVED` no corpus declarado.
+
 Escopo e captura seguem a mesma regra do `captures` do backend (ADR-0046), agora num lugar
 só: declaração no escopo de topo é `GLOBAL`, declaração interna é `LOCAL` da unidade dona, uso
 de fora é `CAPTURE`, e binding capturado vira `cell`. `tests/test_thir.py` compara, caso a
@@ -137,7 +158,9 @@ policiada enquanto as duas implementações coexistirem.
 
 ## Determinismo (I3)
 
-- ids atribuídos em pré-ordem; nenhuma ordem de `set`/`dict` vaza;
+- ids atribuídos na ordem de declaração (pré-ordem do produtor); nenhuma ordem de
+  `set`/`dict` vaza — `TModule.instances` é ordenada por `(nome, display dos argumentos)`
+  porque o checker entrega as classes genéricas num `set`;
 - capturas em ordem canônica por nome;
 - `type_aliases` ordenados por nome;
 - spans vêm dos tokens, sem caminho absoluto inventado (o arquivo é o de exibição);

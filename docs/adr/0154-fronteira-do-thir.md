@@ -46,8 +46,12 @@ Nada disso muda a decisão de adoção do THIR; muda **onde fica a fronteira**.
    tipo) no `TCall` e no módulo; monomorfizar é decisão do backend (F2/F4) e nunca do
    contrato.
 3. **Capturas explícitas, sem `depth`.** `Ref` aponta para um `DeclId` com
-   `LOCAL`/`CAPTURE`/`GLOBAL`/`UNRESOLVED`; a posição no `env` é o índice do `DeclId` na
-   tupla `TFunction.captures`. A ordem das capturas é **canônica por nome**, para que dois
+   `LOCAL`/`CAPTURE`/`GLOBAL`/`BUILTIN`/`UNRESOLVED` — `BUILTIN` é o nome que o checker
+   pré-declara sem `Decl` no fonte (`print`, `Int`, `Result`, …), resolvido pelo nome, e
+   `UNRESOLVED` fica só para o nome inexistente; a posição no `env` é o índice do `DeclId` na
+   tupla `TFunction.captures`. Referências para frente de topo são resolvidas por uma
+   pré-declaração que espelha a do checker, para que um programa check-limpo nunca produza
+   `UNRESOLVED`. A ordem das capturas é **canônica por nome**, para que dois
    produtores independentes (o Python da F2 e o checker em Loxia da F6) cheguem ao mesmo
    snapshot. Nome repetido na mesma função é ambiguidade: o produtor falha em vez de escolher.
 4. **V1 fiel, v2 desugarada.** A v1 preserva a forma da AST (`Grouping` morre; `This`/`Super`

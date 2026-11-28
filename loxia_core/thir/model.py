@@ -18,7 +18,8 @@ Invariantes deste modelo:
   uma linha sintética.
 
 O modelo é serializável (JSON v1) porque o THIR é o contrato entre o checker Python
-(build-time) e os motores em Loxia (runtime); a serialização vive no módulo `serialize`.
+(build-time) e os motores em Loxia (runtime); a serialização entra no módulo `serialize`
+na fatia seguinte da F2.
 """
 
 from __future__ import annotations
@@ -40,14 +41,17 @@ class Storage(Enum):
     """Onde o binding vive, já resolvido léxicamente.
 
     `LOCAL` é o frame da função corrente, `CAPTURE` é a célula carregada no `env`
-    (com `index` na lista de capturas da função) e `GLOBAL` é o escopo de topo.
-    `UNRESOLVED` só aparece quando o `--check` adiou o erro como panic site: o motor
-    emite o `Rxxxx` no ponto, como hoje.
+    (posição do `DeclId` em `TFunction.captures`) e `GLOBAL` é o escopo de topo do
+    programa. `BUILTIN` é o nome pré-declarado pelo checker sem declaração no fonte
+    (`print`, `len`, `Int`, `math`, `Result`, …): o motor o resolve pelo nome, como
+    hoje. `UNRESOLVED` só aparece quando o nome não existe em lugar nenhum — o
+    `--check` já reportou e o motor emite o panic site.
     """
 
     LOCAL = auto()
     CAPTURE = auto()
     GLOBAL = auto()
+    BUILTIN = auto()
     UNRESOLVED = auto()
 
 
@@ -183,6 +187,7 @@ class TVar(TExpr):
 @dataclass(frozen=True)
 class TAssign(TExpr):
     ref: Ref
+    name_span: Span | None
     value: TExpr
 
 
@@ -290,6 +295,7 @@ class TLiteralPattern(TPattern):
 class TMatchArm:
     pattern: TPattern
     body: TExpr
+    span: Span | None
 
 
 @dataclass(frozen=True)
@@ -323,8 +329,28 @@ class TVarStmt(TStmt):
 
 
 @dataclass(frozen=True)
+class TDestructurePattern:
+    """Padrão à esquerda de `val`/`var` (ADR-0069); o aninhamento é significativo.
+
+    Não confundir com `TPattern`, que é o padrão de `match`: são linguagens diferentes.
+    """
+
+    span: Span | None
+
+
+@dataclass(frozen=True)
+class TNamePattern(TDestructurePattern):
+    decl: DeclId
+
+
+@dataclass(frozen=True)
+class TTuplePattern(TDestructurePattern):
+    elements: tuple[TDestructurePattern, ...]
+
+
+@dataclass(frozen=True)
 class TDestructureStmt(TStmt):
-    decls: tuple[DeclId, ...]
+    pattern: TDestructurePattern
     initializer: TExpr
 
 
@@ -433,8 +459,8 @@ class TFunction:
     """Função, método ou lambda já resolvida.
 
     `id` é o `Decl` da função quando ela é nomeada e um `Decl` sintético
-    (`DeclKind.LAMBDA`) quando é lambda. `captures` está na ordem de primeira captura,
-    que é a ordem do `env` que o motor monta.
+    (`DeclKind.LAMBDA`) quando é lambda. `captures` está em **ordem canônica por nome**,
+    que é a ordem do `env` que o motor monta (ADR-0154 §3).
     """
 
     id: FnId

@@ -29,9 +29,12 @@ def _node_names() -> set[str]:
     return names
 
 
+REQUIRED_NAMES = ("Decl", "Ref", "Storage", "DeclId")
+
+
 def test_page_lists_every_thir_node() -> None:
     text = PAGE.read_text(encoding="utf-8")
-    missing = sorted(name for name in _node_names() if f"`{name}`" not in text)
+    missing = sorted(name for name in (*_node_names(), *REQUIRED_NAMES) if f"`{name}`" not in text)
     assert not missing, f"docs/tech/thir.md não documenta: {', '.join(missing)}"
 
 
