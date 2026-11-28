@@ -17,6 +17,7 @@ uv run python -m loxia examples/fib.lx
 | `primes.lx` | functions, `for-in`, early return |
 | `quicksort.lx` | typed lists, indexing, `push`, `for-in` |
 | `sales.lx` | stdlib T2 end to end: CSV → aggregation → formatted table → JSON |
+| `dto_models.lx` | one model as class, tuple alias and enum: what each costs, structural `==` vs identity, exhaustive `match`, and rows arriving as `List[Any]` |
 
 All files are run by `tests/test_examples.py` and must pass `--check`; the backend I4 test
 also compiles every example. The smaller programs are part of the determinism corpus, so

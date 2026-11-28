@@ -1,0 +1,106 @@
+# A model as data: class (dataclass style), tuple alias and enum.
+#
+# Loxia declares fields in the class body and wires them in `init` (ADR-0008/0009),
+# so a class costs two lines per field. Tuples and enums carry the same data with
+# no `init` at all, and answer a different question: a tuple is a row with
+# structural `==`, an enum is a closed family with exhaustive `match`.
+#
+# Run: uv run main.py examples/dto_models.lx
+import std.json as json
+
+# --- 1) class: named fields, methods, mutation ------------------------------
+# Cost: 2 lines per field (declaration + assignment in `init`).
+class User {
+  val id: Int
+  val name: String
+  val email: String
+  val active: Bool
+
+  fn init(id: Int, name: String, email: String, active: Bool) {
+    this.id = id
+    this.name = name
+    this.email = email
+    this.active = active
+  }
+
+  fn label() -> String {
+    return this.name + " <" + this.email + ">"
+  }
+}
+
+# --- 2) tuple + alias: the same row, positionally ---------------------------
+# Cost: 1 line. `==` is structural, `val (a, b, ...) = row` destructures and the
+# value is immutable; the price is positional fields and no methods.
+type UserRow = (Int, String, String, Bool)
+
+# --- 3) enum: a closed family, with payload and exhaustive `match` ----------
+# Cost: 1 line. `print` is readable and `==` is structural; the price is a
+# positional payload and no methods.
+enum Change { Renamed(Int, String), Deactivated(Int), Deleted(Int) }
+
+# --- moving between the views (this is the ORM seam) ------------------------
+fn userFromRow(row: UserRow) -> User {
+  val (id, name, email, active) = row
+  return User(id, name, email, active)
+}
+
+fn rowOf(user: User) -> UserRow {
+  return (user.id, user.name, user.email, user.active)
+}
+
+# A driver hands out cells, not a typed row: the cast is the boundary.
+fn userFromCells(cells: List[Any]) -> Result[User, String] {
+  if (len(cells) != 4) {
+    return Result.Err("expected 4 columns, found " + str(len(cells)))
+  }
+  val id = cells[0]
+  val name = cells[1]
+  val email = cells[2]
+  val active = cells[3]
+  if (not (id is Int) or not (name is String) or not (email is String) or not (active is Bool)) {
+    return Result.Err("column type mismatch")
+  }
+  return Result.Ok(User(id as Int, name as String, email as String, active as Bool))
+}
+
+fn describeChange(change: Change) -> String {
+  return match change {
+    Change.Renamed(id, name) => "user " + str(id) + " renamed to " + name
+    Change.Deactivated(id) => "user " + str(id) + " deactivated"
+    Change.Deleted(id) => "user " + str(id) + " deleted"
+  }
+}
+
+fn report(result: Result[User, String]) -> String {
+  return match result {
+    Result.Ok(user) => "loaded: " + user.label()
+    Result.Err(message) => "failed: " + message
+  }
+}
+
+# --- the same row in three shapes -------------------------------------------
+val row: UserRow = (1, "ada", "ada@example.com", true)
+val user = userFromRow(row)
+
+print(user.label())                                # the class gives behaviour
+print(row[1])                                      # the tuple gives indexing
+print(row == (1, "ada", "ada@example.com", true))  # true: structural
+print(user == userFromRow(row))                    # false: identity
+print(user)                                        # `User instance`: no hook
+
+val (id, name, email, active) = row
+val payload: Map[String, Any] = { "id": id, "name": name, "email": email, "active": active }
+print(json.stringify(payload))
+print(rowOf(user) == row)
+
+# --- a closed family: every variant is covered, no wildcard ----------------
+val changes: List[Change] = [Change.Renamed(1, "ada"), Change.Deactivated(1), Change.Deleted(2)]
+for change in changes {
+  print(describeChange(change))
+}
+
+# --- the boundary: cells in, Result out ------------------------------------
+val good: List[Any] = [2, "grace", "grace@example.com", false]
+val broken: List[Any] = [3, "linus"]
+print(report(userFromCells(good)))
+print(report(userFromCells(broken)))
