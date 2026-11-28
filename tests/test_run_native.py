@@ -39,6 +39,29 @@ def _environment(cache: Path, env: dict[str, str] | None = None) -> dict[str, st
     return merged
 
 
+def _spawn(arguments: list[str], environment: dict[str, str]) -> subprocess.Popen[str]:
+    """Abre o CLI num subprocesso com SIGINT no default.
+
+    `exec` preserva `SIG_IGN`, mas reseta handler para `SIG_DFL`. Se o runner (ou um
+    wrapper) ignora SIGINT, o filho herdaria o ignore e o teste de Ctrl-C nunca
+    terminaria — foi assim que a lane nativa ficou vermelha no CI. Restaurar o default
+    no filho testa o contrato do CLI (sair 130), não a disposição herdada.
+    """
+
+    def _restore_sigint() -> None:
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    return subprocess.Popen(
+        [sys.executable, str(ENTRYPOINT), *arguments],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+        preexec_fn=_restore_sigint if os.name == "posix" else None,
+    )
+
+
 def _run(
     args: list[str],
     *,
@@ -327,14 +350,7 @@ def test_sigint_sai_130_nos_dois_motores(tmp_path: Path, cache: Path) -> None:
     _run(["run", "--timeout", "50", str(script)], cache=cache)
 
     for arguments in (["run", str(script)], ["run", "--interpret", str(script)]):
-        process = subprocess.Popen(
-            [sys.executable, str(ENTRYPOINT), *arguments],
-            cwd=ROOT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=environment,
-        )
+        process = _spawn(arguments, environment)
         time.sleep(0.7)
         process.send_signal(signal.SIGINT)
         _stdout, stderr = process.communicate(timeout=30)
