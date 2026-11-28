@@ -69,7 +69,10 @@ de escopos; com captura explícita por função, o encadeamento já está resolv
 
 ### Declarações e IDs
 
-Toda declaração ganha um `DeclId` inteiro, atribuído em pré-ordem determinística. Os ids
+Toda declaração ganha um `DeclId` inteiro. A ordem é determinística mas não é
+simplesmente a ordem do fonte: primeiro vêm as declarações de **topo** que o checker
+pré-declara (`fn`, `class`, `interface`, `enum`, na ordem do arquivo), depois o restante na
+ordem de visita (parâmetros, `val`/`var`, lambdas, padrões, `this`, métodos). Os ids
 identificam bindings, funções, classes, interfaces, enums, lambdas e `this` — é o que
 substitui `dict[Expr, Ty]` e `id(statement)`. Ids são estáveis **entre execuções** (mesma
 entrada ⇒ mesmos ids), não entre edições: mudar a ordem de declaração renumera, e isso
@@ -158,8 +161,8 @@ policiada enquanto as duas implementações coexistirem.
 
 ## Determinismo (I3)
 
-- ids atribuídos na ordem de declaração (pré-ordem do produtor); nenhuma ordem de
-  `set`/`dict` vaza — `TModule.instances` é ordenada por `(nome, display dos argumentos)`
+- ids atribuídos na pré-declaração de topo e depois na ordem de visita do fonte; nenhuma
+  ordem de `set`/`dict` vaza — `TModule.instances` é ordenada por `(nome, display dos argumentos)`
   porque o checker entrega as classes genéricas num `set`;
 - capturas em ordem canônica por nome;
 - `type_aliases` ordenados por nome;

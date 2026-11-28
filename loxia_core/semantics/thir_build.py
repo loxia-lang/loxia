@@ -32,6 +32,7 @@ from loxia_core.frontend.destructuring import (
     DestructurePattern,
     NamePattern,
     TuplePattern,
+    pattern_names,
 )
 from loxia_core.frontend.expr import (
     As,
@@ -243,6 +244,9 @@ class _Builder:
         # no fonte. Só consultado depois do escopo léxico.
         self._globals_scope = globals_scope or {}
         self._predeclared: dict[object, DeclId] = {}
+        # Nomes que o módulo declara em algum ponto (inclusive depois do uso): o
+        # fallback de `_use` não pode chamá-los de `BUILTIN`.
+        self._toplevel_names: set[str] = set()
         self._source_path = source_path
 
         self._drafts: list[_DeclDraft] = []
@@ -305,8 +309,17 @@ class _Builder:
                 name, kind = statement.name, DeclKind.INTERFACE
             elif isinstance(statement, EnumDecl):
                 name, kind = statement.name, DeclKind.ENUM
+            elif isinstance(statement, Var):
+                self._toplevel_names.add(statement.name.lexeme)
+            elif isinstance(statement, Destructure):
+                self._toplevel_names.update(
+                    token.lexeme for token in pattern_names(statement.pattern)
+                )
+            elif isinstance(statement, ForIn):
+                self._toplevel_names.add(statement.name.lexeme)
             if name is None:
                 continue
+            self._toplevel_names.add(name.lexeme)
             decl = self._new_decl(name.lexeme, None, False, kind, self._tok(name))
             self._declare(name.lexeme, decl)
             self._predeclared[statement] = decl
@@ -366,9 +379,9 @@ class _Builder:
             self._cells.add(binding.decl)
             return Ref(storage=Storage.CAPTURE, decl=binding.decl, name=name)
 
-        # Nome pré-declarado pelo checker sem declaração no fonte: builtin ou
+        # Nome pré-declarado pelo checker sem declaração no módulo: builtin ou
         # namespace nativo. O motor resolve pelo nome (é o que o lowering faz hoje).
-        if name in self._globals_scope:
+        if name in self._globals_scope and name not in self._toplevel_names:
             return Ref(storage=Storage.BUILTIN, decl=None, name=name)
 
         # Nome inexistente: o checker já reportou e o motor emite o panic site.

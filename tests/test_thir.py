@@ -225,20 +225,79 @@ def test_for_in_variable_is_declared_in_its_own_scope() -> None:
     assert any(ref.decl == loop_var.id and ref.storage is Storage.LOCAL for ref in body_refs)
 
 
-def test_unresolved_name_is_not_invented() -> None:
-    # O checker adia `1 + true` como panic site; o produtor não pode inventar binding.
-    statements, checker = _analyze(
-        """
-        print(1 + true)
-        """
-    )
+def test_unresolved_name_stays_unresolved() -> None:
+    """Nome que o checker não resolve não ganha binding inventado (vira panic site)."""
+    reporter = ErrorReporter()
+    statements = Parser(Scanner("print(nope)", reporter).scan_tokens(), reporter=reporter).parse()
+    assert statements is not None
+    Resolver(Interpreter(reporter), reporter).resolve(statements)
+    checker = Checker(reporter, entry_file="<stdin>")
+    checker.check(statements)
+    assert reporter.had_error, "o caso de teste precisa de um nome indefinido"
+
     module = build_thir(
         statements,
         storage_types=checker.storage_types,
         flow_types=checker.types,
+        function_types=checker.function_types,
+        globals_scope=checker.global_scope,
         source_path="case.lx",
     )
-    assert isinstance(module, TModule)
+    refs = {ref.name: ref for ref in _refs(module)}
+    assert refs["nope"].storage is Storage.UNRESOLVED
+    assert refs["nope"].decl is None
+    assert refs["print"].storage is Storage.BUILTIN
+
+
+def test_builtins_are_builtin_not_unresolved() -> None:
+    module = _thir(
+        """
+        print(len("ab"))
+        """
+    )
+    refs = {ref.name: ref for ref in _refs(module)}
+    assert refs["print"].storage is Storage.BUILTIN
+    assert refs["print"].decl is None
+    assert refs["len"].storage is Storage.BUILTIN
+
+
+def test_forward_reference_resolves_to_the_global_decl() -> None:
+    module = _thir(
+        """
+        fn a() -> Int { return b() }
+        fn b() -> Int { return 1 }
+        print(a())
+        """
+    )
+    functions = {function.name: function for function in _functions(module)}
+    refs = [ref for ref in _refs(functions["a"]) if ref.name == "b"]
+    assert len(refs) == 1
+    assert refs[0].storage is Storage.GLOBAL
+    (b_decl,) = [decl for decl in module.decls if decl.name == "b"]
+    assert refs[0].decl == b_decl.id
+
+
+def test_global_declared_later_is_not_called_builtin() -> None:
+    """Programa que o `--check` recusa: o nome tem `Decl`, então não é `BUILTIN`."""
+    reporter = ErrorReporter()
+    source = "fn f() -> Int { return x }\nval x = 1\nprint(f())"
+    statements = Parser(Scanner(source, reporter).scan_tokens(), reporter=reporter).parse()
+    assert statements is not None
+    Resolver(Interpreter(reporter), reporter).resolve(statements)
+    checker = Checker(reporter, entry_file="<stdin>")
+    checker.check(statements)
+
+    module = build_thir(
+        statements,
+        storage_types=checker.storage_types,
+        flow_types=checker.types,
+        function_types=checker.function_types,
+        globals_scope=checker.global_scope,
+        source_path="case.lx",
+    )
+    refs = {ref.name: ref for ref in _refs(module)}
+    assert refs["x"].storage is Storage.UNRESOLVED
+    assert refs["x"].decl is None
 
 
 # --- tipos e spans ------------------------------------------------------------
@@ -416,6 +475,22 @@ def test_decl_ids_are_unique_and_sequential() -> None:
     )
     ids = [decl.id for decl in module.decls]
     assert ids == list(range(1, len(ids) + 1))
+
+
+def test_ids_follow_predeclaration_then_source_order() -> None:
+    module = _thir(
+        """
+        val a = 1
+        fn b() -> Int { return 2 }
+        print(a + b())
+        """
+    )
+    ids = {
+        decl.name: decl.id
+        for decl in module.decls
+        if decl.kind in (DeclKind.VAR, DeclKind.FUNCTION)
+    }
+    assert ids["b"] < ids["a"], "fn/class de topo são pré-declarados como no checker"
 
 
 def test_build_is_deterministic() -> None:
