@@ -9,9 +9,10 @@ The dependency direction is a contract, not a suggestion:
 
 ```
 diagnostics, frontend      (base)
+thir                       may import base only (contract between checker and engines)
 loader                     may import base + bundle
 execution                  may import base
-semantics                  may import base + execution
+semantics                  may import base + execution + thir
 backend                    may import anything in loxia_core
 loxia_core                 NEVER imports loxia/ (the tooling layer)
 ```

@@ -53,7 +53,7 @@ Packages by phase (dependency only downward):
 | Package | Phase |
 | --- | --- |
 | [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`), `ast_printer` (debug) and `ast_json` (oracle, ADR-0129) |
-| [`loxia_core/thir/`](../../loxia_core/thir) | THIR model (ADR-0149 §2, ADR-0154): typed tree consumed by the lowering; no layout, no CFG, no target values |
+| [`loxia_core/thir/`](../../loxia_core/thir) | THIR model (ADR-0149 §2, ADR-0154): the typed tree the checker publishes; the lowering consumes it in F2's migration slice (today it still walks the AST); no layout, no CFG, no target values |
 | [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo), `type_ops`/`decl_table` (split do ADR-0141), gradual `checker` and `thir_build` (AST + checker tables → THIR) |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |

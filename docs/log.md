@@ -1486,7 +1486,7 @@ Intervalo: `4bdda9d..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
 
 ## 2026-11-27 — gate do `.ll` para a migração THIR (#270, F2 fatia 3)
 
-Intervalo: `08815ea..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
+Intervalo: `3c3413d..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
 
 O commit só acrescenta um teste/tool de regressão (`tests/ll/manifest.json`,
 `tools/lowering_snapshot.py`) e um alvo de Makefile: nenhuma página descreve esse gate
@@ -1504,7 +1504,7 @@ ainda, e nenhuma promessa mudou.
 
 ## 2026-11-27 — mapa da migração do lowering (#270, F2 fatia 3b)
 
-Intervalo: `e5e84e4..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
+Intervalo: `89e0ef2..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
 
 O commit só documenta o mapa AST → THIR e a ordem dos commits do port; nenhuma promessa
 muda. As páginas candidatas continuam com o veredicto da triagem anterior (o gate e o mapa

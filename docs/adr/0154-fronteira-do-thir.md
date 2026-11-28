@@ -62,6 +62,10 @@ Nada disso muda a decisão de adoção do THIR; muda **onde fica a fronteira**.
 5. **Nada de CFG.** Blocos, phi e cleanup continuam na IR de controle
    ([ADR-0153](0153-ir-de-controle-desenho.md)); se um construto precisar de fluxo, ele desce
    para lá.
+6. **`build --emit=thir` é a superfície de debug sancionada.** A issue #270 põe “API
+   pública de THIR” fora de escopo; o formato não é API de programa: é o artefato de build
+   que o snapshot revisa, com `schema_version`, determinismo testado e recusa explícita. O
+   nome segue o `--emit` existente (ll/obj/exe) em vez de um `--dump-thir` à parte.
 
 ## Consequências
 
@@ -86,7 +90,7 @@ Nada disso muda a decisão de adoção do THIR; muda **onde fica a fronteira**.
 ### Neutras
 
 - O modelo ganha `Decl.cell` (a decisão de célula deixa de ser do backend).
-- `TModule` serializa na fatia seguinte; o modelo já nasce sem referência de objeto.
+- `TModule` já serializa (fatia 2 da F2); o modelo nasceu sem referência de objeto.
 
 ## Alternativas consideradas
 

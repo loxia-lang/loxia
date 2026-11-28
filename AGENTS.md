@@ -116,6 +116,7 @@ source .lx
 | Package | Phase |
 | --- | --- |
 | `loxia_core/frontend/` | lexing → tokens → AST → parser; `ty.py` (annotations) and `ast_printer` |
+| `loxia_core/thir/` | THIR model and serialization (ADR-0149/ADR-0154): the typed tree the checker publishes for the engines; no layout, no CFG, no target values |
 | `loxia_core/semantics/` | `resolver` (scopes/`depth`) and the gradual `checker` |
 | `loxia_core/execution/` | values, environment, objects, natives and `interpreter` |
 | `loxia_core/diagnostics/` | `errors`, `error_reporter` |
@@ -124,8 +125,9 @@ source .lx
 | `loxia/` | CLI, engine, LSP, MCP, formatter, test runner, docgen (tooling layer) |
 
 **Layer rule** (policed by `tests/test_package_layers.py`): `diagnostics` and `frontend` are
-the base; `loader` may import both plus the top-level `bundle` leaf; `execution` may import
-the base; `semantics` may import base + execution; `backend` may import any of them;
+the base; `loader` may import both plus the top-level `bundle` leaf; `thir` may import the
+base only (it is the contract between checker and engines); `execution` may import the base;
+`semantics` may import base + execution + `thir`; `backend` may import any of them;
 top-level modules (`bundle`, `numeric_bounds`) are leaves; `loxia_core` **never** imports
 `loxia/`. One declared exception:
 `frontend/ast_printer.py` → `execution.values` (the debug dump formats dynamic values).

@@ -15,13 +15,16 @@ sources:
   - tests/test_thir_serialization.py
   - tests/test_thir_schema.py
   - tests/test_thir_snapshot.py
+  - tests/test_lowering_ll.py
+  - tests/ll/manifest.json
+  - tools/lowering_snapshot.py
 ---
 
 # THIR — a árvore tipada entre o checker e os motores
 
 O THIR é o eixo do programa de motores ([ADR-0149](../adr/0149-motores-primarios-thir-e-congelamento.md) §2):
-uma árvore **tipada, resolvida e sem açúcar sintático** que carrega a decisão semântica
-uma vez só. O AST continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é
+uma árvore **tipada e resolvida** que carrega a decisão semântica uma vez só (sem `Grouping`;
+o açúcar de controle fica explícito na v1, ver §O que o THIR não carrega). O AST continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é
 o que o lowering (F2) e o `loxvm` (F3) consomem.
 
 ```
