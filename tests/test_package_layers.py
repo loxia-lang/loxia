@@ -21,6 +21,9 @@ FORBIDDEN: dict[str, set[str]] = {
     "loader": {"execution", "semantics", "backend"},
     "execution": {"semantics", "backend"},
     "semantics": {"backend"},
+    # THIR é o contrato entre o checker e os motores: depende só do front
+    # (`frontend`/`diagnostics`) e não pode conhecer execução, checker ou backend.
+    "thir": {"execution", "semantics", "backend"},
 }
 
 # Exceções declaradas: (arquivo relativo a `loxia_core`, módulo importado).

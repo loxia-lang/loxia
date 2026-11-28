@@ -27,7 +27,7 @@ from dataclasses import fields, is_dataclass
 from typing import Any, cast
 
 from loxia_core.diagnostics.diagnostic import Position, Span
-from loxia_core.frontend.spans import span_of_token_exact
+from loxia_core.frontend.spans import node_span, span_of_token_exact
 from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.trivia import Trivia
@@ -113,7 +113,7 @@ def _float(value: float) -> object:
 
 def _record(value: object, memo: dict[int, Span | None]) -> dict[str, object]:
     payload: dict[str, object] = {"kind": _kind(type(value).__name__)}
-    span = _extent(value, memo)
+    span = node_span(value, memo)
     payload["span"] = _span_json(span) if span is not None else None
     for item in fields(cast(Any, value)):
         if item.name in _DISPLAY_ONLY:
@@ -167,50 +167,3 @@ def _kind(name: str) -> str:
 
 def _is_record(value: object) -> bool:
     return is_dataclass(value) and not isinstance(value, type)
-
-
-def _extent(value: object, memo: dict[int, Span | None]) -> Span | None:
-    """Menor span que contém os tokens do nó, memoizado por identidade."""
-    if isinstance(value, Token):
-        return span_of_token_exact(value)
-    if isinstance(value, Ty):
-        return None
-    if isinstance(value, (list, tuple)):
-        merged: Span | None = None
-        for item in value:
-            merged = _merge(merged, _extent(item, memo))
-        return merged
-    if not _is_record(value):
-        return None
-
-    key = id(value)
-    if key in memo:
-        return memo[key]
-
-    merged = None
-    for item in fields(cast(Any, value)):
-        merged = _merge(merged, _extent(getattr(value, item.name), memo))
-    memo[key] = merged
-    return merged
-
-
-def _merge(left: Span | None, right: Span | None) -> Span | None:
-    if left is None:
-        return right
-    if right is None:
-        return left
-
-    start = left.start if _start_key(left.start) <= _start_key(right.start) else right.start
-    end = left.end if _end_key(left.end) >= _end_key(right.end) else right.end
-    return Span(left.file or right.file, start, end)
-
-
-def _start_key(position: Position) -> tuple[int, int]:
-    return (
-        position.offset if position.offset is not None else -1,
-        position.line * 1_000_000 + (position.column or 0),
-    )
-
-
-def _end_key(position: Position) -> tuple[int, int]:
-    return _start_key(position)
