@@ -2,6 +2,7 @@
   "ast": {
     "examples/classes.lx": "bba8d92f6447aa63ac8e77fe0bc57e7407c52f336d11404647058ae229d8c985",
     "examples/closures.lx": "03b5427c925e0151b261d54729b71742df67b973e5bc54da82fc2b1e28b1ca30",
+    "examples/dto_models.lx": "ba5038a13bfe2c4789f55b3a36de1acb9dd2027c94fdf3e42dfb918550201442",
     "examples/fib.lx": "4cc8f519e0f24bac088821a5e10192f4c241779217d858d9db54c0a8eda2e9b1",
     "examples/fizzbuzz.lx": "42bfb30b219c138c8794927131cfc3d3b62e3388f5600274da0b77eb86b3df0a",
     "examples/monorepo/app/main.lx": "3dc64701af687250d2afface06f79c94fda463700554ab54af8d8ba27ac6476e",
@@ -3662,6 +3663,7 @@
   "fmt": {
     "examples/classes.lx": "a7f203b9400d0032e3fa044a34466f11b95efa57c9c321c291797e00c50dc9b2",
     "examples/closures.lx": "b8d972994152d88d942a21a48511c25e27b2896a20e9c58074cb3399b3cb632a",
+    "examples/dto_models.lx": "6a20a7ed89cc2edac2dd8dc6874adce17c3dd50d836c188e14b4e98585a264ec",
     "examples/fib.lx": "e3e3b91107d2e24c134b9791bce659d84b028a4a9ae163f915c55fcc90206590",
     "examples/fizzbuzz.lx": "5bcb8bbad17a36201224490c0b2f8950cfa007efa7c4659582bac8daec46b7ca",
     "examples/monorepo/app/main.lx": "2881ace72017a508b84c32349646ffe25fa2d40aeb5ee776e0fc63990b68b556",
