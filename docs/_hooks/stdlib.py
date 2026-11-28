@@ -40,7 +40,7 @@ MODULES = {
     "rand": "Deterministic xorshift64* PRNG with an explicit seed.",
     "timex": "UTC date/time helpers over integer epoch milliseconds; no timezones.",
     "iter": "Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`).",
-    "json": "RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.",
+    "json": "RFC 8259 JSON with insertion-ordered objects; the reader has no nesting cap.",
     "jsonrpc": "JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages.",
     "lists": "Generic list combinators; every function leaves the input unchanged.",
     "maps": "Helpers for `Map[String, V]` that preserve insertion order.",

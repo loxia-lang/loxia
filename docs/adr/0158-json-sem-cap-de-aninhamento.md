@@ -83,7 +83,7 @@ decidiu que o leitor do payload é o `std.json`, não um parser paralelo.
 
 ## Como verificar
 
-- `tests/cases/std_json.lx`: 16 níveis continua parseando; 17 e 64 níveis agora parseiam e
+- `tests/cases/std_json.lx`: 16 níveis continua parseando; 17 e 256 níveis agora parseiam e
   fazem round-trip com `stringify`; as mensagens de entrada malformada continuam iguais.
 - `make test-backend`/diferencial: o golden roda nos dois motores com os mesmos bytes.
 - `make stdlib-docs`/`make docs-sync`: `docs/stdlib/json.md` sem o cap.

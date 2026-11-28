@@ -7,7 +7,7 @@ sources:
 
 # std.json
 
-RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.
+RFC 8259 JSON with insertion-ordered objects; the reader has no nesting cap.
 
 ## API
 
@@ -73,7 +73,9 @@ Serializes a Loxia value as compact JSON.
 Supports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and
 `Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;
 a non-finite float raises `RuntimeError`. Object keys keep insertion order, and any
-other type raises `RuntimeError`.
+other type raises `RuntimeError`. The writer is recursive: depth is bounded by the
+call-depth contract (10,000 calls, `R1015`), unlike `parse`, which accepts any depth
+that fits memory (ADR-0158).
 
 ### `fn pretty(value: Any, indent: Int = ...) -> String`
 
@@ -81,4 +83,5 @@ Serializes a Loxia value as indented JSON.
 
 Uses `indent` spaces per nesting level and the same value rules as `stringify`.
 `indent <= 0` falls back to compact output. Non-empty containers are always broken
-across lines; empty ones render as `[]` or `{}`.
+across lines; empty ones render as `[]` or `{}`. Like `stringify`, it is recursive and
+bounded by the call-depth contract (10,000 calls, `R1015`).
