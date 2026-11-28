@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from loxia_core.backend import llvm_ir
-from loxia_core.backend.captures import CaptureAnalysis
 from loxia_core.backend.control_ir import ControlIR, ControlIRBuilder
 from loxia_core.backend.lower_model import (
     _I32,
@@ -28,11 +27,33 @@ from loxia_core.backend.lower_model import (
     ValueType,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Call, Expr, Get, Range
-from loxia_core.frontend.stmt import Function, Stmt
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import ListTy, MapTy, Ty
+from loxia_core.thir import (
+    Decl,
+    DeclId,
+    FnId,
+    Storage,
+    TClass,
+    TExpr,
+    TFunction,
+    TModule,
+    TStmt,
+)
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import (
+    TGet as Get,
+)
+from loxia_core.thir import (
+    TRange as Range,
+)
+from loxia_core.thir import (
+    TVar as Variable,
+)
 
 
 @dataclass
@@ -44,7 +65,7 @@ class CleanupContext:
     """
 
     frame: Any | None
-    finally_body: list[Stmt] | None
+    finally_body: tuple[TStmt, ...] | None
     scopes_depth: int
     unwound: bool = False
 
@@ -66,9 +87,12 @@ class LoweringBase:
     """Atributos e escape hatch para chamadas entre os mixins do lowering."""
 
     module: Any
-    types: dict[Expr, Ty]
-    flow_types: dict[Expr, Ty]
-    depths: dict[Expr, int]
+    # O THIR é a árvore de entrada (ADR-0149/ADR-0154): o lowering não lê o AST
+    # nem as tabelas por identidade do checker. `decls` é o índice id → declaração.
+    thir: TModule
+    decls: dict[DeclId, Decl]
+    source_path: str
+    debug: bool
     main: Any
     _builder: Any = None
     _control: ControlIR
@@ -82,7 +106,7 @@ class LoweringBase:
     _scopes: list[dict[str, Binding]]
     _captures: dict[str, Binding]
     _globals: dict[str, Binding]
-    _top_level: dict[int, FunctionInfo]
+    _top_level: dict[FnId, FunctionInfo]
     _class_names: set[str]
     _classes: dict[str, ClassLayout]
     _local_class_counter: int
@@ -90,7 +114,6 @@ class LoweringBase:
     _return_type_desc: TypeDesc
     _in_init: bool
     _method_class: str | None
-    _analysis: CaptureAnalysis
     _type_subst: dict[str, Ty]
     _enum_layouts: dict[str, Any]
     _cleanup_stack: list[CleanupContext]
@@ -100,14 +123,11 @@ class LoweringBase:
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None
     _map_expected_value: Ty | None
-    generic_instances: Any
-    generic_classes: Any
-    generic_class_sites: Any
     _generic_fns: dict[str, Any]
-    _generic_fn_cache: dict[tuple[str, tuple[str, ...]], FunctionInfo]
+    _generic_fn_cache: dict[Any, FunctionInfo]
     _generic_class_layouts: dict[str, ClassLayout]
-    _generic_class_by_source: Any
-    _generic_class_nodes: Any
+    _generic_class_by_source: dict[str, list[ClassLayout]]
+    _generic_class_nodes: dict[str, TClass]
     _generic_descriptors: Any
     _interface_method_infos: dict[str, dict[str, FunctionInfo]]
     _emitted_generic_classes: set[str]
@@ -131,12 +151,45 @@ class LoweringBase:
             control.observe(value)
 
     # Métodos compartilhados entre mixins. O MRO resolve para a implementação real.
-    def _expr(self, expr: Expr) -> Value:
+    def _expr(self, expr: TExpr) -> Value:
         raise NotImplementedError
+
+    def _decl(self, decl: DeclId) -> Decl:
+        return self.decls[decl]
+
+    def _global_ref_name(self, expr: TExpr) -> str | None:
+        """Nome de uma variável resolvida fora do escopo local (global/builtin)."""
+        if isinstance(expr, Variable) and expr.ref.storage in (
+            Storage.GLOBAL,
+            Storage.BUILTIN,
+            Storage.UNRESOLVED,
+        ):
+            return expr.ref.name
+        return None
+
+    def _decl_name(self, decl: DeclId) -> str:
+        return self.decls[decl].name
+
+    def _decl_span(self, decl: DeclId) -> Span | None:
+        return self.decls[decl].span
+
+    def _decl_line(self, decl: DeclId) -> int:
+        span = self.decls[decl].span
+        return 0 if span is None else span.start.line
+
+    @staticmethod
+    def _line(span: Span | None) -> int:
+        return 0 if span is None else span.start.line
+
+    @staticmethod
+    def _column(span: Span | None) -> int:
+        if span is None or span.start.column is None:
+            return 0
+        return span.start.column
 
     def _function_info(
         self,
-        stmt: Function,
+        fn: TFunction,
         *,
         llvm_name: str | None = None,
         this_class: str | None = None,
@@ -146,7 +199,7 @@ class LoweringBase:
     ) -> FunctionInfo:
         raise NotImplementedError
 
-    def _emit_function(self, info: FunctionInfo, stmt: Function, captures: Any) -> None:
+    def _emit_function(self, info: FunctionInfo, fn: TFunction, captures: Any) -> None:
         raise NotImplementedError
 
     def _stack_enter(self, info: FunctionInfo) -> None:
@@ -158,7 +211,7 @@ class LoweringBase:
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
         raise NotImplementedError
 
-    def _call_generic(self, stmt: Function, expr: Call) -> Value:
+    def _call_generic(self, fn: TFunction, expr: Call) -> Value:
         raise NotImplementedError
 
     def _range_expr(self, expr: Range) -> Value:
@@ -274,7 +327,9 @@ class LoweringBase:
     def _interface_has_method(self, interface: str, name: str) -> bool:
         raise NotImplementedError
 
-    def _interface_bound_method(self, instance: Value, interface: str, name: Any) -> Value:
+    def _interface_bound_method(
+        self, instance: Value, interface: str, name: str, span: Span | None
+    ) -> Value:
         raise NotImplementedError
 
     def _len(self, expr: Call) -> Value:
@@ -312,11 +367,11 @@ class LoweringBase:
         expected: TypeDesc,
         line: int | None,
         *,
-        source: Expr | None = None,
+        source: TExpr | None = None,
     ) -> Value:
         raise NotImplementedError
 
-    def _expr_with_expected(self, expr: Expr, ty: Ty | None) -> Value:
+    def _expr_with_expected(self, expr: TExpr, ty: Ty | None) -> Value:
         """Lowers `expr` with `ty` as the expected annotation.
 
         Mirrors the variable-declaration path: `[]`/`{}` inside a field
@@ -348,7 +403,7 @@ class LoweringBase:
 
     def _poison(
         self,
-        target: Token | int,
+        target: Token | int | Span | None,
         message: str,
         *,
         column: int = 0,
@@ -359,7 +414,7 @@ class LoweringBase:
     def _push_cleanup(
         self,
         frame: Any | None,
-        finally_body: list[Stmt] | None,
+        finally_body: tuple[TStmt, ...] | None,
         *,
         scopes_depth: int,
     ) -> CleanupContext:

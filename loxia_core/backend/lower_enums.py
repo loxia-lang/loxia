@@ -22,17 +22,28 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import (
-    Call,
-    Get,
-    LiteralPattern,
-    Match,
-    VariantPattern,
-    WildcardPattern,
-)
-from loxia_core.frontend.stmt import EnumDecl
 from loxia_core.frontend.ty import STRING as TY_STRING
 from loxia_core.frontend.ty import EnumTy, Ty, TyVar
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import TEnum as Enum
+from loxia_core.thir import TEnumDecl as EnumDecl
+from loxia_core.thir import (
+    TGet as Get,
+)
+from loxia_core.thir import (
+    TLiteralPattern as LiteralPattern,
+)
+from loxia_core.thir import (
+    TMatch as Match,
+)
+from loxia_core.thir import (
+    TVariantPattern as VariantPattern,
+)
+from loxia_core.thir import (
+    TWildcardPattern as WildcardPattern,
+)
 
 
 @dataclass(frozen=True)
@@ -56,7 +67,7 @@ class EnumLayout:
 
 
 class EnumLowering(LoweringBase):
-    def _prepare_enums(self, statements: list[Any]) -> None:
+    def _prepare_enums(self, statements: tuple[Any, ...]) -> None:
         layouts: dict[str, EnumLayout] = {}
         # Result é embutido e sempre o id 0.
         layouts["Result"] = EnumLayout(
@@ -82,34 +93,35 @@ class EnumLowering(LoweringBase):
         for stmt in statements:
             if not isinstance(stmt, EnumDecl):
                 continue
+            enum = stmt.enum
             variants = tuple(
                 EnumVariantLayout(
-                    variant.name.lexeme,
+                    variant.name,
                     tuple(variant.payload),
                 )
-                for variant in stmt.variants
+                for variant in enum.variants
             )
-            layouts[stmt.name.lexeme] = EnumLayout(
-                stmt.display_name or stmt.name.lexeme,
+            layouts[enum.name] = EnumLayout(
+                enum.display_name,
                 next_id,
-                tuple(param.lexeme for param in stmt.type_params),
+                enum.type_params,
                 variants,
             )
             next_id += 1
         self._enum_layouts = layouts
         self._enum_names = {
-            stmt.name.lexeme: stmt for stmt in statements if isinstance(stmt, EnumDecl)
+            stmt.enum.name: stmt.enum for stmt in statements if isinstance(stmt, EnumDecl)
         }
 
     def _cstring_ptr(self, message: str) -> Any:
         return llvm_ir.cstring_pointer(self.builder, self._cstring(message))
 
-    def _enum_decl(self, stmt: EnumDecl) -> None:
+    def _enum_decl(self, stmt: Enum) -> None:
         # O layout já foi registrado; a declaração não aloca valor em runtime.
         return
 
     def _enum_of(self, expr: Any) -> EnumTy | None:
-        ty = self.types.get(expr)
+        ty = expr.storage_ty
         return ty if isinstance(ty, EnumTy) else None
 
     def _enum_payload_descs(
@@ -177,26 +189,29 @@ class EnumLowering(LoweringBase):
                 except Exception:
                     expected = None
             payload.append(
-                self._coerce(value, expected, expr.paren.line) if expected is not None else value
+                self._coerce(value, expected, self._line(expr.paren_span))
+                if expected is not None
+                else value
             )
         return self._enum_build(layout, variant, expr, payload)
 
     def _enum_construct(self, expr: Call) -> Value:
         assert isinstance(expr.callee, Get)
-        assert hasattr(expr.callee.object, "name")
-        enum_name = expr.callee.object.name.lexeme
+        receiver = expr.callee.receiver
+        assert hasattr(receiver, "ref")
+        enum_name = receiver.ref.name
         layout = self._enum_layouts.get(enum_name)
         if layout is None:
-            raise _unsupported(f"Enum '{enum_name}'", expr.paren.line)
-        variant = layout.variant(expr.callee.name.lexeme)
+            raise _unsupported(f"Enum '{enum_name}'", self._line(expr.paren_span))
+        variant = layout.variant(expr.callee.name)
         if variant is None:
             raise _unsupported(
-                f"Variant '{enum_name}.{expr.callee.name.lexeme}'",
-                expr.paren.line,
+                f"Variant '{enum_name}.{expr.callee.name}'",
+                self._line(expr.paren_span),
             )
         if len(expr.arguments) != len(variant.payload):
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 f"Expected {len(variant.payload)} arguments but got {len(expr.arguments)}.",
                 code=Code.RUNTIME_ARITY,
             )
@@ -204,16 +219,18 @@ class EnumLowering(LoweringBase):
         return self._enum_value(layout, variant, expr)
 
     def _enum_get(self, expr: Get) -> Value:
-        assert hasattr(expr.object, "name")
-        enum_name = expr.object.name.lexeme
+        receiver = expr.receiver
+        assert hasattr(receiver, "ref")
+        enum_name = receiver.ref.name
+        line = self._line(expr.name_span)
         layout = self._enum_layouts.get(enum_name)
         if layout is None:
-            raise _unsupported(f"Enum '{enum_name}'", expr.name.line)
-        variant = layout.variant(expr.name.lexeme)
+            raise _unsupported(f"Enum '{enum_name}'", line)
+        variant = layout.variant(expr.name)
         if variant is None:
-            raise _unsupported(f"Enum variant '{expr.name.lexeme}'", expr.name.line)
+            raise _unsupported(f"Enum variant '{expr.name}'", line)
         if variant.payload:
-            raise _unsupported("Enum variant with payload as a value", expr.name.line)
+            raise _unsupported("Enum variant with payload as a value", line)
         return self._enum_build(layout, variant, None, [])  # type: ignore[arg-type]
 
     def _match(self, expr: Match) -> Value:
@@ -222,17 +239,17 @@ class EnumLowering(LoweringBase):
 
         scrutinee = self._expr(expr.scrutinee)
         if scrutinee.ty is ValueType.ANY:
-            scrutinee = self._unbox_any(scrutinee, TypeDesc(ValueType.ENUM), expr.keyword.line)
+            scrutinee = self._unbox_any(scrutinee, TypeDesc(ValueType.ENUM), self._line(expr.span))
         if scrutinee.ty is not ValueType.ENUM:
-            raise _unsupported("match on non-enum", expr.keyword.line)
+            raise _unsupported("match on non-enum", self._line(expr.span))
         enum_ty = self._enum_of(expr.scrutinee)
         if enum_ty is None:
-            raise _unsupported("match enum type", expr.keyword.line)
+            raise _unsupported("match enum type", self._line(expr.span))
         layout = self._enum_layouts.get(enum_ty.name)
         if layout is None:
-            raise _unsupported(f"Enum '{enum_ty.name}'", expr.keyword.line)
+            raise _unsupported(f"Enum '{enum_ty.name}'", self._line(expr.span))
 
-        result_desc = self._type_desc(self.types[expr], expr.keyword.line)
+        result_desc = self._result_desc(expr)
         end = self._control.new_block(self._function_ir, "match.end")
         incoming: list[tuple[Any, Any]] = []
 
@@ -244,9 +261,9 @@ class EnumLowering(LoweringBase):
                 self.builder.branch(body)
             else:
                 assert isinstance(pattern, VariantPattern)
-                variant = layout.variant(pattern.variant.lexeme)
+                variant = layout.variant(pattern.variant)
                 if variant is None:
-                    raise _unsupported(f"Variant '{pattern.variant.lexeme}'", pattern.variant.line)
+                    raise _unsupported(f"Variant '{pattern.variant}'", self._line(pattern.span))
                 check = self.builder.call(
                     self._function(
                         "lox_enum_variant_index",
@@ -263,15 +280,17 @@ class EnumLowering(LoweringBase):
             try:
                 if isinstance(pattern, VariantPattern):
                     descs = self._enum_payload_descs(layout, enum_ty)
-                    for index, (binding, desc) in enumerate(
+                    for index, (binding_id, desc) in enumerate(
                         zip(pattern.bindings, descs[variant.name], strict=False)
                     ):
+                        binding = self._decl_name(binding_id)
+                        binding_span = self._decl_span(binding_id)
                         if desc.ty is ValueType.NIL:
                             # `Nil` has no value representation: keep a dummy slot so the
                             # arm can name the binding, and load it as `Value(NIL)`.
-                            if self._analysis.is_captured(binding):
+                            if self._decl(binding_id).cell:
                                 cell = self._alloc_cell()
-                                self._scopes[-1][binding.lexeme] = Binding(
+                                self._scopes[-1][binding] = Binding(
                                     cell,
                                     desc.ty,
                                     desc.fn,
@@ -281,9 +300,9 @@ class EnumLowering(LoweringBase):
                                     interface_name=desc.interface_name,
                                 )
                             else:
-                                slot = self.builder.alloca(_I32, name=binding.lexeme)
+                                slot = self.builder.alloca(_I32, name=binding)
                                 self.builder.store(llvm_ir.constant(_I32, 0), slot)
-                                self._scopes[-1][binding.lexeme] = Binding(
+                                self._scopes[-1][binding] = Binding(
                                     slot,
                                     desc.ty,
                                     desc.fn,
@@ -301,16 +320,16 @@ class EnumLowering(LoweringBase):
                             [
                                 scrutinee.llvm,
                                 llvm_ir.constant(_INT, index),
-                                llvm_ir.constant(_I32, binding.line),
-                                llvm_ir.constant(_I32, binding.column),
+                                llvm_ir.constant(_I32, self._line(binding_span)),
+                                llvm_ir.constant(_I32, self._column(binding_span)),
                             ],
                         )
-                        value = self._unbox_value(raw, desc, binding.line)
-                        if self._analysis.is_captured(binding):
+                        value = self._unbox_value(raw, desc, self._line(binding_span))
+                        if self._decl(binding_id).cell:
                             cell = self._alloc_cell()
                             typed = self._cell_pointer(cell, desc)
                             self.builder.store(value.llvm, typed)
-                            self._scopes[-1][binding.lexeme] = Binding(
+                            self._scopes[-1][binding] = Binding(
                                 cell,
                                 desc.ty,
                                 desc.fn,
@@ -320,11 +339,9 @@ class EnumLowering(LoweringBase):
                                 interface_name=desc.interface_name,
                             )
                             continue
-                        slot = self.builder.alloca(
-                            self._storage_llvm_type(desc), name=binding.lexeme
-                        )
+                        slot = self.builder.alloca(self._storage_llvm_type(desc), name=binding)
                         self.builder.store(value.llvm, slot)
-                        self._scopes[-1][binding.lexeme] = Binding(
+                        self._scopes[-1][binding] = Binding(
                             slot,
                             desc.ty,
                             desc.fn,
@@ -332,7 +349,7 @@ class EnumLowering(LoweringBase):
                             class_name=desc.class_name,
                             interface_name=desc.interface_name,
                         )
-                value = self._coerce(self._expr(arm.body), result_desc, expr.keyword.line)
+                value = self._coerce(self._expr(arm.body), result_desc, self._line(expr.span))
             finally:
                 self._scopes.pop()
             if not self.builder.block.is_terminated:
@@ -368,7 +385,7 @@ class EnumLowering(LoweringBase):
 
     def _match_literal(self, expr: Match) -> Value:
         scrutinee = self._expr(expr.scrutinee)
-        result_desc = self._type_desc(self.types[expr], expr.keyword.line)
+        result_desc = self._result_desc(expr)
         end = self._control.new_block(self._function_ir, "match.end")
         incoming: list[tuple[Any, Any]] = []
 
@@ -381,13 +398,13 @@ class EnumLowering(LoweringBase):
             else:
                 assert isinstance(pattern, LiteralPattern)
                 self.builder.cbranch(
-                    self._literal_condition(scrutinee, pattern.value, pattern.token.line),
+                    self._literal_condition(scrutinee, pattern.value, self._line(pattern.span)),
                     body,
                     next_block,
                 )
 
             self.builder = llvm_ir.builder(body)
-            value = self._coerce(self._expr(arm.body), result_desc, expr.keyword.line)
+            value = self._coerce(self._expr(arm.body), result_desc, self._line(expr.span))
             if not self.builder.block.is_terminated:
                 self.builder.branch(end)
                 incoming.append((value, self.builder.block))
@@ -412,6 +429,11 @@ class EnumLowering(LoweringBase):
             result_desc.class_name,
             interface_name=result_desc.interface_name,
         )
+
+    def _result_desc(self, expr: Match) -> TypeDesc:
+        if expr.storage_ty is None:
+            raise _unsupported("match result type", self._line(expr.span))
+        return self._type_desc(expr.storage_ty, self._line(expr.span))
 
     def _literal_condition(self, scrutinee: Value, value: object, line: int) -> Any:
         if value is None:

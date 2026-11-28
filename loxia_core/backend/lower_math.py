@@ -17,29 +17,29 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Call
+from loxia_core.thir import TCall as Call
 
 
 class MathLowering(LoweringBase):
     def _math_call(self, expr: Call) -> Value:
         assert hasattr(expr.callee, "name")
-        name = expr.callee.name.lexeme
+        name = expr.callee.name
         args: list[Value] = [
             self._unwrap_operand(
                 self._expr(argument),
-                expr.paren.line,
+                self._line(expr.paren_span),
                 "Operand must be a number.",
-                column=expr.paren.column,
+                column=self._column(expr.paren_span),
                 code=Code.RUNTIME_OPERANDS,
             )
             for argument in expr.arguments
         ]
         if any(argument.ty is ValueType.ANY for argument in args):
-            raise _unsupported("math.* with dynamic Any", expr.paren.line)
-        result = self.types.get(expr)
+            raise _unsupported("math.* with dynamic Any", self._line(expr.paren_span))
+        result = expr.storage_ty
         if result is None:
-            raise _unsupported("math result type", expr.paren.line)
-        desc = self._type_desc(result, expr.paren.line)
+            raise _unsupported("math result type", self._line(expr.paren_span))
+        desc = self._type_desc(result, self._line(expr.paren_span))
         if name == "abs":
             argument = args[0]
             if argument.ty is ValueType.INT:
@@ -50,8 +50,8 @@ class MathLowering(LoweringBase):
                             self._function("lox_math_abs_int_checked", _INT, [_INT, _I32, _I32]),
                             [
                                 argument.llvm,
-                                llvm_ir.constant(_I32, expr.paren.line),
-                                llvm_ir.constant(_I32, expr.paren.column),
+                                llvm_ir.constant(_I32, self._line(expr.paren_span)),
+                                llvm_ir.constant(_I32, self._column(expr.paren_span)),
                             ],
                         ),
                     )
@@ -79,8 +79,8 @@ class MathLowering(LoweringBase):
                     self._function(f"lox_math_{name}", _INT, [_FLOAT, _I32, _I32]),
                     [
                         self._to_float(argument),
-                        llvm_ir.constant(_I32, expr.paren.line),
-                        llvm_ir.constant(_I32, expr.paren.column),
+                        llvm_ir.constant(_I32, self._line(expr.paren_span)),
+                        llvm_ir.constant(_I32, self._column(expr.paren_span)),
                     ],
                 ),
             )
@@ -94,7 +94,7 @@ class MathLowering(LoweringBase):
             )
         if name in {"min", "max", "clamp"}:
             return self._math_select(expr, name, args, desc)
-        raise _unsupported(f"math.{name}", expr.paren.line)
+        raise _unsupported(f"math.{name}", self._line(expr.paren_span))
 
     def _math_select(self, expr: Call, name: str, args: list[Value], desc: TypeDesc) -> Value:
         use_float = any(arg.ty is ValueType.FLOAT for arg in args) or desc.ty is ValueType.FLOAT
@@ -120,8 +120,8 @@ class MathLowering(LoweringBase):
                 ),
                 [
                     *values,
-                    llvm_ir.constant(_I32, expr.paren.line),
-                    llvm_ir.constant(_I32, expr.paren.column),
+                    llvm_ir.constant(_I32, self._line(expr.paren_span)),
+                    llvm_ir.constant(_I32, self._column(expr.paren_span)),
                 ],
             )
             return Value(ValueType.FLOAT, call)
@@ -137,7 +137,7 @@ class MathLowering(LoweringBase):
         bad = self._control.new_block(self._function_ir, "clamp.bad")
         self.builder.cbranch(low_high, bad, ok)
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.paren, "math.clamp() requires low <= high.")
+        self._poison(expr.paren_span, "math.clamp() requires low <= high.")
         self.builder = llvm_ir.builder(ok)
         lower = self.builder.select(
             self.builder.icmp_signed("<", values[0], values[1]),
@@ -155,7 +155,7 @@ class MathLowering(LoweringBase):
         args = [self._expr(argument) for argument in expr.arguments]
         if len(args) != 1 or args[0].ty is not ValueType.STRING:
             name = "Int.parse()" if desc.ty is ValueType.INT else "Float.parse()"
-            self._poison(expr.paren, f"{name} expects a string.")
+            self._poison(expr.paren_span, f"{name} expects a string.")
             return self._zero_desc(desc)
         function = "lox_parse_int" if desc.ty is ValueType.INT else "lox_parse_float"
         raw = self.builder.call(self._function(function, _ANY, [_I8_PTR]), [args[0].llvm])

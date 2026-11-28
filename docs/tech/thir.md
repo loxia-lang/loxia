@@ -15,13 +15,16 @@ sources:
   - tests/test_thir_serialization.py
   - tests/test_thir_schema.py
   - tests/test_thir_snapshot.py
+  - tests/test_lowering_ll.py
+  - tests/ll/manifest.json
+  - tools/lowering_snapshot.py
 ---
 
 # THIR — a árvore tipada entre o checker e os motores
 
 O THIR é o eixo do programa de motores ([ADR-0149](../adr/0149-motores-primarios-thir-e-congelamento.md) §2):
-uma árvore **tipada, resolvida e sem açúcar sintático** que carrega a decisão semântica
-uma vez só. O AST continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é
+uma árvore **tipada e resolvida** que carrega a decisão semântica uma vez só (sem `Grouping`;
+o açúcar de controle fica explícito na v1, ver §O que o THIR não carrega). O AST continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é
 o que o lowering (F2) e o `loxvm` (F3) consomem.
 
 ```
@@ -47,6 +50,7 @@ lugar certo.
 | `ty` (fluxo) | todo `TExpr` | narrowings: `if (x != nil)` estreita o **uso**, não a declaração |
 | `storage_ty` | todo `TExpr` | tipo declarado/sem narrowing (ADR-0045) |
 | `span` | todo nó de expressão/statement/padrão/declaração | diagnóstico e stack trace no ponto certo (ADR-0075/0089); `TModule` e `TInstance` não têm site próprio |
+| `op_span` | todo operador (`TUnary`/`TBinary`/`TLogical`/`TIs`/`TAs`/`TRange`) | span **do token do operador** (não do operando): é o site de erro/panic que o motor emite; sem ele o `.ll` mudaria de byte |
 | `Ref` | `TVar`/`TAssign`/`TThis`/`TSuper` | binding resolvido; nada de busca por nome no motor |
 | `Decl.cell` | `Decl` | o binding é célula compartilhada (ADR-0046) |
 | `TFunction.captures` | função/lambda | o `env` que o motor monta, em ordem canônica |
@@ -97,7 +101,7 @@ aparece no diff do snapshot — que é o comportamento desejado para um contrato
 | `TConst` | `Literal` | valor + tipo; `nil` é `None` |
 | `TInterp` | `InterpolatedString` | partes literais e expressões |
 | `TList` / `TMap` / `TTuple` | literais de container | ordem do fonte preservada |
-| `TRange` | `Range` | `a..b` meio-aberto (ADR-0007) |
+| `TRange` | `Range` | `a..b` meio-aberto (ADR-0007); `op_span` do `..` |
 | `TUnary` / `TBinary` / `TLogical` | operadores | `op` + `op_span` (site do panic) |
 | `TConditional` | ternário | explícito na v1 |
 | `TVar` / `TAssign` | `Variable` / `Assign` | `Ref` resolvido |
@@ -105,7 +109,7 @@ aparece no diff do snapshot — que é o comportamento desejado para um contrato
 | `TGet` / `TSet` | acesso a campo | `optional` preservado |
 | `TIndex` / `TIndexSet` | indexação | |
 | `TThis` / `TSuper` | receptor | `super` leva o `Ref` do `this` léxico |
-| `TIs` / `TAs` | teste/conversão | |
+| `TIs` / `TAs` | teste/conversão | `op_span` do `is`/`as` (site do `R1011`) |
 | `TMatch` | `Match` | arms com bindings próprios |
 | `TMatchArm` | arm | `pattern` + `body` + `span` |
 | `TPattern` | padrão | base de `TVariantPattern`, `TWildcardPattern`, `TLiteralPattern` |
@@ -134,7 +138,8 @@ closure ver o valor daquela volta) é decisão do motor, não do contrato.
 ### Módulo e declarações
 
 `TModule` é a raiz: `statements`, `decls`, `instances`, `type_aliases`, `entry` e
-`schema_version`. `TFunction` (função, método ou lambda), `TParam`, `TCapture`, `TField`, `TClass`,
+`schema_version`. `TFunction` (função, método ou lambda; `abstract` distingue assinatura de
+interface de default de corpo vazio), `TParam`, `TCapture`, `TField`, `TClass`,
 `TInterface`, `TEnum`, `TEnumVariant`, `THandler`, `Decl`.
 
 ## O que o THIR **não** carrega (v1)
@@ -163,11 +168,11 @@ resolvidas por uma pré-declaração de top-level que espelha o checker — sem 
 check-limpo nasceria cheio de `UNRESOLVED` e o motor emitiria panic sites falsos.
 `tests/test_thir.py` policia os dois casos e exige **zero** `UNRESOLVED` no corpus declarado.
 
-Escopo e captura seguem a mesma regra do `captures` do backend (ADR-0046), agora num lugar
-só: declaração no escopo de topo é `GLOBAL`, declaração interna é `LOCAL` da unidade dona, uso
-de fora é `CAPTURE`, e binding capturado vira `cell`. `tests/test_thir.py` compara, caso a
-caso do corpus, as capturas e a contagem de células com `analyze_captures` — a equivalência é
-policiada enquanto as duas implementações coexistirem.
+Escopo e captura seguem a mesma regra do antigo `captures` do backend (ADR-0046), agora num
+lugar só: declaração no escopo de topo é `GLOBAL`, declaração interna é `LOCAL` da unidade
+dona, uso de fora é `CAPTURE`, e binding capturado vira `cell`. Com o lowering já consumindo o
+THIR, não há segunda implementação a comparar: a equivalência é policiada pelo gate `.ll`
+(269 casos byte a byte) e por `tests/test_captures.py`, que fixa captura/célula no produtor.
 
 ## Determinismo (I3)
 
@@ -218,3 +223,92 @@ Atualizar é revisão consciente: `make thir-snapshot` regrava e o diff de hashe
 exatamente quais casos o contrato mudou — "consertar para passar" é proibido. Para ler o
 contrato de um caso, `loxia build <caso> --emit=thir` imprime o JSON (o THIR é verboso por
 causa dos spans, então goldens completos versionados seriam ruído, não revisão).
+
+## O lowering consome o THIR (fatia 3, concluída)
+
+O lowering recebe o `TModule`, não a AST. O contrato foi **só a fronteira**: mesmo
+programa, mesmo `.ll` byte a byte, congelado em `tests/ll/manifest.json`
+(`make ll-snapshot`) e policiado por `tests/test_lowering_ll.py`; o backend não importa
+`loxia_core.frontend.expr`/`stmt` (`tests/test_thir_boundary.py`).
+
+### Por que foi atômico
+
+A árvore é uma só. No instante em que `Lowerer` recebe `TModule`, todo handler recebe nós
+THIR; não existe nó híbrido e um dispatch duplo (AST **ou** THIR) reintroduziria as duas
+rotas que o [ADR-0154](../adr/0154-fronteira-do-thir.md) elimina. Por isso o port é **um
+commit** (mais um de triagem de docs): o gate `.ll` de 269 casos cobre a árvore inteira.
+
+### Métrica de complexidade (A9), com a receita
+
+Medido em `7561f36` (pré-port) e no HEAD, com o comando ao lado — número sem comando não
+conta:
+
+| métrica | antes | depois | comando |
+| --- | --- | --- | --- |
+| leituras de side table no backend (`self.` nas 6 tabelas) | 46 | **0** | `git grep -E "self\.(types\|flow_types\|depths\|generic_instances\|generic_class_sites\|generic_classes)\b" <rev> -- loxia_core/backend \| wc -l` |
+| arquivos do backend que importam `frontend.expr`/`frontend.stmt` | 21 | **0** | `git grep -l -E "from loxia_core\.frontend\.(expr\|stmt)" <rev> -- loxia_core/backend \| wc -l` |
+| `backend/captures.py` | 402 linhas | apagado | `git show 7561f36:loxia_core/backend/captures.py \| wc -l` |
+| diff do port | — | +1883/−1695 em 35 arquivos | `git diff --shortstat 7561f36..0c04be3` |
+| diff da fatia (port + triagem + converge) | — | +2112/−1802 em 36 arquivos | `git diff --shortstat 7561f36..HEAD` |
+
+O dispatch continua sendo `isinstance` (40 sítios em `_expr`/`_stmt`), agora sobre nós `T*`;
+o ganho não é "menos branches", é **uma** árvore e nenhuma tabela por identidade de nó.
+
+Renomes mecânicos:
+
+| AST | THIR |
+| --- | --- |
+| `expr.operator` (`.type`, `.line`) | `op` + `op_span` |
+| `expr.paren.line` | `paren_span.start.line` |
+| `expr.bracket.line` | `bracket_span.start.line` |
+| `expr.keyword.line`, `stmt.keyword.line` | `span.start.line` |
+| `expr.name.lexeme` (variável/atribuição) | `Ref.name` (+ `Ref.storage`) |
+| `expr.name.lexeme` (campo) | `TGet`/`TSet.name` + `name_span` |
+| `stmt.name.lexeme` | `Decl` do id (`decl_table(module)`) |
+| `stmt.type_annotation` | `Decl.ty` / `TParam.ty` / `TField.ty` |
+| `param.default` | `TParam.default` (template avaliado no call site) |
+| `self.types[expr]` | `TExpr.storage_ty` |
+| `self.flow_types[expr]` | `TExpr.ty` |
+| `self.depths.get(expr)` | `Ref.storage` + índice em `TFunction.captures` |
+| `Function.abstract` | `TFunction.abstract` (assinatura de interface × default de corpo vazio) |
+| `Function.doc`, `fn_token`, `params_end`, `arrow` | não usados no backend |
+
+### O que morreu
+
+- `self.types`, `self.flow_types`, `self.depths` e as tabelas por identidade de nó;
+- `loxia_core/backend/captures.py` (a decisão vira `Decl.cell` + `captures`), coberto por
+  `tests/test_captures.py` no produtor;
+- a pilha `_scopes` por **nome** continua existindo no lowering (o layout de frame é dele,
+  não do THIR): a **classe** do binding vem de `Ref.storage`, e o slot é achado pelo nome no
+  escopo — o resolver garante unicidade por escopo (`E2001`), então nome e `DeclId` coincidem
+  na prática. Um `Ref` que aponte para fora do escopo vivo é captura (`CAPTURE`), não `LOCAL`.
+
+### `op_span` em todos os operadores
+
+O port revelou uma lacuna do modelo: o lowering emitia a posição do **operador** em
+constantes do `.ll` (`lox_range_new`, `lox_float_to_int`, `lox_panic`). `TUnary`/`TBinary`
+já tinham `op_span`; `TLogical`, `TIs`, `TAs` e `TRange` ganharam o mesmo campo, preenchido
+pelo produtor com o token do operador. Sem ele o gate byte a byte não fecha (e o `R1011`
+do `as` mudaria de coluna no stderr). O snapshot do THIR (`tests/thir/manifest.json`) e o
+schema (`schema/thir-v1.json`) mudaram de propósito nessa fatia.
+
+### Fidelidade de diagnóstico
+
+`TClass.superclass_span` carrega o site do nome da superclasse, que é a linha usada pelo
+refusal `Inheritance from 'X' is not supported by the backend yet`
+(`lower_class_layout.py`). Com isso o port não perde nenhum site de erro que o lowering
+usa hoje; não há outra lacuna conhecida de span. O `op_span` dos operadores (acima) é o
+mesmo contrato: o site do erro é o token do operador.
+
+### Ordem dos commits do port
+
+1. `lower.py` — entrada `lower(module)`, dispatch de statements/expressões, aritmética;
+2. `lower_variables` — slots/células por `DeclId`;
+3. `lower_functions` — ABI de closure, `TFunction`, defaults;
+4. `lower_calls` — kernel × closure × método × classe, `TInstance`;
+5. optionais/`Any` (`lower_optionals`);
+6. containers/strings/bytes/tuplas/range/math;
+7. classes/instâncias/generics (`lower_class_codegen`, `lower_instances`, `lower_generics`);
+8. exceções/enums/`match` (`lower_exceptions`, `lower_enums`), remoção de `captures.py` e
+   das assinaturas antigas (`driver`, `engine`).
+

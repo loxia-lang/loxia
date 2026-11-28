@@ -476,6 +476,7 @@ class _Builder:
             ),
             is_init=is_init,
             is_method=is_method,
+            abstract=node.abstract if isinstance(node, Function) else False,
             method_class=lexical_class,
             this_decl=this_decl,
             captures=unit.ordered(),
@@ -747,6 +748,9 @@ class _Builder:
             decl=decl,
             name=stmt.name.lexeme,
             superclass=stmt.superclass.name.lexeme if stmt.superclass is not None else None,
+            superclass_span=(
+                self._tok(stmt.superclass.name) if stmt.superclass is not None else None
+            ),
             interfaces=tuple(token.lexeme for token in stmt.implements),
             type_params=tuple(token.lexeme for token in stmt.type_params),
             fields=tuple(fields),
@@ -861,6 +865,7 @@ class _Builder:
                 storage_ty=storage,
                 span=span,
                 op=expr.operator.type,
+                op_span=self._tok(expr.operator),
                 left=self._expr(expr.left),
                 right=self._expr(expr.right),
             )
@@ -910,6 +915,7 @@ class _Builder:
                 ty=flow,
                 storage_ty=storage,
                 span=span,
+                op_span=self._tok(expr.operator),
                 start=self._expr(expr.start),
                 end=self._expr(expr.end),
                 inclusive=expr.inclusive,
@@ -991,6 +997,7 @@ class _Builder:
                 ty=flow,
                 storage_ty=storage,
                 span=span,
+                op_span=self._tok(expr.operator),
                 operand=self._expr(expr.left),
                 test_type=expr.test_type,
             )
@@ -1000,6 +1007,7 @@ class _Builder:
                 ty=flow,
                 storage_ty=storage,
                 span=span,
+                op_span=self._tok(expr.operator),
                 operand=self._expr(expr.left),
                 target_type=expr.target_type,
             )

@@ -94,9 +94,11 @@ class Ref:
     """Referência resolvida a um `Decl`.
 
     Para `CAPTURE`, a posição no `env` é o índice do `decl` na tupla
-    `TFunction.captures` da função que contém o uso — o motor faz uma busca por id,
-    não uma re-derivação de escopo. A ordem das capturas é canônica (nome), então
-    dois produtores independentes chegam ao mesmo índice.
+    `TFunction.captures` da função que contém o uso. A ordem das capturas é canônica
+    (nome), então dois produtores independentes chegam ao mesmo índice.
+    O motor pode mapear o slot pelo nome dentro do escopo (o resolver garante
+    unicidade por escopo — E2001) ou pelo `decl`; o contrato é o `storage`, não o
+    algoritmo de busca do lowering.
     """
 
     storage: Storage
@@ -145,6 +147,7 @@ class TTuple(TExpr):
 
 @dataclass(frozen=True)
 class TRange(TExpr):
+    op_span: Span | None
     start: TExpr
     end: TExpr
     inclusive: bool
@@ -168,6 +171,7 @@ class TBinary(TExpr):
 @dataclass(frozen=True)
 class TLogical(TExpr):
     op: TokenType
+    op_span: Span | None
     left: TExpr
     right: TExpr
 
@@ -257,12 +261,14 @@ class TSuper(TExpr):
 
 @dataclass(frozen=True)
 class TIs(TExpr):
+    op_span: Span | None
     operand: TExpr
     test_type: Ty
 
 
 @dataclass(frozen=True)
 class TAs(TExpr):
+    op_span: Span | None
     operand: TExpr
     target_type: Ty
 
@@ -472,6 +478,9 @@ class TFunction:
     type_params: tuple[str, ...]
     is_init: bool
     is_method: bool
+    # Assinatura de interface (sem corpo) — `False` inclui o default de corpo vazio
+    # (`fn m() {}`), que o lowering precisa emitir como no-op.
+    abstract: bool
     method_class: str | None
     this_decl: DeclId | None
     captures: tuple[TCapture, ...]
@@ -494,6 +503,9 @@ class TClass:
     decl: DeclId
     name: str
     superclass: str | None
+    # Span do nome da superclasse: é o site do refusal "inheritance from X" no
+    # backend e do diagnóstico de herança. `None` quando a classe não herda.
+    superclass_span: Span | None
     interfaces: tuple[str, ...]
     type_params: tuple[str, ...]
     fields: tuple[TField, ...]

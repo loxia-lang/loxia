@@ -32,8 +32,7 @@ from loxia_core.backend.lower_model import (
     field_words,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import As, Is, Super, This
-from loxia_core.frontend.stmt import Class, Interface
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import (
     BOOL as TY_BOOL,
@@ -72,6 +71,25 @@ from loxia_core.frontend.ty import (
     UnionTy,
     display,
 )
+from loxia_core.thir import (
+    TAs as As,
+)
+from loxia_core.thir import (
+    TClass,
+    TStmt,
+)
+from loxia_core.thir import (
+    TInterfaceDecl as Interface,
+)
+from loxia_core.thir import (
+    TIs as Is,
+)
+from loxia_core.thir import (
+    TSuper as Super,
+)
+from loxia_core.thir import (
+    TThis as This,
+)
 
 
 class ClassCodegenLowering(LoweringBase):
@@ -84,24 +102,25 @@ class ClassCodegenLowering(LoweringBase):
                 return layout
         return self._classes.get(name)
 
-    def _prepare_interface_ids(self, statements: list[Any]) -> None:
+    def _prepare_interface_ids(self, statements: tuple[TStmt, ...]) -> None:
         for stmt in statements:
             if not isinstance(stmt, Interface):
                 continue
-            name = stmt.name.lexeme
+            interface = stmt.interface
+            name = interface.name
             if name in self._interface_ids:
                 continue
             self._interface_ids[name] = len(self._interface_ids) + 1
-            self._interface_nodes[name] = stmt
+            self._interface_nodes[name] = interface
             self._interface_method_names[name] = tuple(
-                method.name.lexeme for method in stmt.methods
+                method.name or "" for method in interface.methods
             )
 
     def _prepare_interface_signatures(self) -> None:
-        for name, stmt in self._interface_nodes.items():
+        for name, interface in self._interface_nodes.items():
             infos: dict[str, FunctionInfo] = {}
-            for method in stmt.methods:
-                method_name = method.name.lexeme
+            for method in interface.methods:
+                method_name = method.name or ""
                 infos[method_name] = self._function_info(
                     method,
                     llvm_name=f"lox.iface.{name}.{method_name}",
@@ -110,14 +129,16 @@ class ClassCodegenLowering(LoweringBase):
             self._interface_method_infos[name] = infos
 
     def _emit_interface_defaults(self) -> None:
-        for name, stmt in self._interface_nodes.items():
+        for name, interface in self._interface_nodes.items():
             closures: dict[str, Value] = {}
             globals_: dict[str, Any] = {}
             infos = self._interface_method_infos[name]
-            for method in stmt.methods:
+            for method in interface.methods:
+                # Assinatura de interface (`fn m()`) não tem default; o default de
+                # corpo vazio (`fn m() {}`) tem, e emite um thunk no-op.
                 if method.abstract:
                     continue
-                method_name = method.name.lexeme
+                method_name = method.name or ""
                 info = infos[method_name]
                 self._emit_function(info, method, ())
                 closure = self._build_closure(info, (), f"<fn {name}.{method_name}>")
@@ -173,11 +194,13 @@ class ClassCodegenLowering(LoweringBase):
         self._interface_thunks[key] = thunk
         return thunk
 
-    def _interface_bound_method(self, instance: Value, interface: str, name: Any) -> Value:
-        method_name = name.lexeme
+    def _interface_bound_method(
+        self, instance: Value, interface: str, name: str, span: Span | None
+    ) -> Value:
+        method_name = name
         info = self._interface_method_infos.get(interface, {}).get(method_name)
         if info is None:
-            self._poison(name, f"Undefined property '{method_name}'.")
+            self._poison(span, f"Undefined property '{method_name}'.")
             return self._zero(ValueType.INT)
 
         names = self._interface_method_names[interface]
@@ -201,19 +224,19 @@ class ClassCodegenLowering(LoweringBase):
             info,
         )
 
-    def _class_declaration(self, stmt: Class) -> None:
+    def _class_declaration(self, klass: TClass) -> None:
         if not (self._function_ir is self.main and len(self._scopes) == 1):
-            self._local_class_declaration(stmt)
+            self._local_class_declaration(klass)
             return
-        if stmt.type_params:
-            for layout in self._generic_class_by_source.get(stmt.name.lexeme, []):
+        if klass.type_params:
+            for layout in self._generic_class_by_source.get(klass.name, []):
                 if layout.name in self._emitted_generic_classes:
                     continue
                 self._emitted_generic_classes.add(layout.name)
                 self._emit_top_level_class(layout)
             self._drain_pending_generic_classes()
             return
-        self._emit_top_level_class(self._classes[stmt.name.lexeme])
+        self._emit_top_level_class(self._classes[klass.name])
 
     def _emit_top_level_class(self, layout: ClassLayout) -> None:
         raw, descriptor = self._new_class_descriptor()
@@ -441,24 +464,25 @@ class ClassCodegenLowering(LoweringBase):
                 self._make_captures(layout.init_node),
             )
 
-    def _local_class_declaration(self, stmt: Class) -> None:
-        if stmt.type_params:
-            raise _unsupported("Generic local classes", stmt.name.line)
-        if stmt.superclass is not None:
-            raise _unsupported("Local class inheritance", stmt.name.line)
+    def _local_class_declaration(self, klass: TClass) -> None:
+        line = self._decl_line(klass.decl)
+        if klass.type_params:
+            raise _unsupported("Generic local classes", line)
+        if klass.superclass is not None:
+            raise _unsupported("Local class inheritance", line)
 
-        name = stmt.name.lexeme
-        if (stmt.fields or stmt.methods) and name in self._classes:
+        name = klass.name
+        if (klass.fields or klass.methods) and name in self._classes:
             raise _unsupported(
                 "A local class shadowing another class with fields or methods",
-                stmt.name.line,
+                line,
             )
 
         self._local_class_counter += 1
         key = f"{name}@{self._local_class_counter}"
-        fields = self._class_fields(stmt, 0, 0)
+        fields = self._class_fields(klass, 0, 0)
         methods, init, init_method, new_methods = self._class_methods(
-            stmt, name, None, 0, ir_name=key
+            klass, name, None, 0, ir_name=key
         )
         instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * field_words(fields))])
         layout = ClassLayout(
@@ -468,7 +492,7 @@ class ClassCodegenLowering(LoweringBase):
             methods,
             init,
             init_node=next(
-                (method for method in stmt.methods if method.name.lexeme == "init"),
+                (method for method in klass.methods if method.name == "init"),
                 None,
             ),
             local=True,
@@ -476,8 +500,8 @@ class ClassCodegenLowering(LoweringBase):
             init_method=init_method,
             vtable_size=new_methods,
             instance_type=instance_type,
-            decl_token=stmt.name,
-            interfaces=tuple(token.lexeme for token in stmt.implements),
+            decl_token=self._decl_span(klass.decl),
+            interfaces=klass.interfaces,
         )
         effective = init
         ctor_params = (
@@ -496,7 +520,7 @@ class ClassCodegenLowering(LoweringBase):
             self._classes[name] = layout
 
         raw, descriptor = self._new_class_descriptor()
-        if self._analysis.is_captured(stmt):
+        if self._decl(klass.decl).cell:
             cell = self._alloc_cell()
             self.builder.store(raw, self._cell_pointer(cell, TypeDesc(ValueType.CLASS)))
             self._scopes[-1][name] = Binding(
@@ -727,23 +751,24 @@ class ClassCodegenLowering(LoweringBase):
         return ty
 
     def _is_expr(self, expr: Is) -> Value:
+        line = self._line(expr.op_span)
         test_type = self._expand_alias(expr.test_type)
-        target_desc = self._type_desc(test_type, expr.operator.line)
-        value = self._expr(expr.left)
+        target_desc = self._type_desc(test_type, line)
+        value = self._expr(expr.operand)
         if isinstance(test_type, UnionTy):
             if any(member is TY_ANY for member in test_type.members):
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 1))
-            boxed = self._box_value(value, expr.operator.line)
+            boxed = self._box_value(value, line)
             result = llvm_ir.constant(_BOOL, 0)
             for member in test_type.members:
-                member_desc = self._type_desc(member, expr.operator.line)
-                check = self._is_any(boxed, member, member_desc, expr.operator.line)
+                member_desc = self._type_desc(member, line)
+                check = self._is_any(boxed, member, member_desc, line)
                 result = self.builder.or_(result, check.llvm)
             return Value(ValueType.BOOL, result)
         if value.ty is ValueType.ANY:
-            return self._is_any(value, test_type, target_desc, expr.operator.line)
-        boxed = self._box_value(value, expr.operator.line)
-        return self._is_any(boxed, test_type, target_desc, expr.operator.line)
+            return self._is_any(value, test_type, target_desc, line)
+        boxed = self._box_value(value, line)
+        return self._is_any(boxed, test_type, target_desc, line)
 
     def _type_text_desc(self, desc: TypeDesc) -> str:
         """Texto de tipo para uma assinatura de função (ADR-0147)."""
@@ -919,8 +944,8 @@ class ClassCodegenLowering(LoweringBase):
         """
         if target_desc.ty is ValueType.ANY:
             return value
-        line = expr.operator.line
-        column = expr.operator.column
+        line = self._line(expr.op_span)
+        column = self._column(expr.op_span)
         if target_desc.ty is ValueType.INT:
             return self._as_any_int(expr, value, line, column)
         if target_desc.ty is ValueType.FLOAT:
@@ -933,7 +958,7 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.cbranch(matches.llvm, ok, bad)
         self.builder = llvm_ir.builder(bad)
         self._poison(
-            expr.operator,
+            expr.op_span,
             f"Can't cast value to {display(self._expand_alias(resolved))}.",
             code=Code.RUNTIME_CAST,
         )
@@ -971,7 +996,7 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.branch(end)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST)
+        self._poison(expr.op_span, "Can't cast value to Int.", code=Code.RUNTIME_CAST)
 
         self.builder = llvm_ir.builder(end)
         merged = self.builder.phi(_INT, "as.int")
@@ -1003,7 +1028,7 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.branch(end)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST)
+        self._poison(expr.op_span, "Can't cast value to Float.", code=Code.RUNTIME_CAST)
 
         self.builder = llvm_ir.builder(end)
         merged = self.builder.phi(_FLOAT, "as.float")
@@ -1013,17 +1038,17 @@ class ClassCodegenLowering(LoweringBase):
 
     def _as_expr(self, expr: As) -> Value:
         target_ty = self._expand_alias(self._subst_ty(expr.target_type))
-        target_desc = self._type_desc(target_ty, expr.operator.line)
-        value = self._expr(expr.left)
+        target_desc = self._type_desc(target_ty, self._line(expr.op_span))
+        value = self._expr(expr.operand)
         if value.ty is ValueType.ANY:
             return self._as_any(expr, value, target_desc, target_ty)
         if isinstance(target_ty, FnTy):
             if value.optional:
                 value = self._unwrap(
                     value,
-                    expr.operator.line,
+                    self._line(expr.op_span),
                     f"Can't cast value to {display(target_ty)}.",
-                    column=expr.operator.column,
+                    column=self._column(expr.op_span),
                     code=Code.RUNTIME_CAST,
                 )
             # O checker já comparou assinatura e representação quando a origem é
@@ -1031,22 +1056,22 @@ class ClassCodegenLowering(LoweringBase):
             # inicializada (nil), então a checagem de runtime vale para todos.
             # União/`Any`: a assinatura real do closure é checada em runtime, como
             # no tree-walk (um default a menos no alvo falha R1011).
-            boxed = self._box_value(value, expr.operator.line)
+            boxed = self._box_value(value, self._line(expr.op_span))
             return self._as_any(expr, boxed, target_desc, target_ty)
         if isinstance(target_ty, InterfaceTy):
             # A interface é um ponteiro de instância; o matcher confere a tabela
             # de interfaces do descritor (ADR-0146).
-            boxed = self._box_value(value, expr.operator.line)
+            boxed = self._box_value(value, self._line(expr.op_span))
             return self._as_any(expr, boxed, target_desc, target_ty)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
-            value = self._expr(expr.left)
+            value = self._expr(expr.operand)
             target_name = "Float" if target_desc.ty is ValueType.FLOAT else "Int"
             if value.optional:
                 value = self._unwrap(
                     value,
-                    expr.operator.line,
+                    self._line(expr.op_span),
                     f"Can't cast value to {target_name}.",
-                    column=expr.operator.column,
+                    column=self._column(expr.op_span),
                     code=Code.RUNTIME_CAST,
                 )
             if target_desc.ty is ValueType.FLOAT:
@@ -1054,7 +1079,7 @@ class ClassCodegenLowering(LoweringBase):
                     return value
                 if value.ty is ValueType.INT:
                     return Value(ValueType.FLOAT, self.builder.sitofp(value.llvm, _FLOAT))
-                self._poison(expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST)
+                self._poison(expr.op_span, "Can't cast value to Float.", code=Code.RUNTIME_CAST)
                 return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
             if value.ty is ValueType.INT:
                 return value
@@ -1063,12 +1088,12 @@ class ClassCodegenLowering(LoweringBase):
                     self._function("lox_float_to_int", _INT, [_FLOAT, _I32, _I32]),
                     [
                         value.llvm,
-                        llvm_ir.constant(_I32, expr.operator.line),
-                        llvm_ir.constant(_I32, expr.operator.column),
+                        llvm_ir.constant(_I32, self._line(expr.op_span)),
+                        llvm_ir.constant(_I32, self._column(expr.op_span)),
                     ],
                 )
                 return Value(ValueType.INT, call)
-            self._poison(expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST)
+            self._poison(expr.op_span, "Can't cast value to Int.", code=Code.RUNTIME_CAST)
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
         if (
@@ -1089,24 +1114,26 @@ class ClassCodegenLowering(LoweringBase):
         ):
             return value
 
-        target = self._target_class(target_ty, expr.operator.line)
+        target = self._target_class(target_ty, self._line(expr.op_span))
         target_display = display(target_ty)
         if value.optional:
             value = self._unwrap(
                 value,
-                expr.operator.line,
+                self._line(expr.op_span),
                 f"Can't cast value to {target_display}.",
-                column=expr.operator.column,
+                column=self._column(expr.op_span),
                 code=Code.RUNTIME_CAST,
             )
-        check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
+        check = self._is_instance(
+            value, target, self._line(expr.op_span), self._column(expr.op_span)
+        )
         ok = self._control.new_block(self._function_ir, "as.ok")
         bad = self._control.new_block(self._function_ir, "as.bad")
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
         self._poison(
-            expr.operator,
+            expr.op_span,
             f"Can't cast value to {target_display}.",
             code=Code.RUNTIME_CAST,
         )
@@ -1121,7 +1148,7 @@ class ClassCodegenLowering(LoweringBase):
     def _this(self, expr: This) -> Value:
         binding = self._find_binding("this")
         if binding is None:
-            raise BackendError("'this' outside a method.", expr.keyword.line)
+            raise BackendError("'this' outside a method.", self._line(expr.span))
         return self._load_binding(binding)
 
     def _make_raw_closure(
@@ -1325,22 +1352,23 @@ class ClassCodegenLowering(LoweringBase):
         return self._load_binding(binding)
 
     def _super_method(self, expr: Super) -> Value:
+        line = self._line(expr.span)
         if self._method_class is None:
-            raise BackendError("'super' outside a method.", expr.keyword.line)
+            raise BackendError("'super' outside a method.", line)
         layout = self._classes[self._method_class]
         base = layout.super_layout
         if base is None:
-            raise BackendError("'super' without a superclass.", expr.keyword.line)
+            raise BackendError("'super' without a superclass.", line)
 
-        instance = self._this_value(expr.keyword.line)
-        name = expr.method.lexeme
+        instance = self._this_value(line)
+        name = expr.method
         descriptor = self.builder.load(self._globals[base.name].storage)
         desc_struct = self.builder.bitcast(descriptor, _CLASS_DESC.as_pointer())
 
         if name == "init":
             method = base.init_method
             if method is None:
-                raise BackendError("Superclass has no initializer.", expr.keyword.line)
+                raise BackendError("Superclass has no initializer.", line)
             closure = self.builder.load(
                 self.builder.gep(
                     desc_struct,
@@ -1350,7 +1378,7 @@ class ClassCodegenLowering(LoweringBase):
         else:
             method = base.method(name)
             if method is None:
-                raise BackendError(f"Undefined property '{name}'.", expr.method.line)
+                raise BackendError(f"Undefined property '{name}'.", self._line(expr.method_span))
             vtable = self.builder.bitcast(
                 self.builder.load(
                     self.builder.gep(

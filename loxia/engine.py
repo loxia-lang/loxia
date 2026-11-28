@@ -748,10 +748,34 @@ class Loxia:
             self.flush(command, exit_code=65, always=True)
             return False
 
-        # `--emit=thir` para no contrato tipado (ADR-0149/ADR-0154): não precisa de
-        # llvmlite nem de `cc`, e é o artefato que o snapshot revisa (F2).
+        # O THIR é construído **uma vez** por compilação: é o contrato de entrada do
+        # lowering e o artefato do `--emit=thir` (ADR-0149/ADR-0154).
+        from loxia_core.semantics.thir_build import ThirBuildError, build_thir
+
+        try:
+            thir_module = build_thir(
+                statements,
+                storage_types=checker.storage_types,
+                flow_types=checker.types,
+                generic_instances=checker.generic_fn_instances,
+                generic_classes=checker.concrete_class_types(),
+                generic_class_sites=checker.generic_class_sites,
+                type_aliases=checker.type_aliases(),
+                function_types=checker.function_types,
+                entry=checker.entry,
+                globals_scope=checker.global_scope,
+                source_path=self._file,
+            )
+        except ThirBuildError as error:
+            self.reporter.backend_error(
+                None, f"internal THIR error: {error}", code=Code.BACKEND_INTERNAL
+            )
+            self.flush(command, exit_code=65, always=True)
+            return False
+
+        # `--emit=thir` para no contrato tipado: não precisa de llvmlite nem de `cc`,
+        # e é o artefato que o snapshot revisa (F2).
         if emit == "thir":
-            from loxia_core.semantics.thir_build import ThirBuildError, build_thir
             from loxia_core.thir.serialize import ThirFormatError
             from loxia_core.thir.serialize import dumps as dump_thir
 
@@ -759,30 +783,11 @@ class Loxia:
             # drift entre o modelo e o encoder ou um `-o` inválido é diagnóstico
             # `E4002` com exit 65, nunca traceback/exit 1.
             try:
-                module = build_thir(
-                    statements,
-                    storage_types=checker.storage_types,
-                    flow_types=checker.types,
-                    generic_instances=checker.generic_fn_instances,
-                    generic_classes=checker.concrete_class_types(),
-                    generic_class_sites=checker.generic_class_sites,
-                    type_aliases=checker.type_aliases(),
-                    function_types=checker.function_types,
-                    entry=checker.entry,
-                    globals_scope=checker.global_scope,
-                    source_path=self._file,
-                )
-                text = dump_thir(module)
+                text = dump_thir(thir_module)
                 if output is None:
                     sys.stdout.write(text)
                 else:
                     output.write_text(text, encoding="utf-8")
-            except ThirBuildError as error:
-                self.reporter.backend_error(
-                    None, f"internal THIR error: {error}", code=Code.BACKEND_INTERNAL
-                )
-                self.flush(command, exit_code=65, always=True)
-                return False
             except ThirFormatError as error:
                 self.reporter.backend_error(
                     None, f"internal THIR serialization error: {error}", code=Code.BACKEND_INTERNAL
@@ -831,22 +836,13 @@ class Loxia:
 
         try:
             build_native(
-                statements,
+                thir_module,
                 emit=cast("Emit", emit),
                 output=output,
                 stem=stem,
-                types=checker.storage_types,
-                flow_types=checker.types,
-                depths=self.interpreter.locals,
-                generic_instances=checker.generic_fn_instances,
-                generic_classes=checker.concrete_class_types(),
-                generic_class_sites=checker.generic_class_sites,
-                type_aliases=checker.type_aliases(),
-                function_types=checker.function_types,
                 source_path=self._file,
                 max_heap=max_heap,
                 debug=self.debug,
-                entry=checker.entry,
             )
         except BackendError as error:
             self.reporter.backend_error(error.line, error.message, code=error.code)

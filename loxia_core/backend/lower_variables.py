@@ -20,9 +20,20 @@ from loxia_core.diagnostics.errors import (
     immutable_redeclare_message,
 )
 from loxia_core.execution.prelude import BUILTIN_NAMES
-from loxia_core.frontend.expr import Assign, Expr, Variable
-from loxia_core.frontend.stmt import Var
 from loxia_core.frontend.ty import ListTy, MapTy
+from loxia_core.thir import (
+    Ref,
+    Storage,
+)
+from loxia_core.thir import (
+    TAssign as Assign,
+)
+from loxia_core.thir import (
+    TVar as Variable,
+)
+from loxia_core.thir import (
+    TVarStmt as Var,
+)
 
 _NATIVE_VALUE_GAPS = BUILTIN_NAMES - {"Exception", "RuntimeError", "Result"}
 
@@ -81,14 +92,17 @@ class VariableLowering(LoweringBase):
 
     def _var(self, stmt: Var) -> None:
         value: Value
+        decl = self._decl(stmt.decl)
+        name_span = decl.span
+        annotation = decl.ty
         if stmt.initializer is None:
-            if stmt.type_annotation is None:
+            if annotation is None:
                 raise BackendError(
                     "Uninitialized variables need a type annotation for the backend.",
-                    stmt.name.line,
+                    self._line(name_span),
                     code=Code.BACKEND_UNSUPPORTED,
                 )
-            declared = self._type_desc(stmt.type_annotation, stmt.name.line)
+            declared = self._type_desc(annotation, self._line(name_span))
             if not declared.optional and declared.ty is not ValueType.FUNCTION:
                 # A variável anotada começa nil; até a representação unificada,
                 # usa-se `Any` para preservar o comportamento do interpretador.
@@ -98,22 +112,22 @@ class VariableLowering(LoweringBase):
             saved_element = self._list_expected_element
             saved_key = self._map_expected_key
             saved_value = self._map_expected_value
-            if isinstance(stmt.type_annotation, ListTy):
-                self._list_expected_element = stmt.type_annotation.element
-            if isinstance(stmt.type_annotation, MapTy):
-                self._map_expected_key = stmt.type_annotation.key
-                self._map_expected_value = stmt.type_annotation.value
+            if isinstance(annotation, ListTy):
+                self._list_expected_element = annotation.element
+            if isinstance(annotation, MapTy):
+                self._map_expected_key = annotation.key
+                self._map_expected_value = annotation.value
             try:
                 value = self._expr(stmt.initializer)
             finally:
                 self._list_expected_element = saved_element
                 self._map_expected_key = saved_key
                 self._map_expected_value = saved_value
-            if stmt.type_annotation is not None:
-                annotated = self._type_desc(stmt.type_annotation, stmt.name.line)
+            if annotation is not None:
+                annotated = self._type_desc(annotation, self._line(name_span))
                 if annotated.interface_name is not None:
                     declared = annotated
-                    value = self._coerce(value, annotated, stmt.name.line)
+                    value = self._coerce(value, annotated, self._line(name_span))
                 elif annotated.optional:
                     if value.ty is ValueType.NIL:
                         declared = annotated
@@ -124,7 +138,7 @@ class VariableLowering(LoweringBase):
                         ):
                             raise BackendError(
                                 f"Can't initialize {annotated.ty.name}? with {value.ty.name}?.",
-                                stmt.name.line,
+                                self._line(name_span),
                             )
                         declared = value.desc
                     else:
@@ -134,10 +148,10 @@ class VariableLowering(LoweringBase):
                         value = self._some(declared, value)
                 elif value.optional or value.ty is ValueType.NIL:
                     declared = annotated
-                    value = self._coerce(value, annotated, stmt.name.line)
+                    value = self._coerce(value, annotated, self._line(name_span))
                 elif annotated.ty is ValueType.ANY:
                     declared = annotated
-                    value = self._box_value(value, stmt.name.line)
+                    value = self._box_value(value, self._line(name_span))
                 else:
                     # Anotação não converte em runtime (L2): `val f: Float = 2`
                     # guarda `Int` e imprime `2`.
@@ -146,24 +160,24 @@ class VariableLowering(LoweringBase):
                 declared = value.desc
 
         if self._function_ir is self.main and len(self._scopes) == 1:
-            existing = self._globals.get(stmt.name.lexeme)
+            existing = self._globals.get(decl.name)
             if existing is not None:
                 # Redeclaração de global (`var x = 1; var x = 2)`): o interpretador
                 # mantém um único binding e sobrescreve o valor; reusar o slot é o
                 # que preserva a leitura dinâmica em funções já compiladas.
                 if not existing.mutable:
                     self._poison(
-                        stmt.name,
-                        immutable_redeclare_message(stmt.name.lexeme),
+                        name_span,
+                        immutable_redeclare_message(decl.name),
                         code=Code.RUNTIME_IMMUTABLE,
                     )
                     return
                 if not existing.desc.same_as(declared):
                     raise BackendError(
-                        f"Global '{stmt.name.lexeme}' was already declared as "
+                        f"Global '{decl.name}' was already declared as "
                         f"{existing.desc.ty.name}; redeclaring it as "
                         f"{declared.ty.name} is not supported by the backend yet.",
-                        stmt.name.line,
+                        self._line(name_span),
                         code=Code.BACKEND_UNSUPPORTED,
                     )
                 # `var f = ...` depois de `fn f` deixa de ser uma chamada direta.
@@ -177,13 +191,13 @@ class VariableLowering(LoweringBase):
                     function=value.function,
                     generic=value.generic,
                     generic_node=value.generic_node,
-                    mutable=stmt.mutable,
+                    mutable=decl.mutable,
                 )
-                self._globals[stmt.name.lexeme] = binding
+                self._globals[decl.name] = binding
                 self.builder.store(self._arg_llvm(value, declared), binding.storage)
                 return
 
-            name = f"g.{stmt.name.lexeme}"
+            name = f"g.{decl.name}"
             global_ = llvm_ir.global_variable(self.module, name, self._storage_llvm_type(declared))
             binding = Binding(
                 global_,
@@ -195,17 +209,17 @@ class VariableLowering(LoweringBase):
                 function=value.function,
                 generic=value.generic,
                 generic_node=value.generic_node,
-                mutable=stmt.mutable,
+                mutable=decl.mutable,
             )
-            self._globals[stmt.name.lexeme] = binding
+            self._globals[decl.name] = binding
             self.builder.store(self._arg_llvm(value, declared), global_)
             return
 
-        if self._analysis.is_captured(stmt):
+        if decl.cell:
             cell = self._alloc_cell()
             cell_pointer = self._cell_pointer(cell, declared)
             self.builder.store(self._arg_llvm(value, declared), cell_pointer)
-            self._scopes[-1][stmt.name.lexeme] = Binding(
+            self._scopes[-1][decl.name] = Binding(
                 cell,
                 declared.ty,
                 declared.fn,
@@ -216,13 +230,13 @@ class VariableLowering(LoweringBase):
                 function=value.function,
                 generic=value.generic,
                 generic_node=value.generic_node,
-                mutable=stmt.mutable,
+                mutable=decl.mutable,
             )
             return
 
-        slot = self.builder.alloca(self._storage_llvm_type(declared), name=stmt.name.lexeme)
+        slot = self.builder.alloca(self._storage_llvm_type(declared), name=decl.name)
         self.builder.store(self._arg_llvm(value, declared), slot)
-        self._scopes[-1][stmt.name.lexeme] = Binding(
+        self._scopes[-1][decl.name] = Binding(
             slot,
             declared.ty,
             declared.fn,
@@ -232,53 +246,66 @@ class VariableLowering(LoweringBase):
             function=value.function,
             generic=value.generic,
             generic_node=value.generic_node,
-            mutable=stmt.mutable,
+            mutable=decl.mutable,
         )
 
     def _variable(self, expr: Variable) -> Value:
-        depth = self.depths.get(expr)
-        if depth is None and expr.name.lexeme not in self._globals:
-            if expr.name.lexeme in self._enum_layouts:
-                raise _unsupported("Enum object as value", expr.name.line)
-            if expr.name.lexeme in _NATIVE_VALUE_GAPS:
-                raise _unsupported(f"Native value '{expr.name.lexeme}'", expr.name.line)
+        ref = expr.ref
+        line = self._line(expr.span)
+        if (
+            ref.storage in (Storage.GLOBAL, Storage.BUILTIN, Storage.UNRESOLVED)
+            and ref.name not in self._globals
+        ):
+            if ref.name in self._enum_layouts:
+                raise _unsupported("Enum object as value", line)
+            if ref.name in _NATIVE_VALUE_GAPS:
+                raise _unsupported(f"Native value '{ref.name}'", line)
             self._poison(
-                expr.name,
-                f"Undefined variable '{expr.name.lexeme}'.",
+                expr.span,
+                f"Undefined variable '{ref.name}'.",
                 code=Code.UNDEFINED_VARIABLE,
             )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0), error=True)
 
-        binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
+        binding = self._lookup(ref, line)
         value = self._load_binding(binding)
         if value.generic is not None:
             return value
         if value.ty in (ValueType.FUNCTION, ValueType.CLASS) and not value.optional:
             # Só um slot obrigatório sem valor é "indefinido": num opcional o
             # ponteiro nulo é o próprio `nil`, valor legítimo.
-            return self._guard_closure(value, expr.name.lexeme, expr.name.line, expr.name.column)
+            return self._guard_closure(
+                value,
+                ref.name,
+                line,
+                self._column(expr.span),
+            )
         return value
 
     def _assign(self, expr: Assign) -> Value:
         value = self._expr(expr.value)
-        depth = self.depths.get(expr)
-        if depth is None and expr.name.lexeme not in self._globals:
+        ref = expr.ref
+        line = self._line(expr.name_span)
+        if (
+            ref.storage in (Storage.GLOBAL, Storage.BUILTIN, Storage.UNRESOLVED)
+            and ref.name not in self._globals
+        ):
             self._poison(
-                expr.name,
-                f"Undefined variable '{expr.name.lexeme}'.",
+                expr.name_span,
+                f"Undefined variable '{ref.name}'.",
                 code=Code.UNDEFINED_VARIABLE,
             )
             return value
 
-        binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
+        binding = self._lookup(ref, line)
         if not binding.mutable:
             self._poison(
-                expr.name,
-                immutable_assignment_message(expr.name.lexeme),
+                expr.name_span,
+                immutable_assignment_message(ref.name),
                 code=Code.RUNTIME_IMMUTABLE,
             )
             return value
-        value = self._coerce(value, binding.desc, expr.name.line, source=expr.value)
+        value = self._coerce(value, binding.desc, line, source=expr.value)
         self._store_binding(binding, value)
 
         if binding.function is not None:
@@ -293,34 +320,39 @@ class VariableLowering(LoweringBase):
                 class_name=value.class_name,
                 interface_name=value.interface_name,
             )
-            self._replace_binding(expr, expr.name.lexeme, replacement)
+            self._replace_binding(ref, replacement)
 
         return value
 
-    def _replace_binding(self, expr: Expr, name: str, binding: Binding) -> None:
-        depth = self.depths.get(expr)
-        if depth is None:
-            self._globals[name] = binding
-        elif depth < len(self._scopes):
-            self._scopes[-1 - depth][name] = binding
-        else:
-            self._captures[name] = binding
+    def _replace_binding(self, ref: Ref, binding: Binding) -> None:
+        if ref.storage is Storage.CAPTURE:
+            self._captures[ref.name] = binding
+            return
+        if ref.storage is Storage.LOCAL:
+            for scope in reversed(self._scopes):
+                if ref.name in scope:
+                    scope[ref.name] = binding
+                    return
+        self._globals[ref.name] = binding
 
-    def _lookup(self, expr: Expr, name: str, line: int) -> Binding:
-        depth = self.depths.get(expr)
-        if depth is None:
-            binding = self._globals.get(name)
+    def _lookup(self, ref: Ref, line: int) -> Binding:
+        if ref.storage is Storage.CAPTURE:
+            binding = self._captures.get(ref.name)
             if binding is None:
-                raise BackendError(f"Undefined variable '{name}'.", line)
+                layout = self._classes.get(self._method_class or "")
+                if layout is not None and layout.local:
+                    raise _unsupported("Captures in local class methods", line)
+                raise BackendError(f"Undefined variable '{ref.name}'.", line)
             return binding
 
-        if depth < len(self._scopes):
-            return self._scopes[-1 - depth][name]
+        if ref.storage is Storage.LOCAL:
+            for scope in reversed(self._scopes):
+                binding = scope.get(ref.name)
+                if binding is not None:
+                    return binding
+            raise BackendError(f"Undefined variable '{ref.name}'.", line)
 
-        binding = self._captures.get(name)
+        binding = self._globals.get(ref.name)
         if binding is None:
-            layout = self._classes.get(self._method_class or "")
-            if layout is not None and layout.local:
-                raise _unsupported("Captures in local class methods", line)
-            raise BackendError(f"Undefined variable '{name}'.", line)
+            raise BackendError(f"Undefined variable '{ref.name}'.", line)
         return binding

@@ -24,24 +24,36 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Lambda
-from loxia_core.frontend.stmt import Function, Param, Stmt
 from loxia_core.frontend.ty import FnTy, GenericFnTy, Ty
+from loxia_core.thir import (
+    TFnDecl as Function,
+)
+from loxia_core.thir import (
+    TFunction,
+    TStmt,
+)
+from loxia_core.thir import (
+    TLambda as Lambda,
+)
+from loxia_core.thir import (
+    TParam as Param,
+)
 
 
 class FunctionLowering(LoweringBase):
-    def _predeclare_functions(self, statements: list[Stmt]) -> None:
+    def _predeclare_functions(self, statements: tuple[TStmt, ...]) -> None:
         for statement in statements:
             if not isinstance(statement, Function):
                 continue
-            if statement.type_params:
+            fn = statement.fn
+            if fn.type_params:
                 continue
 
-            info = self._function_info(statement, llvm_name=f"lox.{statement.name.lexeme}")
-            self._top_level[id(statement)] = info
+            info = self._function_info(fn, llvm_name=f"lox.{fn.name}")
+            self._top_level[fn.id] = info
 
-            slot = llvm_ir.global_variable(self.module, f"g.{statement.name.lexeme}", _I8_PTR)
-            self._globals[statement.name.lexeme] = Binding(
+            slot = llvm_ir.global_variable(self.module, f"g.{fn.name}", _I8_PTR)
+            self._globals[fn.name or ""] = Binding(
                 slot,
                 ValueType.FUNCTION,
                 info.fn_sig,
@@ -50,7 +62,7 @@ class FunctionLowering(LoweringBase):
 
     def _function_info(
         self,
-        stmt: Function,
+        fn: TFunction,
         *,
         llvm_name: str | None = None,
         this_class: str | None = None,
@@ -59,14 +71,15 @@ class FunctionLowering(LoweringBase):
         is_init: bool = False,
         allow_generic: bool = False,
     ) -> FunctionInfo:
-        if stmt.type_params and not allow_generic:
-            raise _unsupported("Generic functions", stmt.name.line)
+        decl = self._decl(fn.id)
+        if fn.type_params and not allow_generic:
+            raise _unsupported("Generic functions", self._line(decl.span))
 
         params: list[TypeDesc] = []
         minimum = 0
         variadic = False
         vararg_element: TypeDesc | None = None
-        for param in stmt.params:
+        for param in fn.params:
             if param.variadic:
                 variadic = True
                 vararg_element = self._param_desc(param)
@@ -80,7 +93,7 @@ class FunctionLowering(LoweringBase):
         if is_init:
             return_desc = TypeDesc(ValueType.NIL)
         else:
-            return_desc = self._return_desc(stmt.return_type, stmt.name.line, stmt.name.lexeme)
+            return_desc = self._return_desc(fn.ret_ty, self._line(decl.span), fn.name)
         sig = FnSig(
             tuple(params),
             return_desc,
@@ -91,7 +104,7 @@ class FunctionLowering(LoweringBase):
 
         if llvm_name is None:
             self._function_counter += 1
-            llvm_name = f"lox.{stmt.name.lexeme}.{self._function_counter}"
+            llvm_name = f"lox.{fn.name}.{self._function_counter}"
 
         result = _VOID if return_desc.ty is ValueType.NIL else self._storage_llvm_type(return_desc)
         has_this = this_class is not None or this_interface is not None
@@ -104,29 +117,29 @@ class FunctionLowering(LoweringBase):
         )
         return FunctionInfo(
             signature,
-            stmt.params,
+            list(fn.params),
             sig,
             this_class=this_class,
             this_interface=this_interface,
             method_class=method_class,
             is_init=is_init,
-            trace_name=stmt.display_name or stmt.name.lexeme,
-            decl_file=stmt.name.file,
-            decl_line=stmt.name.line,
-            decl_column=stmt.name.column,
-            fn_ty=self._function_types.get(stmt),
+            trace_name=fn.display_name,
+            decl_file=decl.span.file if decl.span is not None else "",
+            decl_line=self._line(decl.span),
+            decl_column=self._column(decl.span),
+            fn_ty=fn.fn_ty,
         )
 
     def _param_desc(self, param: Param) -> TypeDesc:
-        if param.type_annotation is None:
+        if param.ty is None:
             raise BackendError(
-                f"Parameter '{param.name.lexeme}' needs a type annotation for the backend.",
-                param.name.line,
+                f"Parameter '{param.name}' needs a type annotation for the backend.",
+                self._line(param.span),
                 code=Code.BACKEND_UNSUPPORTED,
             )
-        return self._type_desc(param.type_annotation, param.name.line)
+        return self._type_desc(param.ty, self._line(param.span))
 
-    def _return_desc(self, ty: Ty | None, line: int, name: str) -> TypeDesc:
+    def _return_desc(self, ty: Ty | None, line: int, name: str | None) -> TypeDesc:
         if ty is None:
             raise BackendError(
                 f"Function '{name}' needs a return type annotation for the backend.",
@@ -135,22 +148,23 @@ class FunctionLowering(LoweringBase):
             )
         return self._type_desc(ty, line)
 
-    def _define_top_level_function(self, stmt: Function, info: FunctionInfo) -> None:
-        binding = self._globals.get(stmt.name.lexeme)
+    def _define_top_level_function(self, fn: TFunction, info: FunctionInfo) -> None:
+        decl = self._decl(fn.id)
+        binding = self._globals.get(decl.name)
         if binding is None or binding.ty is not ValueType.FUNCTION:
             raise BackendError(
-                f"Global '{stmt.name.lexeme}' was redefined as a non-function.",
-                stmt.name.line,
+                f"Global '{decl.name}' was redefined as a non-function.",
+                self._line(decl.span),
             )
 
-        closure = self._build_closure(info, (), f"<fn {stmt.display_name or stmt.name.lexeme}>")
+        closure = self._build_closure(info, (), f"<fn {fn.display_name}>")
         self.builder.store(closure.llvm, binding.storage)
 
-    def _local_function(self, stmt: Function) -> None:
-        info = self._function_info(stmt, method_class=self._method_class)
-        captured = self._analysis.is_captured(stmt)
+    def _local_function(self, fn: TFunction) -> None:
+        decl = self._decl(fn.id)
+        info = self._function_info(fn, method_class=self._method_class)
 
-        if captured:
+        if decl.cell:
             cell = self._alloc_cell()
             self._store_null_cell(cell)
             binding = Binding(
@@ -161,7 +175,7 @@ class FunctionLowering(LoweringBase):
                 function=info,
             )
         else:
-            slot = self.builder.alloca(_I8_PTR, name=stmt.name.lexeme)
+            slot = self.builder.alloca(_I8_PTR, name=decl.name)
             binding = Binding(
                 slot,
                 ValueType.FUNCTION,
@@ -169,41 +183,37 @@ class FunctionLowering(LoweringBase):
                 function=info,
             )
 
-        self._scopes[-1][stmt.name.lexeme] = binding
+        self._scopes[-1][decl.name] = binding
 
-        captures = self._make_captures(stmt)
-        closure = self._build_closure(
-            info, captures, f"<fn {stmt.display_name or stmt.name.lexeme}>"
-        )
+        captures = self._make_captures(fn)
+        closure = self._build_closure(info, captures, f"<fn {fn.display_name}>")
         self._store_binding(binding, closure)
 
-        self._emit_function(info, stmt, captures)
+        self._emit_function(info, fn, captures)
 
     def _lambda(self, expr: Lambda) -> Value:
-        ty = self.types.get(expr)
+        ty = expr.storage_ty
         if isinstance(ty, GenericFnTy):
             return Value(
                 ValueType.FUNCTION,
                 llvm_ir.null_pointer(),
                 generic=ty,
-                generic_node=expr,
+                generic_node=expr.fn,
             )
-        info = self._lambda_info(expr)
-        captures = self._make_captures(expr)
+        info = self._lambda_info(expr.fn, expr.storage_ty, self._line(expr.span))
+        captures = self._make_captures(expr.fn)
         closure = self._build_closure(info, captures, "<lambda>")
-        self._emit_function(info, expr, captures)
+        self._emit_function(info, expr.fn, captures)
         return closure
 
-    def _lambda_info(self, expr: Lambda, fn_ty: FnTy | None = None) -> FunctionInfo:
-        ty = self.types.get(expr)
+    def _lambda_info(self, fn: TFunction, ty: Ty | None, line: int | None) -> FunctionInfo:
+        fn_ty: FnTy | None = ty if isinstance(ty, FnTy) else None
         if fn_ty is None:
             if isinstance(ty, GenericFnTy):
-                raise _unsupported("Generic function value", expr.keyword.line)
-            if not isinstance(ty, FnTy):
-                raise _unsupported("Lambda without a concrete function type", expr.keyword.line)
-            fn_ty = ty
+                raise _unsupported("Generic function value", line or 0)
+            raise _unsupported("Lambda without a concrete function type", line or 0)
 
-        desc = self._type_desc(fn_ty, expr.keyword.line)
+        desc = self._type_desc(fn_ty, line)
         assert desc.fn is not None
         sig = desc.fn
 
@@ -216,21 +226,22 @@ class FunctionLowering(LoweringBase):
             result,
             [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
+        decl = self._decl(fn.id)
         return FunctionInfo(
             signature,
-            expr.params,
+            list(fn.params),
             sig,
             method_class=self._method_class,
             trace_name="<lambda>",
-            decl_file=expr.keyword.file,
-            decl_line=expr.keyword.line,
-            decl_column=expr.keyword.column,
+            decl_file=decl.span.file if decl.span is not None else "",
+            decl_line=self._line(decl.span),
+            decl_column=self._column(decl.span),
             fn_ty=fn_ty,
         )
 
-    def _make_captures(self, node: Function | Lambda) -> tuple[CaptureBinding, ...]:
+    def _make_captures(self, node: TFunction) -> tuple[CaptureBinding, ...]:
         result: list[CaptureBinding] = []
-        for capture in self._analysis.captures_of(node):
+        for capture in node.captures:
             binding = self._find_binding(capture.name)
             if binding is None:
                 raise BackendError(f"Internal capture error for '{capture.name}'.", None)
@@ -279,7 +290,7 @@ class FunctionLowering(LoweringBase):
     def _emit_function(
         self,
         info: FunctionInfo,
-        stmt: Function | Lambda,
+        fn: TFunction,
         captures: tuple[CaptureBinding, ...],
     ) -> None:
         saved_builder = self.builder
@@ -334,7 +345,8 @@ class FunctionLowering(LoweringBase):
                 class_name=info.this_class,
                 interface_name=info.this_interface,
             )
-            if self._analysis.is_captured(stmt):
+            this_decl = fn.this_decl
+            if this_decl is not None and self._decl(this_decl).cell:
                 # Lambdas/funções locais capturam `this` como qualquer variável:
                 # o receptor precisa viver em célula para atravessar o `env`.
                 this_slot = self._alloc_cell()
@@ -361,7 +373,7 @@ class FunctionLowering(LoweringBase):
         for index, param in enumerate(info.params):
             desc = info.fn_sig.params[index]
             argument = info.ir.args[offset + index]
-            if self._analysis.is_captured(param):
+            if self._decl(param.decl).cell:
                 cell = self._alloc_cell()
                 typed = self._cell_pointer(cell, desc)
                 self.builder.store(argument, typed)
@@ -375,7 +387,7 @@ class FunctionLowering(LoweringBase):
                     interface_name=desc.interface_name,
                 )
             else:
-                slot = self.builder.alloca(self._param_llvm_type(desc), name=param.name.lexeme)
+                slot = self.builder.alloca(self._param_llvm_type(desc), name=param.name)
                 self.builder.store(argument, slot)
                 binding = Binding(
                     slot,
@@ -386,9 +398,9 @@ class FunctionLowering(LoweringBase):
                     interface_name=desc.interface_name,
                 )
 
-            self._scopes[-1][param.name.lexeme] = binding
+            self._scopes[-1][param.name] = binding
 
-        for inner in stmt.body:
+        for inner in fn.body:
             if self.builder.block.is_terminated:
                 break
             self._stmt(inner)

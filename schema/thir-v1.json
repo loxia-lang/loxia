@@ -110,6 +110,16 @@
         "k": {
           "const": "TAs"
         },
+        "op_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "operand": {
           "$ref": "#/$defs/TExpr"
         },
@@ -152,6 +162,7 @@
         "ty",
         "storage_ty",
         "span",
+        "op_span",
         "operand",
         "target_type"
       ],
@@ -592,6 +603,16 @@
             }
           ]
         },
+        "superclass_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "type_params": {
           "items": {
             "type": "string"
@@ -604,6 +625,7 @@
         "decl",
         "name",
         "superclass",
+        "superclass_span",
         "interfaces",
         "type_params",
         "fields",
@@ -1140,6 +1162,9 @@
     "TFunction": {
       "additionalProperties": false,
       "properties": {
+        "abstract": {
+          "type": "boolean"
+        },
         "body": {
           "items": {
             "$ref": "#/$defs/TStmt"
@@ -1251,6 +1276,7 @@
         "type_params",
         "is_init",
         "is_method",
+        "abstract",
         "method_class",
         "this_decl",
         "captures",
@@ -1696,6 +1722,16 @@
         "k": {
           "const": "TIs"
         },
+        "op_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "operand": {
           "$ref": "#/$defs/TExpr"
         },
@@ -1738,6 +1774,7 @@
         "ty",
         "storage_ty",
         "span",
+        "op_span",
         "operand",
         "test_type"
       ],
@@ -1961,6 +1998,16 @@
           ],
           "type": "string"
         },
+        "op_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "right": {
           "$ref": "#/$defs/TExpr"
         },
@@ -2001,6 +2048,7 @@
         "storage_ty",
         "span",
         "op",
+        "op_span",
         "left",
         "right"
       ],
@@ -2371,6 +2419,16 @@
         "k": {
           "const": "TRange"
         },
+        "op_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "span": {
           "anyOf": [
             {
@@ -2410,6 +2468,7 @@
         "ty",
         "storage_ty",
         "span",
+        "op_span",
         "start",
         "end",
         "inclusive"

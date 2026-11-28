@@ -24,61 +24,79 @@ from loxia_core.backend.lower_model import (
     field_words,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Expr, Grouping, Literal, Unary
-from loxia_core.frontend.stmt import Class, Field, Stmt
 from loxia_core.frontend.token_type import TokenType
+from loxia_core.thir import (
+    TClass,
+    TExpr,
+    TStmt,
+)
+from loxia_core.thir import (
+    TClassDecl as Class,
+)
+from loxia_core.thir import (
+    TConst as Literal,
+)
+from loxia_core.thir import (
+    TField as Field,
+)
+from loxia_core.thir import (
+    TUnary as Unary,
+)
 
 
 class ClassLayoutLowering(LoweringBase):
-    def _predeclare_classes(self, statements: list[Stmt]) -> None:
-        classes = [stmt for stmt in statements if isinstance(stmt, Class)]
-        self._class_names = {stmt.name.lexeme for stmt in classes} | set(self._classes)
+    def _predeclare_classes(self, statements: tuple[TStmt, ...]) -> None:
+        classes = [stmt.klass for stmt in statements if isinstance(stmt, Class)]
+        self._class_names = {klass.name for klass in classes} | set(self._classes)
 
-        for index, stmt in enumerate(classes, start=1):
-            if stmt.type_params:
+        for index, klass in enumerate(classes, start=1):
+            if klass.type_params:
                 continue
-            self._validate_class(stmt)
-            super_name, super_layout = self._class_super(stmt)
-            self._register_class(stmt, index, super_name, super_layout)
+            self._validate_class(klass)
+            super_name, super_layout = self._class_super(klass)
+            self._register_class(klass, index, super_name, super_layout)
 
-    def _validate_class(self, stmt: Class) -> None:
-        if len(stmt.fields) > 64:
+    def _validate_class(self, klass: TClass) -> None:
+        if len(klass.fields) > 64:
             raise BackendError(
                 "Classes with more than 64 fields are not supported by the backend yet.",
-                stmt.name.line,
+                self._class_line(klass),
                 code=Code.BACKEND_UNSUPPORTED,
             )
 
-    def _class_super(self, stmt: Class) -> tuple[str | None, ClassLayout | None]:
-        if stmt.superclass is None:
+    def _class_line(self, klass: TClass) -> int:
+        return self._decl_line(klass.decl)
+
+    def _class_super(self, klass: TClass) -> tuple[str | None, ClassLayout | None]:
+        if klass.superclass is None:
             return None, None
-        super_name = stmt.superclass.name.lexeme
+        super_name = klass.superclass
         super_layout = self._classes.get(super_name)
         if super_layout is None:
             raise _unsupported(
                 f"Inheritance from '{super_name}'",
-                stmt.superclass.name.line,
+                self._line(klass.superclass_span),
             )
         return super_name, super_layout
 
-    def _class_fields(self, stmt: Class, base_index: int, base_words: int) -> list[FieldLayout]:
+    def _class_fields(self, klass: TClass, base_index: int, base_words: int) -> list[FieldLayout]:
         # Dois contadores diferentes: `index` é o ordinal do campo (bit do bitmap) e
         # continua vindo de `field_count()`; `slot` é a palavra de 8 bytes no struct e
         # vem de `word_count()` (ADR-0145). Confundir as bases é o erro clássico aqui.
         fields: list[FieldLayout] = []
         offset = base_words + 2  # header: descritor da classe + bitmap
-        for local_index, field in enumerate(stmt.fields):
+        for local_index, field in enumerate(klass.fields):
             desc = self._field_desc(field)
             fields.append(
                 FieldLayout(
-                    field.name.lexeme,
+                    field.name,
                     desc,
                     field.mutable,
                     field.initializer,
                     base_index + local_index,
-                    field.name.line,
-                    field.name.column,
-                    field.type_annotation,
+                    self._line(field.span),
+                    self._column(field.span),
+                    field.ty,
                     offset,
                 )
             )
@@ -87,7 +105,7 @@ class ClassLayoutLowering(LoweringBase):
 
     def _class_methods(
         self,
-        stmt: Class,
+        klass: TClass,
         name: str,
         super_layout: ClassLayout | None,
         base_methods: int,
@@ -101,13 +119,14 @@ class ClassLayoutLowering(LoweringBase):
         init_method: MethodLayout | None = None
         new_methods = 0
 
-        for method in stmt.methods:
+        for method in klass.methods:
+            method_line = self._line(self._decl(method.id).span)
             if method.type_params:
-                raise _unsupported("Generic method", method.name.line)
-            is_init = method.name.lexeme == "init"
+                raise _unsupported("Generic method", method_line)
+            is_init = method.is_init
             info = self._function_info(
                 method,
-                llvm_name=f"lox.{ir_name or name}.{method.name.lexeme}",
+                llvm_name=f"lox.{ir_name or name}.{method.name}",
                 this_class=name,
                 is_init=is_init,
                 allow_generic=allow_generic,
@@ -115,21 +134,19 @@ class ClassLayoutLowering(LoweringBase):
             if type_subst is not None:
                 info = replace(info, type_subst=type_subst)
             if not is_init and any(param.default is not None for param in method.params):
-                raise _unsupported("Default parameters in methods", method.name.line)
+                raise _unsupported("Default parameters in methods", method_line)
             if is_init:
                 init = info
                 init_method = MethodLayout("init", info, -1, node=method)
                 continue
 
-            inherited = (
-                super_layout.method(method.name.lexeme) if super_layout is not None else None
-            )
+            inherited = super_layout.method(method.name or "") if super_layout is not None else None
             slot = inherited.index if inherited is not None else base_methods + new_methods
             if inherited is None:
                 new_methods += 1
             methods.append(
                 MethodLayout(
-                    method.name.lexeme,
+                    method.name or "",
                     info,
                     slot,
                     node=method,
@@ -142,18 +159,18 @@ class ClassLayoutLowering(LoweringBase):
 
     def _register_class(
         self,
-        stmt: Class,
+        klass: TClass,
         index: int,
         super_name: str | None,
         super_layout: ClassLayout | None,
     ) -> None:
-        name = stmt.name.lexeme
+        name = klass.name
         base_index = 0 if super_layout is None else super_layout.field_count()
         base_words = 0 if super_layout is None else super_layout.word_count()
         base_methods = 0 if super_layout is None else super_layout.vtable_size
-        fields = self._class_fields(stmt, base_index, base_words)
+        fields = self._class_fields(klass, base_index, base_words)
         methods, init, init_method, new_methods = self._class_methods(
-            stmt, name, super_layout, base_methods
+            klass, name, super_layout, base_methods
         )
         effective = init
         if effective is None and super_layout is not None:
@@ -169,7 +186,7 @@ class ClassLayoutLowering(LoweringBase):
             methods,
             init,
             init_node=next(
-                (method for method in stmt.methods if method.name.lexeme == "init"),
+                (method for method in klass.methods if method.name == "init"),
                 None,
             ),
             super_name=super_name,
@@ -177,9 +194,9 @@ class ClassLayoutLowering(LoweringBase):
             init_method=init_method,
             vtable_size=base_methods + new_methods,
             instance_type=instance_type,
-            decl_token=stmt.name,
-            display_name=stmt.display_name,
-            interfaces=tuple(token.lexeme for token in stmt.implements),
+            decl_token=self._decl_span(klass.decl),
+            display_name=klass.display_name,
+            interfaces=klass.interfaces,
         )
         ctor_params = (
             []
@@ -203,11 +220,11 @@ class ClassLayoutLowering(LoweringBase):
 
     def _field_desc(self, field: Field) -> TypeDesc:
         annotated: TypeDesc | None = None
-        if field.type_annotation is not None:
-            annotated = self._type_desc(field.type_annotation, field.name.line)
+        if field.ty is not None:
+            annotated = self._type_desc(field.ty, self._line(field.span))
 
         if field.initializer is not None:
-            initial = self._const_desc(field.initializer, field.name.line)
+            initial = self._const_desc(field.initializer, self._line(field.span))
             # The annotation is the field type; the initializer only supplies a value
             # (coerced when the constructor runs). Using the initializer's type as the
             # layout would make the slot disagree with the type the checker publishes.
@@ -216,15 +233,15 @@ class ClassLayoutLowering(LoweringBase):
             desc = annotated
         else:
             raise BackendError(
-                f"Field '{field.name.lexeme}' needs a type annotation for the backend.",
-                field.name.line,
+                f"Field '{field.name}' needs a type annotation for the backend.",
+                self._line(field.span),
                 code=Code.BACKEND_UNSUPPORTED,
             )
 
         if desc.ty is ValueType.NIL:
             raise BackendError(
                 "Fields of type Nil are not supported by the backend yet.",
-                field.name.line,
+                self._line(field.span),
                 code=Code.BACKEND_UNSUPPORTED,
             )
         if desc.optional and desc.ty not in (
@@ -232,10 +249,10 @@ class ClassLayoutLowering(LoweringBase):
             ValueType.INSTANCE,
             ValueType.CLASS,
         ):
-            raise _unsupported("Optional scalar fields", field.name.line)
+            raise _unsupported("Optional scalar fields", self._line(field.span))
         return desc
 
-    def _const_desc(self, expr: Expr, line: int) -> TypeDesc:
+    def _const_desc(self, expr: TExpr, line: int) -> TypeDesc:
         if isinstance(expr, Literal):
             value = expr.value
             if value is None:
@@ -248,10 +265,8 @@ class ClassLayoutLowering(LoweringBase):
                 return TypeDesc(ValueType.FLOAT)
             if isinstance(value, str):
                 return TypeDesc(ValueType.STRING)
-        if isinstance(expr, Grouping):
-            return self._const_desc(expr.expression, line)
-        if isinstance(expr, Unary) and expr.operator.type is TokenType.MINUS:
-            inner = self._const_desc(expr.right, line)
+        if isinstance(expr, Unary) and expr.op is TokenType.MINUS:
+            inner = self._const_desc(expr.operand, line)
             if inner.ty in NUMERIC:
                 return inner
 

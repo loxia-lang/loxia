@@ -21,17 +21,40 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Call, Expr, Get, Index, IndexSet, ListLiteral, MapLiteral
 from loxia_core.frontend.ty import ListTy, MapTy
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import (
+    TConst as Literal,
+)
+from loxia_core.thir import (
+    TExpr,
+)
+from loxia_core.thir import (
+    TGet as Get,
+)
+from loxia_core.thir import (
+    TIndex as Index,
+)
+from loxia_core.thir import (
+    TIndexSet as IndexSet,
+)
+from loxia_core.thir import (
+    TList as ListLiteral,
+)
+from loxia_core.thir import (
+    TMap as MapLiteral,
+)
 
 
 class ContainerLowering(LoweringBase):
-    def _element_desc(self, expr: Expr, line: int | None) -> TypeDesc:
+    def _element_desc(self, expr: TExpr, line: int | None) -> TypeDesc:
         # O narrowing pode mudar `Any` para `List[T]`; o fluxo manda na descrição
         # do elemento, a representação continua a do slot.
-        ty = self.flow_types.get(expr)
+        ty = expr.ty
         if not isinstance(ty, ListTy):
-            ty = self.types.get(expr)
+            ty = expr.storage_ty
         if isinstance(ty, ListTy):
             return self._type_desc(self._subst_ty(ty.element), line)
         if self._list_expected_element is not None:
@@ -67,7 +90,7 @@ class ContainerLowering(LoweringBase):
         return 0
 
     def _list_literal(self, expr: ListLiteral) -> Value:
-        kind = self._list_storage_kind(expr, expr.bracket.line)
+        kind = self._list_storage_kind(expr, self._line(expr.span))
         if kind != 0:
             raw = self.builder.call(
                 self._function("lox_list_new_typed", _I8_PTR, [_I32]),
@@ -75,7 +98,7 @@ class ContainerLowering(LoweringBase):
             )
         else:
             raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
-        for item in expr.elements:
+        for item in expr.items:
             value = self._expr(item)
             boxed = self._box_value(value, None)
             self.builder.call(
@@ -88,10 +111,10 @@ class ContainerLowering(LoweringBase):
             )
         return Value(ValueType.LIST, raw)
 
-    def _map_types(self, expr: Expr, line: int | None) -> tuple[TypeDesc, TypeDesc]:
-        ty = self.flow_types.get(expr)
+    def _map_types(self, expr: TExpr, line: int | None) -> tuple[TypeDesc, TypeDesc]:
+        ty = expr.ty
         if not isinstance(ty, MapTy):
-            ty = self.types.get(expr)
+            ty = expr.storage_ty
         if isinstance(ty, MapTy):
             return (
                 self._type_desc(self._subst_ty(ty.key), line),
@@ -105,8 +128,8 @@ class ContainerLowering(LoweringBase):
         if isinstance(expr, MapLiteral) and not expr.entries:
             return TypeDesc(ValueType.ANY), TypeDesc(ValueType.ANY)
         if isinstance(expr, MapLiteral) and expr.entries:
-            key_ty = self.types.get(expr.entries[0][0])
-            value_ty = self.types.get(expr.entries[0][1])
+            key_ty = expr.entries[0][0].storage_ty
+            value_ty = expr.entries[0][1].storage_ty
             key_desc = (
                 self._type_desc(key_ty, line)
                 if key_ty is not None
@@ -120,9 +143,7 @@ class ContainerLowering(LoweringBase):
             return key_desc, value_desc
         raise _unsupported("Map key/value type", line)
 
-    def _literal_desc(self, expr: Expr) -> TypeDesc:
-        from loxia_core.frontend.expr import Literal
-
+    def _literal_desc(self, expr: TExpr) -> TypeDesc:
         if isinstance(expr, Literal):
             value = expr.value
             if value is None:
@@ -158,18 +179,22 @@ class ContainerLowering(LoweringBase):
                     self.builder.extract_value(key.llvm, 1),
                     self.builder.extract_value(value.llvm, 0),
                     self.builder.extract_value(value.llvm, 1),
-                    llvm_ir.constant(_I32, expr.brace.line),
-                    llvm_ir.constant(_I32, expr.brace.column),
+                    llvm_ir.constant(_I32, self._line(expr.span)),
+                    llvm_ir.constant(_I32, self._column(expr.span)),
                 ],
             )
         return Value(ValueType.MAP, raw)
 
     def _list_get(self, expr: Index) -> Value:
-        obj = self._narrowed(expr.object, self._expr(expr.object), expr.bracket.line)
+        obj = self._narrowed(
+            expr.receiver, self._expr(expr.receiver), self._line(expr.bracket_span)
+        )
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
         if obj.ty is ValueType.BYTES:
-            index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
+            index = self._coerce(
+                self._expr(expr.index), TypeDesc(ValueType.INT), self._line(expr.bracket_span)
+            )
             call = self.builder.call(
                 self._function(
                     "lox_bytes_at",
@@ -179,13 +204,13 @@ class ContainerLowering(LoweringBase):
                 [
                     obj.llvm,
                     index.llvm,
-                    llvm_ir.constant(_I32, expr.bracket.line),
-                    llvm_ir.constant(_I32, expr.bracket.column),
+                    llvm_ir.constant(_I32, self._line(expr.bracket_span)),
+                    llvm_ir.constant(_I32, self._column(expr.bracket_span)),
                 ],
             )
             return Value(ValueType.INT, call)
         if obj.ty is ValueType.MAP:
-            _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
+            _key_desc, value_desc = self._map_types(expr.receiver, self._line(expr.bracket_span))
             key = self._box_value(self._expr(expr.index), None)
             raw = self.builder.call(
                 self._function(
@@ -197,33 +222,39 @@ class ContainerLowering(LoweringBase):
                     obj.llvm,
                     self.builder.extract_value(key.llvm, 0),
                     self.builder.extract_value(key.llvm, 1),
-                    llvm_ir.constant(_I32, expr.bracket.line),
-                    llvm_ir.constant(_I32, expr.bracket.column),
+                    llvm_ir.constant(_I32, self._line(expr.bracket_span)),
+                    llvm_ir.constant(_I32, self._column(expr.bracket_span)),
                 ],
             )
-            return self._unbox_value(raw, value_desc, expr.bracket.line)
+            return self._unbox_value(raw, value_desc, self._line(expr.bracket_span))
         if obj.ty is not ValueType.LIST:
-            raise _unsupported("Indexing this value", expr.bracket.line)
-        index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
+            raise _unsupported("Indexing this value", self._line(expr.bracket_span))
+        index = self._coerce(
+            self._expr(expr.index), TypeDesc(ValueType.INT), self._line(expr.bracket_span)
+        )
         raw = self.builder.call(
             self._function("lox_list_get", _ANY, [_I8_PTR, _INT, _I32, _I32]),
             [
                 obj.llvm,
                 index.llvm,
-                llvm_ir.constant(_I32, expr.bracket.line),
-                llvm_ir.constant(_I32, expr.bracket.column),
+                llvm_ir.constant(_I32, self._line(expr.bracket_span)),
+                llvm_ir.constant(_I32, self._column(expr.bracket_span)),
             ],
         )
         return self._unbox_value(
-            raw, self._element_desc(expr.object, expr.bracket.line), expr.bracket.line
+            raw,
+            self._element_desc(expr.receiver, self._line(expr.bracket_span)),
+            self._line(expr.bracket_span),
         )
 
     def _list_set(self, expr: IndexSet) -> Value:
-        obj = self._narrowed(expr.object, self._expr(expr.object), expr.bracket.line)
+        obj = self._narrowed(
+            expr.receiver, self._expr(expr.receiver), self._line(expr.bracket_span)
+        )
         if obj.ty is ValueType.MAP:
-            _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
+            _key_desc, value_desc = self._map_types(expr.receiver, self._line(expr.bracket_span))
             key = self._box_value(self._expr(expr.index), None)
-            value = self._coerce(self._expr(expr.value), value_desc, expr.bracket.line)
+            value = self._coerce(self._expr(expr.value), value_desc, self._line(expr.bracket_span))
             boxed = self._box_value(value, None)
             self.builder.call(
                 self._function(
@@ -237,16 +268,18 @@ class ContainerLowering(LoweringBase):
                     self.builder.extract_value(key.llvm, 1),
                     self.builder.extract_value(boxed.llvm, 0),
                     self.builder.extract_value(boxed.llvm, 1),
-                    llvm_ir.constant(_I32, expr.bracket.line),
-                    llvm_ir.constant(_I32, expr.bracket.column),
+                    llvm_ir.constant(_I32, self._line(expr.bracket_span)),
+                    llvm_ir.constant(_I32, self._column(expr.bracket_span)),
                 ],
             )
             return value
         if obj.ty is not ValueType.LIST:
-            raise _unsupported("Indexed assignment", expr.bracket.line)
-        index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
-        element = self._element_desc(expr.object, expr.bracket.line)
-        value = self._coerce(self._expr(expr.value), element, expr.bracket.line)
+            raise _unsupported("Indexed assignment", self._line(expr.bracket_span))
+        index = self._coerce(
+            self._expr(expr.index), TypeDesc(ValueType.INT), self._line(expr.bracket_span)
+        )
+        element = self._element_desc(expr.receiver, self._line(expr.bracket_span))
+        value = self._coerce(self._expr(expr.value), element, self._line(expr.bracket_span))
         boxed = self._box_value(value, None)
         self.builder.call(
             self._function("lox_list_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _I32, _I32]),
@@ -255,27 +288,27 @@ class ContainerLowering(LoweringBase):
                 index.llvm,
                 self.builder.extract_value(boxed.llvm, 0),
                 self.builder.extract_value(boxed.llvm, 1),
-                llvm_ir.constant(_I32, expr.bracket.line),
-                llvm_ir.constant(_I32, expr.bracket.column),
+                llvm_ir.constant(_I32, self._line(expr.bracket_span)),
+                llvm_ir.constant(_I32, self._column(expr.bracket_span)),
             ],
         )
         return value
 
     def _call_list_method(self, expr: Call, obj: Value) -> Value:
         assert isinstance(expr.callee, Get)
-        name = expr.callee.name.lexeme
-        line = expr.callee.name.line
-        column = expr.callee.name.column
-        list_ty = self.flow_types.get(expr.callee.object)
+        name = expr.callee.name
+        line = self._line(expr.callee.name_span)
+        column = self._column(expr.callee.name_span)
+        list_ty = expr.callee.receiver.ty
         if not isinstance(list_ty, ListTy):
-            list_ty = self.types.get(expr.callee.object)
+            list_ty = expr.callee.receiver.storage_ty
         if not isinstance(list_ty, ListTy):
             raise _unsupported("List method receiver", line)
         element = self._type_desc(self._subst_ty(list_ty.element), line)
         if name == "push":
             if len(expr.arguments) != 1:
                 self._poison(
-                    expr.paren,
+                    expr.paren_span,
                     "Expected 1 arguments but got 0.",
                     code=Code.RUNTIME_ARITY,
                 )
@@ -305,14 +338,14 @@ class ContainerLowering(LoweringBase):
 
     def _call_map_method(self, expr: Call, obj: Value) -> Value:
         assert isinstance(expr.callee, Get)
-        name = expr.callee.name.lexeme
-        line = expr.callee.name.line
-        column = expr.callee.name.column
-        _key_desc, value_desc = self._map_types(expr.callee.object, line)
+        name = expr.callee.name
+        line = self._line(expr.callee.name_span)
+        column = self._column(expr.callee.name_span)
+        _key_desc, value_desc = self._map_types(expr.callee.receiver, line)
         if name in {"get", "has", "remove"}:
             if len(expr.arguments) != 1:
                 self._poison(
-                    expr.paren,
+                    expr.paren_span,
                     "Expected 1 arguments but got 0.",
                     code=Code.RUNTIME_ARITY,
                 )
@@ -384,7 +417,7 @@ class ContainerLowering(LoweringBase):
     def _chars(self, expr: Call) -> Value:
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1 or arguments[0].ty is not ValueType.STRING:
-            self._poison(expr.paren, "chars() expects a string.")
+            self._poison(expr.paren_span, "chars() expects a string.")
             return Value(ValueType.LIST, llvm_ir.null_pointer())
         return Value(
             ValueType.LIST,
