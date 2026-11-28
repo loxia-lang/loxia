@@ -1484,3 +1484,21 @@ Intervalo: `4bdda9d..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
 
 <!-- triaged: 203c8db -->
 
+## 2026-11-27 — gate do `.ll` para a migração THIR (#270, F2 fatia 3)
+
+Intervalo: `08815ea..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
+
+O commit só acrescenta um teste/tool de regressão (`tests/ll/manifest.json`,
+`tools/lowering_snapshot.py`) e um alvo de Makefile: nenhuma página descreve esse gate
+ainda, e nenhuma promessa mudou.
+
+- `docs/spec/semantica.md`, `docs/spec/erros.md` — **no-change**: sem mudança de
+  comportamento; o gate só compara bytes do `.ll` já emitido.
+- `docs/tech/thir.md` — **no-change**: o gate é da migração, não do formato; o
+  `docs/tech/thir.md` já declara que a migração tem gate byte a byte.
+- `docs/tech/mcp.md`, `docs/tech/python-coverage.md`, `docs/tech/test-report.md` —
+  **no-change**: sem impacto em MCP, nos pisos de cobertura ou no envelope do runner
+  (o teste novo é `backend` e entra na suíte normal).
+
+<!-- triaged: 203c8db -->
+
