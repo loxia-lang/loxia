@@ -8,7 +8,7 @@ TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-serial test-fast test-backend test-backend-all smoke-backend case lint type fmt fmt-check check check-serial check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema thir-schema thir-snapshot
+.PHONY: help run test test-serial test-fast test-backend test-backend-all smoke-backend case lint type fmt fmt-check check check-serial check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema thir-schema thir-snapshot ll-snapshot
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -58,6 +58,7 @@ help:
 	@echo "make ast-schema                regenera schema/ast-v2.json a partir das dataclasses"
 	@echo "make thir-schema               regenera schema/thir-v1.json a partir do modelo THIR"
 	@echo "make thir-snapshot             regrava o manifesto de hash do THIR (tests/thir)"
+	@echo "make ll-snapshot               regrava o manifesto do .ll do corpus (gate da F2)"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:
@@ -210,6 +211,9 @@ thir-schema:
 
 thir-snapshot:
 	uv run python tools/thir_snapshot.py --update
+
+ll-snapshot:
+	uv run python tools/lowering_snapshot.py --update
 
 baseline:
 	uv run python bench/run.py --update
