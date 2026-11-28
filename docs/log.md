@@ -1588,3 +1588,12 @@ Intervalo: `477160c..HEAD` (merge do port do lowering e fechamento da fase).
   para 92% no commit anterior e o baseline não mudou.
 
 <!-- triaged: ab9f4a3 -->
+## 2026-11-28 — THIR v1: versão pinada e congelamento
+
+Intervalo: `0272547..HEAD` (antes da F3, o contrato que o `loxvm` vai consumir).
+
+- `docs/tech/thir.md` — **updated**: a seção de serialização passa a dizer que o schema
+  pina `schema_version` como `const: 1` e que a v1 congelou no fechamento da F2; campo
+  obrigatório novo a partir daqui é v2.
+
+<!-- triaged: 0272547 -->
