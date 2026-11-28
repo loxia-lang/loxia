@@ -38,7 +38,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 Decisão de 2026-11-26: o **nativo vira o produto**. `loxia run` compila com cache
 content-addressed (fonte + deps + identidade do compilador + flags + plataforma + heap) e o
-tree-walk fica como REPL, `--interpret` e oráculo. O **THIR** (árvore tipada e desugarada)
+tree-walk fica como REPL, `--interpret` e oráculo. O **THIR** (árvore tipada e resolvida)
 passa a ser o eixo entre o checker e os motores; a **IR de controle** (blocos/phi/cleanup)
 fica interna ao backend, honrando o [ADR-0065](adr/0065-hir-lite-controle.md); o Python
 congela **por módulo** — interpretador → lowering → front → checker — em portões de
@@ -64,7 +64,8 @@ issue.
    **entregue em 2026-11-28**. O THIR é o contrato tipado entre checker e motores — modelo,
    produtor, serialização v1 com snapshot determinístico, e o lowering consome o THIR
    (side tables por identidade de nó e `analyze_captures` removidos; `.ll` dos 269 casos
-   byte a byte no gate). O desugaring v2 fica para a fase seguinte (ADR-0154 §4).
+   byte a byte no gate). O desugaring de controle foi decidido fora do THIR
+   ([ADR-0156](adr/0156-sem-desugaring-no-thir.md)); “v2” é só evolução de schema.
 4. **Publicar o cliente VS Code 1.1.0**: criar o publisher `loxia-lang` no Marketplace e o
    namespace no Open VSX, configurar `VSCE_PAT`/`OVSX_PAT` e taguear no repo
    [`loxia-vscode`](https://github.com/loxia-lang/loxia-vscode). É o último item do
@@ -74,7 +75,8 @@ issue.
 
 - **F3 — THIR eval em Loxia (`loxvm`)** ([#284](https://github.com/loxia-lang/loxia/issues/284)):
   o segundo motor consome o THIR serializado (sem parser) e reproduz o oráculo; portão
-  G1–G4 + soak. O desugaring v2 do THIR (ADR-0154 §4) é decisão de abertura da fase.
+  G1–G4 + soak. A decisão de abertura (desugaring v2) está fechada: o THIR mantém os nós de
+  açúcar e desugaring é estratégia de motor ([ADR-0156](adr/0156-sem-desugaring-no-thir.md)).
 - **Piloto de `std.contracts`** em módulos da stdlib/exemplos e property tests
   ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) — em andamento em
   `std.paths`/`std.convert`; `std.numeric`/`std.lists` ficaram só com property tests após o

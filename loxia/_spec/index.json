@@ -158,17 +158,17 @@
           "title": "Loops",
           "level": 2,
           "line_start": 394,
-          "line_end": 409,
+          "line_end": 410,
           "url": "https://loxia-lang.github.io/loxia/reference/syntax/#loops",
-          "text": "## Loops\n\nC-style `for (init; cond; incr)` was removed ([ADR-0138](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0138-remocao-for-c-style.md));\nuse `for x in ...` or `while`. `for` only introduces `for-in`:\n\n`for-in` becomes the node `ForIn(name, iterable, body)` and does **not** desugar to `while`,\nbecause the interpreter needs to report \"not iterable\" and the codegen needs the loop per\niterable (Range/String/List/Map/Tuple — `Map` yields the keys). See\n[`semantica.md`](https://loxia-lang.github.io/loxia/reference/semantics/#ranges-and-for-in).\n\n### Blocks\n\n`{ … }` is a statement; expressions have no block (the expression `{` is the map literal).\n`if`/`while` take **one** statement (hence the braces when there is more than one instruction).\n"
+          "text": "## Loops\n\nC-style `for (init; cond; incr)` was removed ([ADR-0138](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0138-remocao-for-c-style.md));\nuse `for x in ...` or `while`. `for` only introduces `for-in`:\n\n`for-in` becomes the node `ForIn(name, iterable, body)` and does **not** desugar to `while`:\nthe interpreter must report \"not iterable\" and each engine chooses the loop per iterable\n(see [`semantica.md`](https://loxia-lang.github.io/loxia/reference/semantics/#ranges-and-for-in)). The THIR keeps the same node —\ncontrol desugaring is not part of the contract\n([ADR-0156](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0156-sem-desugaring-no-thir.md)).\n\n### Blocks\n\n`{ … }` is a statement; expressions have no block (the expression `{` is the map literal).\n`if`/`while` take **one** statement (hence the braces when there is more than one instruction).\n"
         },
         {
           "id": "spec/syntax#blocks",
           "anchor": "blocks",
           "title": "Blocks",
           "level": 3,
-          "line_start": 404,
-          "line_end": 409,
+          "line_start": 405,
+          "line_end": 410,
           "url": "https://loxia-lang.github.io/loxia/reference/syntax/#blocks",
           "text": "### Blocks\n\n`{ … }` is a statement; expressions have no block (the expression `{` is the map literal).\n`if`/`while` take **one** statement (hence the braces when there is more than one instruction).\n"
         },
@@ -177,8 +177,8 @@
           "anchor": "fine-points",
           "title": "Fine points",
           "level": 2,
-          "line_start": 409,
-          "line_end": 458,
+          "line_start": 410,
+          "line_end": 459,
           "url": "https://loxia-lang.github.io/loxia/reference/syntax/#fine-points",
           "text": "## Fine points\n\n- **Semicolon is optional** at the end of the line, at EOF or before a closing `}`\n  (ADR-0011); two statements on the same line still require `;`. In the REPL, the final `;` may be\n  omitted when the input ends (`_end_statement`).\n- `val` **requires an initializer** (`val x;` is an error). `var` may omit it (`var x;` → `nil`).\n- Parameters are **implicit `val`**; `var` before the name allows reassignment:\n  `fn f(x, var y)`. An explicit `val` on a parameter is not accepted.\n- Class methods accept an **optional** `fn`; the canonical form remains without `fn`, because\n  the class body already marks the declaration:\n\n  ```lox\n  class Foo {\n    bar(a) { return a; }\n    fn baz(a) { return a; }   # accepted; same AST\n  }\n  ```\n\n### Imports\n\n```lox\nimport std.lists\nimport dtos.dtoA as dto\nfrom std.strings import trim\nfrom dtos.dtoA import DtoA as Dto\n```\n\n- `import path [as alias]` binds the last segment (or the alias) as a namespace.\n- `from path import name [as alias] [, name ...]` binds public names.\n- Imports only at the top, before any other statement; no `*`, no re-export.\n- The path is identifiers separated by `.`; `std` is a reserved root.\n- `..` and absolute paths are not valid syntax in `import`: the root outside the project is\n  declared in `loxia.toml` (`[dependencies]`/`[modules].paths`) or in `--module-path`\n  ([ADR-0100](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0100-dependencias-path.md)).\n- A module is a `.lx` file; a folder is only a namespace (no `__init__`/`index`).\n- A module is not a value: `val m = std.lists` is an error.\n\n- Parser limits: at most **255 arguments** per call and **255 parameters** per\n  function. On exceeding, the error is reported but the parser continues (the arguments are\n  dropped from the AST).\n- `this` and `super` are keywords: `super` only appears as `super.method`.\n- These do not exist: C-style `for` (removed in [ADR-0138](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0138-remocao-for-c-style.md);\n  use `for-in` or `while`), `switch` (use `match`), a `?:`-style ternary\n  operator (use `a if c else b`), `+=`, `++` and `catch` (use `except`). `match` with\n  enums ([ADR-0041](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0041-enums-match.md)) and lambdas ([ADR-0022](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0022-lambdas.md))\n  exist; lists, maps and interpolation have existed since\n  [ADR-0015](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0015-listas-tipadas.md), [ADR-0017](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0017-mapas-hash.md) and\n  [ADR-0019](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0019-interpolacao.md).\n- `fn` may appear in any declaration position, including inside a block.\n"
         },
@@ -187,8 +187,8 @@
           "anchor": "imports",
           "title": "Imports",
           "level": 3,
-          "line_start": 427,
-          "line_end": 458,
+          "line_start": 428,
+          "line_end": 459,
           "url": "https://loxia-lang.github.io/loxia/reference/syntax/#imports",
           "text": "### Imports\n\n```lox\nimport std.lists\nimport dtos.dtoA as dto\nfrom std.strings import trim\nfrom dtos.dtoA import DtoA as Dto\n```\n\n- `import path [as alias]` binds the last segment (or the alias) as a namespace.\n- `from path import name [as alias] [, name ...]` binds public names.\n- Imports only at the top, before any other statement; no `*`, no re-export.\n- The path is identifiers separated by `.`; `std` is a reserved root.\n- `..` and absolute paths are not valid syntax in `import`: the root outside the project is\n  declared in `loxia.toml` (`[dependencies]`/`[modules].paths`) or in `--module-path`\n  ([ADR-0100](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0100-dependencias-path.md)).\n- A module is a `.lx` file; a folder is only a namespace (no `__init__`/`index`).\n- A module is not a value: `val m = std.lists` is an error.\n\n- Parser limits: at most **255 arguments** per call and **255 parameters** per\n  function. On exceeding, the error is reported but the parser continues (the arguments are\n  dropped from the AST).\n- `this` and `super` are keywords: `super` only appears as `super.method`.\n- These do not exist: C-style `for` (removed in [ADR-0138](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0138-remocao-for-c-style.md);\n  use `for-in` or `while`), `switch` (use `match`), a `?:`-style ternary\n  operator (use `a if c else b`), `+=`, `++` and `catch` (use `except`). `match` with\n  enums ([ADR-0041](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0041-enums-match.md)) and lambdas ([ADR-0022](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0022-lambdas.md))\n  exist; lists, maps and interpolation have existed since\n  [ADR-0015](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0015-listas-tipadas.md), [ADR-0017](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0017-mapas-hash.md) and\n  [ADR-0019](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0019-interpolacao.md).\n- `fn` may appear in any declaration position, including inside a block.\n"
         }

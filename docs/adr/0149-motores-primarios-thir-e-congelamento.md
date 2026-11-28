@@ -1,7 +1,10 @@
 # ADR-0149 — Motores primários: nativo por padrão, THIR como eixo e congelamento por módulo
 
 > **Especificado por** [ADR-0154](0154-fronteira-do-thir.md): a fronteira do THIR
-> (declaração × layout, capturas sem `depth`, v1 fiel × v2 desugarada).
+> (declaração × layout, capturas sem `depth`).
+>
+> **Emendado por** [ADR-0156](0156-sem-desugaring-no-thir.md): o THIR **não desuga** controle
+> — `for-in`, `match`, `?:`, `??`, `?.` e interpolação ficam explícitos no contrato.
 
 - **Status:** accepted
 - **Data:** 2026-11-26

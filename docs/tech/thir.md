@@ -24,8 +24,10 @@ sources:
 
 O THIR é o eixo do programa de motores ([ADR-0149](../adr/0149-motores-primarios-thir-e-congelamento.md) §2):
 uma árvore **tipada e resolvida** que carrega a decisão semântica uma vez só (sem `Grouping`;
-o açúcar de controle fica explícito na v1, ver §O que o THIR não carrega). O AST continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é
-o que o lowering (F2) e o `loxvm` (F3) consomem.
+o açúcar de controle fica explícito por decisão, não por adiamento
+([ADR-0156](../adr/0156-sem-desugaring-no-thir.md)), ver §O que o THIR não carrega). O AST
+continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é o que o lowering (F2) e
+o `loxvm` (F3) consomem.
 
 ```
 source .lx
@@ -142,15 +144,20 @@ closure ver o valor daquela volta) é decisão do motor, não do contrato.
 interface de default de corpo vazio), `TParam`, `TCapture`, `TField`, `TClass`,
 `TInterface`, `TEnum`, `TEnumVariant`, `THandler`, `Decl`.
 
-## O que o THIR **não** carrega (v1)
+## O que o THIR **não** carrega
 
 Estas são decisões explícitas, não esquecimentos:
 
 - **nada de alvo**: nem valor de LLVM, nem offset, nem slot, nem bitmap. O layout de classe e
   de frame é derivado pelo motor a partir dos `Decl`/`TClass` (emenda da F2 ao ADR-0149 §2).
-- **nada de desugaring de controle**: `for-in`, `match`, `?:`, `??`, `?.` continuam nós
-  explícitos. Desugar é a v2; fazê-lo junto com a migração misturaria “mudei a fronteira” com
-  “mudei o codegen” e mataria o gate de `.ll` byte a byte.
+- **nada de desugaring de controle**: `for-in`, `match` (e os padrões), `?:`, `??`, `?.` e
+  interpolação continuam explícitos — **decisão final, não adiamento**
+  ([ADR-0156](../adr/0156-sem-desugaring-no-thir.md)). Desugar fixaria uma estratégia de
+  lowering para todos os motores e exigiria tipos/builtins que a linguagem não tem (iterador,
+  teste de variante, `stringify` de linguagem): `match` não tem expressão “é a variante V”
+  (o payload só existe como binding), `for-in` usaria `nil` como sentinela e perderia os
+  *version checks* de `List`/`Map`, e o backend deixaria de especializar o loop por tipo
+  (`for i in 0..n` viraria iterador alocado). O `loxvm` avalia o nó; o lowering especializa.
 - **nada de resolução de alvo de chamada**: `kernel`, método de classe, closure e classe
   continuam sendo distinguidos pelo lowering. Isso é dívida declarada da v1, não contrato.
 - **nada de CFG**: sem blocos, phi ou cleanup. Quem precisa disso é a IR de controle.
@@ -213,6 +220,8 @@ THIR, não há segunda implementação a comparar: a equivalência é policiada 
 - **v1 congelado na F2** (2026-11-28): `op_span` e `abstract` entraram ainda durante a
   fase, antes do fechamento. A partir daqui, campo obrigatório novo ou remoção é **v2**
   (o schema tem `additionalProperties: false`, então não há extensão compatível de campo).
+  **v2 é evolução de schema, não desugaring**
+  ([ADR-0156](../adr/0156-sem-desugaring-no-thir.md)).
 - **Determinismo**: `sort_keys` em todo objeto, listas na ordem canônica do modelo, nada de
   `set`/`dict` derivado. O mesmo programa produz os mesmos bytes, inclusive entre processos
   com `PYTHONHASHSEED` diferentes (`tests/test_thir_serialization.py`).

@@ -1,5 +1,9 @@
 # ADR-0154 — Fronteira do THIR: declaração, não layout (emenda ao ADR-0149 §2)
 
+> **Emendado por** [ADR-0156](0156-sem-desugaring-no-thir.md): a “v2 desugarada” da decisão 4
+> não acontece — o THIR mantém os nós de controle e desugaring é estratégia de motor; “v2”
+> passa a ser só evolução de schema.
+
 - **Status:** accepted
 - **Data:** 2026-11-27
 - **Decisores:** Cássio Dalla (dono do projeto) e agente (DSH)
