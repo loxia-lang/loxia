@@ -494,6 +494,9 @@ class TClass:
     decl: DeclId
     name: str
     superclass: str | None
+    # Span do nome da superclasse: é o site do refusal "inheritance from X" no
+    # backend e do diagnóstico de herança. `None` quando a classe não herda.
+    superclass_span: Span | None
     interfaces: tuple[str, ...]
     type_params: tuple[str, ...]
     fields: tuple[TField, ...]

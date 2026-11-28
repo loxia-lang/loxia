@@ -266,13 +266,12 @@ Renomes mecânicos:
 - a pilha `_scopes` por **nome**: o lowering passa a resolver `DeclId → slot` numa tabela
   própria (o layout de frame continua sendo dele, não do THIR).
 
-### Lacuna conhecida
+### Fidelidade de diagnóstico
 
-`TClass` não carrega o span do **nome da superclasse**; o refusal
-`Inheritance from 'X' is not supported by the backend yet` (`lower_class_layout.py`) usa a
-linha do nome. Na migração ele cai para o span da declaração da classe (mesma linha no
-caso comum). Se um teste exigir a precisão, o campo `superclass_span` entra junto com a
-migração — e o snapshot do THIR muda de propósito.
+`TClass.superclass_span` carrega o site do nome da superclasse, que é a linha usada pelo
+refusal `Inheritance from 'X' is not supported by the backend yet`
+(`lower_class_layout.py`). Com isso o port não perde nenhum site de erro que o lowering
+usa hoje; não há lacuna conhecida de span.
 
 ### Ordem dos commits
 

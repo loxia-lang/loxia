@@ -522,6 +522,24 @@ def test_build_is_deterministic() -> None:
     assert first == second
 
 
+def test_class_superclass_carries_its_span() -> None:
+    module = _thir(
+        """
+        class A {}
+        class B(A) {}
+        print(B())
+        """
+    )
+    classes = [statement for statement in module.statements if isinstance(statement, TClassDecl)]
+    subclass = next(statement.klass for statement in classes if statement.klass.name == "B")
+    assert subclass.superclass == "A"
+    assert subclass.superclass_span is not None
+    assert subclass.superclass_span.start.line == 3
+    base = next(statement.klass for statement in classes if statement.klass.name == "A")
+    assert base.superclass is None
+    assert base.superclass_span is None
+
+
 def test_entry_is_recorded() -> None:
     module = _thir(
         """

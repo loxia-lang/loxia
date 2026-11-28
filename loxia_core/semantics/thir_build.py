@@ -747,6 +747,9 @@ class _Builder:
             decl=decl,
             name=stmt.name.lexeme,
             superclass=stmt.superclass.name.lexeme if stmt.superclass is not None else None,
+            superclass_span=(
+                self._tok(stmt.superclass.name) if stmt.superclass is not None else None
+            ),
             interfaces=tuple(token.lexeme for token in stmt.implements),
             type_params=tuple(token.lexeme for token in stmt.type_params),
             fields=tuple(fields),

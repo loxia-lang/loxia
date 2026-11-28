@@ -592,6 +592,16 @@
             }
           ]
         },
+        "superclass_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "type_params": {
           "items": {
             "type": "string"
@@ -604,6 +614,7 @@
         "decl",
         "name",
         "superclass",
+        "superclass_span",
         "interfaces",
         "type_params",
         "fields",
