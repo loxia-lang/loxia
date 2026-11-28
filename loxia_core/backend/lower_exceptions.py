@@ -20,8 +20,16 @@ from loxia_core.backend.lower_model import (
     ValueType,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Literal
-from loxia_core.frontend.stmt import Raise, Stmt, Try
+from loxia_core.thir import TConst as Literal
+from loxia_core.thir import (
+    TRaise as Raise,
+)
+from loxia_core.thir import (
+    TStmt,
+)
+from loxia_core.thir import (
+    TTry as Try,
+)
 
 
 class ExceptionLowering(LoweringBase):
@@ -45,7 +53,7 @@ class ExceptionLowering(LoweringBase):
             "site",
             TypeDesc(ValueType.STRING),
             False,
-            Literal(""),
+            Literal(ty=None, storage_ty=None, span=None, value=""),
             1,
             0,
             slot=3,
@@ -88,8 +96,8 @@ class ExceptionLowering(LoweringBase):
             self._emit_top_level_class(self._classes[name])
 
     def _raise(self, stmt: Raise) -> None:
-        line = stmt.keyword.line
-        column = stmt.keyword.column
+        line = self._line(stmt.span)
+        column = self._column(stmt.span)
         if stmt.value is None:
             if self._handler_exception is not None:
                 self.builder.call(
@@ -188,9 +196,9 @@ class ExceptionLowering(LoweringBase):
         )
         handler_blocks = []
         for clause in stmt.handlers:
-            layout = self._classes.get(clause.type_name.lexeme)
+            layout = self._classes.get(clause.type_name)
             if layout is None:
-                layout = self._classes.get(clause.type_name.lexeme.rsplit("$", 1)[-1])
+                layout = self._classes.get(clause.type_name.rsplit("$", 1)[-1])
             global_binding = self._globals.get(layout.name) if layout is not None else None
             expected = (
                 self.builder.load(global_binding.storage)
@@ -202,7 +210,7 @@ class ExceptionLowering(LoweringBase):
                 [
                     exception,
                     expected,
-                    self._cstring_pointer(clause.type_name.lexeme),
+                    self._cstring_pointer(clause.type_name),
                 ],
             )
             matched = self.builder.icmp_signed("!=", match, llvm_ir.constant(_I32, 0))
@@ -220,25 +228,26 @@ class ExceptionLowering(LoweringBase):
             previous_handler = self._handler_exception
             self._handler_exception = exception
             try:
-                binding_desc = TypeDesc(ValueType.INSTANCE, class_name=clause.type_name.lexeme)
-                if self._analysis.is_captured(clause.binding):
+                binding_desc = TypeDesc(ValueType.INSTANCE, class_name=clause.type_name)
+                handler_name = self._decl_name(clause.decl)
+                if self._decl(clause.decl).cell:
                     cell = self._alloc_cell()
                     self._bind_handler_exception(exception, self._cell_pointer(cell, binding_desc))
                     handler_binding = Binding(
                         cell,
                         ValueType.INSTANCE,
                         cell=True,
-                        class_name=clause.type_name.lexeme,
+                        class_name=clause.type_name,
                     )
                 else:
-                    slot = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
+                    slot = self.builder.alloca(_I8_PTR, name=handler_name)
                     self._bind_handler_exception(exception, slot)
                     handler_binding = Binding(
                         slot,
                         ValueType.INSTANCE,
-                        class_name=clause.type_name.lexeme,
+                        class_name=clause.type_name,
                     )
-                self._scopes[-1][clause.binding.lexeme] = handler_binding
+                self._scopes[-1][handler_name] = handler_binding
                 popped = False
                 for statement in clause.body:
                     if self.builder.block.is_terminated:
@@ -267,8 +276,8 @@ class ExceptionLowering(LoweringBase):
                 self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
                 [
                     exception,
-                    llvm_ir.constant(_I32, stmt.keyword.line),
-                    llvm_ir.constant(_I32, stmt.keyword.column),
+                    llvm_ir.constant(_I32, self._line(stmt.span)),
+                    llvm_ir.constant(_I32, self._column(stmt.span)),
                 ],
             )
             self.builder.unreachable()
@@ -345,15 +354,15 @@ class ExceptionLowering(LoweringBase):
                 self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
                 [
                     pending,
-                    llvm_ir.constant(_I32, stmt.keyword.line),
-                    llvm_ir.constant(_I32, stmt.keyword.column),
+                    llvm_ir.constant(_I32, self._line(stmt.span)),
+                    llvm_ir.constant(_I32, self._column(stmt.span)),
                 ],
             )
             self.builder.unreachable()
         else:
             self.builder.branch(end)
 
-    def _lower_finally_body(self, body: list[Stmt]) -> None:
+    def _lower_finally_body(self, body: tuple[TStmt, ...]) -> None:
         """Emite o corpo do `finally` uma única vez, no contexto atual."""
         self._scopes.append({})
         try:

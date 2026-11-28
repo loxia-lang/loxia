@@ -864,6 +864,7 @@ class _Builder:
                 storage_ty=storage,
                 span=span,
                 op=expr.operator.type,
+                op_span=self._tok(expr.operator),
                 left=self._expr(expr.left),
                 right=self._expr(expr.right),
             )
@@ -913,6 +914,7 @@ class _Builder:
                 ty=flow,
                 storage_ty=storage,
                 span=span,
+                op_span=self._tok(expr.operator),
                 start=self._expr(expr.start),
                 end=self._expr(expr.end),
                 inclusive=expr.inclusive,
@@ -994,6 +996,7 @@ class _Builder:
                 ty=flow,
                 storage_ty=storage,
                 span=span,
+                op_span=self._tok(expr.operator),
                 operand=self._expr(expr.left),
                 test_type=expr.test_type,
             )
@@ -1003,6 +1006,7 @@ class _Builder:
                 ty=flow,
                 storage_ty=storage,
                 span=span,
+                op_span=self._tok(expr.operator),
                 operand=self._expr(expr.left),
                 target_type=expr.target_type,
             )

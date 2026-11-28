@@ -50,6 +50,7 @@ lugar certo.
 | `ty` (fluxo) | todo `TExpr` | narrowings: `if (x != nil)` estreita o **uso**, não a declaração |
 | `storage_ty` | todo `TExpr` | tipo declarado/sem narrowing (ADR-0045) |
 | `span` | todo nó de expressão/statement/padrão/declaração | diagnóstico e stack trace no ponto certo (ADR-0075/0089); `TModule` e `TInstance` não têm site próprio |
+| `op_span` | todo operador (`TUnary`/`TBinary`/`TLogical`/`TIs`/`TAs`/`TRange`) | span **do token do operador** (não do operando): é o site de erro/panic que o motor emite; sem ele o `.ll` mudaria de byte |
 | `Ref` | `TVar`/`TAssign`/`TThis`/`TSuper` | binding resolvido; nada de busca por nome no motor |
 | `Decl.cell` | `Decl` | o binding é célula compartilhada (ADR-0046) |
 | `TFunction.captures` | função/lambda | o `env` que o motor monta, em ordem canônica |
@@ -100,7 +101,7 @@ aparece no diff do snapshot — que é o comportamento desejado para um contrato
 | `TConst` | `Literal` | valor + tipo; `nil` é `None` |
 | `TInterp` | `InterpolatedString` | partes literais e expressões |
 | `TList` / `TMap` / `TTuple` | literais de container | ordem do fonte preservada |
-| `TRange` | `Range` | `a..b` meio-aberto (ADR-0007) |
+| `TRange` | `Range` | `a..b` meio-aberto (ADR-0007); `op_span` do `..` |
 | `TUnary` / `TBinary` / `TLogical` | operadores | `op` + `op_span` (site do panic) |
 | `TConditional` | ternário | explícito na v1 |
 | `TVar` / `TAssign` | `Variable` / `Assign` | `Ref` resolvido |
@@ -108,7 +109,7 @@ aparece no diff do snapshot — que é o comportamento desejado para um contrato
 | `TGet` / `TSet` | acesso a campo | `optional` preservado |
 | `TIndex` / `TIndexSet` | indexação | |
 | `TThis` / `TSuper` | receptor | `super` leva o `Ref` do `this` léxico |
-| `TIs` / `TAs` | teste/conversão | |
+| `TIs` / `TAs` | teste/conversão | `op_span` do `is`/`as` (site do `R1011`) |
 | `TMatch` | `Match` | arms com bindings próprios |
 | `TMatchArm` | arm | `pattern` + `body` + `span` |
 | `TPattern` | padrão | base de `TVariantPattern`, `TWildcardPattern`, `TLiteralPattern` |
@@ -222,20 +223,21 @@ exatamente quais casos o contrato mudou — "consertar para passar" é proibido.
 contrato de um caso, `loxia build <caso> --emit=thir` imprime o JSON (o THIR é verboso por
 causa dos spans, então goldens completos versionados seriam ruído, não revisão).
 
-## Migração do lowering (fatia 3)
+## O lowering consome o THIR (fatia 3, concluída)
 
-O lowering deixa de consumir o AST e passa a consumir o `TModule`. O contrato é **só a
-fronteira**: mesmo programa, mesmo `.ll` byte a byte, congelado em `tests/ll/manifest.json`
-(`make ll-snapshot`) e policiado por `tests/test_lowering_ll.py`.
+O lowering recebe o `TModule`, não a AST. O contrato foi **só a fronteira**: mesmo
+programa, mesmo `.ll` byte a byte, congelado em `tests/ll/manifest.json`
+(`make ll-snapshot`) e policiado por `tests/test_lowering_ll.py`; o backend não importa
+`loxia_core.frontend.expr`/`stmt` (`tests/test_thir_boundary.py`).
 
-### Por que é atômico
+### Por que foi atômico
 
 A árvore é uma só. No instante em que `Lowerer` recebe `TModule`, todo handler recebe nós
-THIR; não existe nó híbrido e um dispatch duplo (AST **ou** THIR) reintroduziria a duas
-rotas que o [ADR-0154](../adr/0154-fronteira-do-thir.md) elimina. O port é um PR, com
-commits por subsistema; o gate cobre cada commit.
+THIR; não existe nó híbrido e um dispatch duplo (AST **ou** THIR) reintroduziria as duas
+rotas que o [ADR-0154](../adr/0154-fronteira-do-thir.md) elimina. O port foi um PR, com
+commits por subsistema, e o gate cobriu cada commit.
 
-### O que o lowering lê hoje (inventário medido)
+### O que o lowering lia (inventário medido antes do port)
 
 | superfície | sítios | como o THIR responde |
 | --- | --- | --- |
@@ -262,21 +264,32 @@ Renomes mecânicos:
 | `self.depths.get(expr)` | `Ref.storage` + índice em `TFunction.captures` |
 | `Function.abstract`, `doc`, `fn_token`, `params_end`, `arrow` | não usados no backend |
 
-### O que morre
+### O que morreu
 
 - `self.types`, `self.flow_types`, `self.depths` e as tabelas por identidade de nó;
-- `loxia_core/backend/captures.py` (a decisão vira `Decl.cell` + `captures`);
-- a pilha `_scopes` por **nome**: o lowering passa a resolver `DeclId → slot` numa tabela
-  própria (o layout de frame continua sendo dele, não do THIR).
+- `loxia_core/backend/captures.py` (a decisão vira `Decl.cell` + `captures`), coberto por
+  `tests/test_captures.py` no produtor;
+- a pilha `_scopes` por **nome** continua existindo no lowering (o layout de frame é dele,
+  não do THIR), mas a **resolução** é por `Ref.storage`/`DeclId`.
+
+### `op_span` em todos os operadores
+
+O port revelou uma lacuna do modelo: o lowering emitia a posição do **operador** em
+constantes do `.ll` (`lox_range_new`, `lox_float_to_int`, `lox_panic`). `TUnary`/`TBinary`
+já tinham `op_span`; `TLogical`, `TIs`, `TAs` e `TRange` ganharam o mesmo campo, preenchido
+pelo produtor com o token do operador. Sem ele o gate byte a byte não fecha (e o `R1011`
+do `as` mudaria de coluna no stderr). O snapshot do THIR (`tests/thir/manifest.json`) e o
+schema (`schema/thir-v1.json`) mudaram de propósito nessa fatia.
 
 ### Fidelidade de diagnóstico
 
 `TClass.superclass_span` carrega o site do nome da superclasse, que é a linha usada pelo
 refusal `Inheritance from 'X' is not supported by the backend yet`
 (`lower_class_layout.py`). Com isso o port não perde nenhum site de erro que o lowering
-usa hoje; não há lacuna conhecida de span.
+usa hoje; não há outra lacuna conhecida de span. O `op_span` dos operadores (acima) é o
+mesmo contrato: o site do erro é o token do operador.
 
-### Ordem dos commits
+### Ordem dos commits do port
 
 1. `lower.py` — entrada `lower(module)`, dispatch de statements/expressões, aritmética;
 2. `lower_variables` — slots/células por `DeclId`;

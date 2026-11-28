@@ -17,7 +17,12 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Call, InterpolatedString
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import (
+    TInterp as InterpolatedString,
+)
 
 
 class StringLowering(LoweringBase):
@@ -159,7 +164,7 @@ class StringLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1:
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 f"Expected 1 arguments but got {len(arguments)}.",
                 code=Code.RUNTIME_ARITY,
             )
@@ -212,7 +217,7 @@ class StringLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1:
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 f"Expected 1 arguments but got {len(arguments)}.",
                 code=Code.RUNTIME_ARITY,
             )
@@ -222,12 +227,12 @@ class StringLowering(LoweringBase):
 
     def _len(self, expr: Call) -> Value:
         arguments = [
-            self._narrowed(argument, self._expr(argument), expr.paren.line)
+            self._narrowed(argument, self._expr(argument), self._line(expr.paren_span))
             for argument in expr.arguments
         ]
         if len(arguments) != 1:
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 f"Expected 1 arguments but got {len(arguments)}.",
                 code=Code.RUNTIME_ARITY,
             )
@@ -244,9 +249,9 @@ class StringLowering(LoweringBase):
             function = self._function("lox_bytes_len", _INT, [_I8_PTR])
             return Value(ValueType.INT, self.builder.call(function, [argument.llvm]))
         if argument.ty is ValueType.ENUM:
-            raise _unsupported("len of Enum", expr.paren.line)
+            raise _unsupported("len of Enum", self._line(expr.paren_span))
         if argument.ty is not ValueType.STRING:
-            raise _unsupported("len of non-String", expr.paren.line)
+            raise _unsupported("len of non-String", self._line(expr.paren_span))
 
         function = self._function("lox_str_len", _INT, [_I8_PTR])
         return Value(ValueType.INT, self.builder.call(function, [argument.llvm]))

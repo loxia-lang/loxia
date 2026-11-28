@@ -53,7 +53,7 @@ Packages by phase (dependency only downward):
 | Package | Phase |
 | --- | --- |
 | [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`), `ast_printer` (debug) and `ast_json` (oracle, ADR-0129) |
-| [`loxia_core/thir/`](../../loxia_core/thir) | THIR model (ADR-0149 §2, ADR-0154): the typed tree the checker publishes; the lowering consumes it in F2's migration slice (today it still walks the AST); no layout, no CFG, no target values |
+| [`loxia_core/thir/`](../../loxia_core/thir) | THIR model (ADR-0149 §2, ADR-0154): the typed tree the checker publishes and the lowering consumes (F2's migration slice is done); no layout, no CFG, no target values |
 | [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo), `type_ops`/`decl_table` (split do ADR-0141), gradual `checker` and `thir_build` (AST + checker tables → THIR) |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
@@ -531,9 +531,9 @@ Python's `repr` conventions (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` pins
 `LC_NUMERIC=C` so it does not depend on the locale (I3). Parity is policed by fuzzing against
 `repr()` in `tests/test_backend.py`.
 
-Variables use `alloca` (locals) and LLVM globals (top level); the resolver's `depth` decides
-the scope (`depths`), and the slot type is the type of the **value** at runtime, not the
-annotation's — as in the interpreter, `val f: Float = 2` stores an `Int`. Variables captured
+Variables use `alloca` (locals) and LLVM globals (top level); the THIR `Ref.storage`
+decides the scope (the lowering no longer walks resolver depths), and the slot type is the
+type of the **value** at runtime, not the annotation's — as in the interpreter, `val f: Float = 2` stores an `Int`. Variables captured
 by closures become **cells** on the collected heap (`{ value }`) and are referenced by
 pointer; the others remain in `alloca`.
 
@@ -541,10 +541,11 @@ User functions have the ABI `(i8* env, params...)`; a closure is `{ fnptr, env, 
 allocated on the collected heap. Top-level functions have their signature pre-declared
 (mutual recursion), but the global binding is only initialized when the statement runs —
 using it earlier becomes `lox_panic` with `Undefined variable`, as in the interpreter. The
-[`loxia_core/backend/captures.py`](../../loxia_core/backend/captures.py) pass decides what
-each function captures and what becomes a cell
-([ADR-0046](../adr/0046-closures-celulas-l4.md)); local functions, lambdas with a concrete
-type and indirect calls use the same closure.
+THIR already carries the decision: `TFunction.captures` (canonical order) is the `env` and
+`Decl.cell` marks what becomes a cell
+([ADR-0046](../adr/0046-closures-celulas-l4.md)); the producer
+(`loxia_core/semantics/thir_build.py`) takes it once, and local functions, lambdas with a
+concrete type and indirect calls use the same closure.
 
 Direct calls still fill defaults at the call site; a function with defaults as a **value** is
 rejected with exit 65 in L4. `return` and arguments must match (no implicit coercion) and

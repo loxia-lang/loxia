@@ -3,7 +3,6 @@ schema_version = 1
 # Pisos do backend Python medidos com `make coverage-backend` (testes nativos,
 # ADR-0122). Só sobem; binários nativos não entram na cobertura.
 [files]
-"loxia_core/backend/captures.py" = 99
 "loxia_core/backend/driver.py" = 68
 "loxia_core/backend/llvm_ir.py" = 94
 "loxia_core/backend/lower.py" = 88

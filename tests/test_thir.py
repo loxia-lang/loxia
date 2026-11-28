@@ -14,16 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from loxia_core.backend.captures import analyze_captures
-from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
-from loxia_core.frontend.expr import Lambda
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
-from loxia_core.frontend.spans import node_span, span_of_token_exact
-from loxia_core.frontend.stmt import Function, Stmt
-from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.ty import INT, STRING, display
 from loxia_core.semantics.checker import Checker
 from loxia_core.semantics.resolver import Resolver
@@ -33,6 +28,7 @@ from loxia_core.thir import (
     DeclKind,
     Ref,
     Storage,
+    TAs,
     TBinary,
     TCall,
     TClassDecl,
@@ -42,10 +38,13 @@ from loxia_core.thir import (
     TFnDecl,
     TForIn,
     TFunction,
+    TIs,
     TLambda,
+    TLogical,
     TMatch,
     TModule,
     TNamePattern,
+    TRange,
     TTuplePattern,
     TVar,
     TVariantPattern,
@@ -350,6 +349,26 @@ def test_span_of_node_points_at_the_source() -> None:
     assert binary.op_span.start.line == 3
 
 
+def test_operator_spans_survive_on_every_operator() -> None:
+    """`op_span` é o site do operador (panic/erro), não o início do nó."""
+    module = _thir("val x: Any = 1\nx as Int\nx is Int\n1..3\ntrue and false\ntrue or false\n")
+    as_expr, is_expr, range_expr, and_expr, or_expr = _expr_statements(module)
+    for expr, token, line, column in (
+        (as_expr, "as", 2, 3),
+        (is_expr, "is", 3, 3),
+        (range_expr, "..", 4, 2),
+        (and_expr, "and", 5, 6),
+        (or_expr, "or", 6, 6),
+    ):
+        assert isinstance(expr, TAs | TIs | TRange | TLogical), token
+        assert expr.op_span is not None, f"{token}: op_span perdido"
+        assert expr.op_span.start.line == line, token
+        assert expr.op_span.start.column == column, token
+        # A posição do nó continua sendo o início do operando esquerdo.
+        assert expr.span is not None
+        assert expr.span.start.column == 1, token
+
+
 # --- desugaring mínimo (v1) ---------------------------------------------------
 
 
@@ -584,31 +603,9 @@ def test_corpus_produces_thir(case: str) -> None:
     """Todo caso que compila produz THIR; capturas e células concordam com o backend."""
     statements, checker = analyze_case(case)
     module = module_for(statements, checker, source_path=case)
-    analysis = analyze_captures(statements)
 
-    thir_captures = {
-        (str(function.decl_span), tuple(capture.name for capture in function.captures))
-        for function in _functions(module)
-    }
-    ast_captures = {
-        (str(node_span(node)), tuple(capture.name for capture in analysis.captures_of(node)))
-        for node in _ast_functions(statements)
-    }
-    assert thir_captures == ast_captures, f"{case}: capturas divergem do backend"
-    # Célula é identidade, não contagem: comparar o conjunto de spans das declarações
-    # capturadas. Duas implementações (THIR e `analyze_captures`) podem concordar na
-    # contagem e discordar em qual decl é célula — e isso mudaria codegen na fatia 3.
-    captured = [
-        capture
-        for captures in analysis.captures.values()
-        for capture in captures
-        if capture.name != "this"
-    ]
-    ast_cells = {_decl_span(capture.decl) for capture in captured}
-    thir_cells = {
-        decl.span for decl in module.decls if decl.cell and decl.kind is not DeclKind.THIS
-    }
-    assert thir_cells == ast_cells, f"{case}: conjunto de células diverge do backend"
+    # A captura é canônica (nome) e a célula mora na declaração; não há segunda
+    # implementação a comparar depois que o backend passou a consumir o THIR.
     unresolved = {ref.name for ref in _refs(module) if ref.storage is Storage.UNRESOLVED}
     assert not unresolved, f"{case}: nomes não resolvidos em programa check-limpo: {unresolved}"
 
@@ -619,38 +616,6 @@ def test_corpus_produces_thir(case: str) -> None:
         f"{case}: snapshot do THIR divergente; se a mudança é intencional, "
         "rode `make thir-snapshot` e revise o diff"
     )
-
-
-def _decl_span(value: object) -> Span | None:
-    """Span do nome da declaração como `captures` a enxerga (Token, `Param`, `Var`, …)."""
-    if isinstance(value, Token):
-        return span_of_token_exact(value)
-    token = getattr(value, "name", None)
-    if isinstance(token, Token):
-        return span_of_token_exact(token)
-    return node_span(value)
-
-
-def _ast_functions(statements: list[Stmt]) -> list[Function | Lambda]:
-    found: list[Function | Lambda] = []
-    seen: set[int] = set()
-
-    def walk(value: object) -> None:
-        if id(value) in seen:
-            return
-        seen.add(id(value))
-        if isinstance(value, (Function, Lambda)):
-            found.append(value)
-        if isinstance(value, (list, tuple)):
-            for item in value:
-                walk(item)
-            return
-        if hasattr(value, "__dataclass_fields__"):
-            for name in value.__dataclass_fields__:
-                walk(getattr(value, name))
-
-    walk(statements)
-    return found
 
 
 def _all_exprs(module: TModule) -> list[TExpr]:

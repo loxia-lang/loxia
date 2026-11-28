@@ -19,16 +19,16 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Range
-from loxia_core.frontend.stmt import ForIn
-from loxia_core.frontend.token_type import TokenType
-from loxia_core.frontend.tokens import Token
+from loxia_core.diagnostics.diagnostic import Span
+from loxia_core.thir import TForIn as ForIn
+from loxia_core.thir import TRange as Range
 
 
 class RangeLowering(LoweringBase):
     def _range_expr(self, expr: Range) -> Value:
-        start = self._coerce(self._expr(expr.start), self._int_desc(), expr.operator.line)
-        end = self._coerce(self._expr(expr.end), self._int_desc(), expr.operator.line)
+        line = self._line(expr.op_span)
+        start = self._coerce(self._expr(expr.start), self._int_desc(), line)
+        end = self._coerce(self._expr(expr.end), self._int_desc(), line)
         raw = self.builder.call(
             self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32, _I32, _I32]),
             [
@@ -36,8 +36,8 @@ class RangeLowering(LoweringBase):
                 end.llvm,
                 llvm_ir.constant(_INT, 1),
                 llvm_ir.constant(_I32, 1 if expr.inclusive else 0),
-                llvm_ir.constant(_I32, expr.operator.line),
-                llvm_ir.constant(_I32, expr.operator.column),
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, self._column(expr.op_span)),
             ],
         )
         return Value(ValueType.RANGE, raw)
@@ -46,21 +46,22 @@ class RangeLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 3:
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 f"Expected 3 arguments but got {len(arguments)}.",
                 code=Code.RUNTIME_ARITY,
             )
             return Value(ValueType.RANGE, llvm_ir.null_pointer())
         coerced = [
-            self._coerce(argument, self._int_desc(), expr.paren.line) for argument in arguments
+            self._coerce(argument, self._int_desc(), self._line(expr.paren_span))
+            for argument in arguments
         ]
         raw = self.builder.call(
             self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32, _I32, _I32]),
             [
                 *[value.llvm for value in coerced],
                 llvm_ir.constant(_I32, 0),
-                llvm_ir.constant(_I32, expr.paren.line),
-                llvm_ir.constant(_I32, expr.paren.column),
+                llvm_ir.constant(_I32, self._line(expr.paren_span)),
+                llvm_ir.constant(_I32, self._column(expr.paren_span)),
             ],
         )
         return Value(ValueType.RANGE, raw)
@@ -71,7 +72,9 @@ class RangeLowering(LoweringBase):
         return TypeDesc(ValueType.INT)
 
     def _for_in(self, stmt: ForIn) -> None:
-        iterable = self._narrowed(stmt.iterable, self._expr(stmt.iterable), stmt.name.line)
+        iterable = self._narrowed(
+            stmt.iterable, self._expr(stmt.iterable), self._line(self._decl_span(stmt.decl))
+        )
         if iterable.ty is ValueType.RANGE:
             self._for_range(stmt, iterable)
             return
@@ -95,23 +98,23 @@ class RangeLowering(LoweringBase):
             return
         raise _unsupported(
             "for-in over this value (List/Map/tuple are later in L6)",
-            stmt.name.line,
+            self._line(self._decl_span(stmt.decl)),
         )
 
     def _for_instance(self, stmt: ForIn, iterable: Value) -> None:
-        iterator = self._call_zero_method(iterable, "iter", stmt.name)
+        iterator = self._call_zero_method(iterable, "iter", self._decl_span(stmt.decl))
         if iterator.ty is not ValueType.INSTANCE:
             self._poison(
-                stmt.name,
+                self._decl_span(stmt.decl),
                 "iter() must return an instance with next() -> T?.",
                 code=Code.RUNTIME_ITERATION,
             )
             return
 
-        next_return = self._iterator_next_desc(iterator, stmt.name)
+        next_return = self._iterator_next_desc(iterator)
         if next_return is None:
             self._poison(
-                stmt.name,
+                self._decl_span(stmt.decl),
                 "iter() must return an iterator with next() -> T?.",
                 code=Code.RUNTIME_ITERATION,
             )
@@ -130,7 +133,7 @@ class RangeLowering(LoweringBase):
         self.builder.branch(header)
 
         self.builder = llvm_ir.builder(header)
-        next_value = self._call_zero_method(iterator, "next", stmt.name)
+        next_value = self._call_zero_method(iterator, "next", self._decl_span(stmt.decl))
         has_value = (
             self._optional_tag(next_value) if next_value.optional else llvm_ir.constant(_BOOL, 1)
         )
@@ -144,12 +147,11 @@ class RangeLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(end)
 
-    def _call_zero_method(self, instance: Value, name: str, token: Token) -> Value:
-        method_token = Token(TokenType.IDENTIFIER, name, None, token.line, token.column)
-        callee = self._get_instance_name(instance, method_token)
+    def _call_zero_method(self, instance: Value, name: str, span: Span | None) -> Value:
+        callee = self._get_instance_name(instance, name, span)
         if callee.ty is not ValueType.FUNCTION or callee.sig is None:
             self._poison(
-                token,
+                span,
                 f"{name}() must be a method with no arguments.",
                 code=Code.RUNTIME_ITERATION,
             )
@@ -159,7 +161,7 @@ class RangeLowering(LoweringBase):
         fnptr = self._closure_field(callee, 0)
         env = self._closure_field(callee, 1)
         function_type = llvm_ir.function_pointer(self._storage_llvm_type(sig.ret), [_I8_PTR])
-        self._set_call_site(token)
+        self._set_call_site(span)
         call = self.builder.call(self.builder.bitcast(fnptr, function_type), [env])
         return Value(
             sig.ret.ty,
@@ -170,7 +172,7 @@ class RangeLowering(LoweringBase):
             interface_name=sig.ret.interface_name,
         )
 
-    def _iterator_next_desc(self, iterator: Value, token: Token) -> TypeDesc | None:
+    def _iterator_next_desc(self, iterator: Value) -> TypeDesc | None:
         if iterator.class_name is not None:
             layout = self._classes.get(iterator.class_name)
             if layout is not None:
@@ -208,8 +210,8 @@ class RangeLowering(LoweringBase):
                 [
                     iterable.llvm,
                     self.builder.load(index),
-                    llvm_ir.constant(_I32, stmt.name.line),
-                    llvm_ir.constant(_I32, stmt.name.column),
+                    llvm_ir.constant(_I32, self._line(self._decl_span(stmt.decl))),
+                    llvm_ir.constant(_I32, self._column(self._decl_span(stmt.decl))),
                 ],
             )
 
@@ -230,7 +232,7 @@ class RangeLowering(LoweringBase):
             version,
         )
         length = self.builder.call(self._function("lox_map_len", _INT, [_I8_PTR]), [iterable.llvm])
-        key_desc, _ = self._map_types(stmt.iterable, stmt.name.line)
+        key_desc, _ = self._map_types(stmt.iterable, self._line(self._decl_span(stmt.decl)))
 
         def condition() -> Any:
             self._iteration_guard(
@@ -238,8 +240,8 @@ class RangeLowering(LoweringBase):
                 version,
                 "lox_map_version",
                 "Can't modify a map while iterating over it.",
-                stmt.name.line,
-                stmt.name.column,
+                self._line(self._decl_span(stmt.decl)),
+                self._column(self._decl_span(stmt.decl)),
             )
             return self.builder.icmp_signed("<", self.builder.load(index), length)
 
@@ -248,7 +250,7 @@ class RangeLowering(LoweringBase):
                 self._function("lox_map_key_at", self._any_type(), [_I8_PTR, _INT]),
                 [iterable.llvm, self.builder.load(index)],
             )
-            return self._unbox_value(raw, key_desc, stmt.name.line).llvm
+            return self._unbox_value(raw, key_desc, self._line(self._decl_span(stmt.decl))).llvm
 
         def advance() -> None:
             self.builder.store(
@@ -262,8 +264,8 @@ class RangeLowering(LoweringBase):
             version,
             "lox_map_version",
             "Can't modify a map while iterating over it.",
-            stmt.name.line,
-            stmt.name.column,
+            self._line(self._decl_span(stmt.decl)),
+            self._column(self._decl_span(stmt.decl)),
         )
 
     def _iteration_guard(
@@ -294,7 +296,7 @@ class RangeLowering(LoweringBase):
             version,
         )
         length = self.builder.call(self._function("lox_list_len", _INT, [_I8_PTR]), [iterable.llvm])
-        element = self._element_desc(stmt.iterable, stmt.name.line)
+        element = self._element_desc(stmt.iterable, self._line(self._decl_span(stmt.decl)))
 
         def condition() -> Any:
             self._iteration_guard(
@@ -302,8 +304,8 @@ class RangeLowering(LoweringBase):
                 version,
                 "lox_list_version",
                 "Can't modify a list while iterating over it.",
-                stmt.name.line,
-                stmt.name.column,
+                self._line(self._decl_span(stmt.decl)),
+                self._column(self._decl_span(stmt.decl)),
             )
             return self.builder.icmp_signed("<", self.builder.load(index), length)
 
@@ -313,11 +315,11 @@ class RangeLowering(LoweringBase):
                 [
                     iterable.llvm,
                     self.builder.load(index),
-                    llvm_ir.constant(_I32, stmt.name.line),
-                    llvm_ir.constant(_I32, stmt.name.column),
+                    llvm_ir.constant(_I32, self._line(self._decl_span(stmt.decl))),
+                    llvm_ir.constant(_I32, self._column(self._decl_span(stmt.decl))),
                 ],
             )
-            return self._unbox_value(raw, element, stmt.name.line).llvm
+            return self._unbox_value(raw, element, self._line(self._decl_span(stmt.decl))).llvm
 
         def advance() -> None:
             self.builder.store(
@@ -331,8 +333,8 @@ class RangeLowering(LoweringBase):
             version,
             "lox_list_version",
             "Can't modify a list while iterating over it.",
-            stmt.name.line,
-            stmt.name.column,
+            self._line(self._decl_span(stmt.decl)),
+            self._column(self._decl_span(stmt.decl)),
         )
 
     def _any_type(self) -> Any:
@@ -410,8 +412,8 @@ class RangeLowering(LoweringBase):
                 [
                     iterable.llvm,
                     self.builder.load(index),
-                    llvm_ir.constant(_I32, stmt.name.line),
-                    llvm_ir.constant(_I32, stmt.name.column),
+                    llvm_ir.constant(_I32, self._line(self._decl_span(stmt.decl))),
+                    llvm_ir.constant(_I32, self._column(self._decl_span(stmt.decl))),
                 ],
             )
 
@@ -485,8 +487,8 @@ class RangeLowering(LoweringBase):
     def _for_bind(self, stmt: ForIn, desc: TypeDesc, load: Any) -> None:
         self._scopes.append({})
         try:
-            captured = self._analysis.is_captured(stmt.name)
-            if captured:
+            name = self._decl_name(stmt.decl)
+            if self._decl(stmt.decl).cell:
                 cell = self._alloc_cell()
                 self.builder.store(load(), self._cell_pointer(cell, desc))
                 binding = Binding(
@@ -499,7 +501,7 @@ class RangeLowering(LoweringBase):
                     interface_name=desc.interface_name,
                 )
             else:
-                slot = self.builder.alloca(self._storage_llvm_type(desc), name=stmt.name.lexeme)
+                slot = self.builder.alloca(self._storage_llvm_type(desc), name=name)
                 self.builder.store(load(), slot)
                 binding = Binding(
                     slot,
@@ -509,7 +511,7 @@ class RangeLowering(LoweringBase):
                     class_name=desc.class_name,
                     interface_name=desc.interface_name,
                 )
-            self._scopes[-1][stmt.name.lexeme] = binding
+            self._scopes[-1][name] = binding
             self._stmt(stmt.body)
         finally:
             self._scopes.pop()

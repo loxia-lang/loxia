@@ -18,6 +18,16 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.render import render_batch
 from loxia_core.diagnostics.source import SourceMap
+from loxia_core.thir import TModule
+
+_EMPTY_MODULE = TModule(
+    source_path="<test>",
+    statements=(),
+    decls=(),
+    instances=(),
+    type_aliases=(),
+    entry=None,
+)
 
 
 def test_unsupported_tem_codigo_e4001() -> None:
@@ -75,12 +85,10 @@ def test_driver_embrulha_falha_inesperada_de_emissao(
 
     with pytest.raises(BackendError) as raised:
         driver.build(
-            [],
+            _EMPTY_MODULE,
             emit="obj",
             output=None,
             stem="caso",
-            types={},
-            depths={},
         )
 
     assert raised.value.code is Code.BACKEND_INTERNAL

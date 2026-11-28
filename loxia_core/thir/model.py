@@ -145,6 +145,7 @@ class TTuple(TExpr):
 
 @dataclass(frozen=True)
 class TRange(TExpr):
+    op_span: Span | None
     start: TExpr
     end: TExpr
     inclusive: bool
@@ -168,6 +169,7 @@ class TBinary(TExpr):
 @dataclass(frozen=True)
 class TLogical(TExpr):
     op: TokenType
+    op_span: Span | None
     left: TExpr
     right: TExpr
 
@@ -257,12 +259,14 @@ class TSuper(TExpr):
 
 @dataclass(frozen=True)
 class TIs(TExpr):
+    op_span: Span | None
     operand: TExpr
     test_type: Ty
 
 
 @dataclass(frozen=True)
 class TAs(TExpr):
+    op_span: Span | None
     operand: TExpr
     target_type: Ty
 

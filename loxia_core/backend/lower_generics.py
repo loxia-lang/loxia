@@ -10,7 +10,6 @@ para manter o escopo do T7 explícito.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
@@ -28,8 +27,6 @@ from loxia_core.backend.lower_model import (
     field_words,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Call
-from loxia_core.frontend.stmt import Class, Function
 from loxia_core.frontend.ty import (
     ClassTy,
     FnTy,
@@ -40,6 +37,19 @@ from loxia_core.frontend.ty import (
     TyVar,
     UnionTy,
     display,
+)
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import (
+    TClassDecl as Class,
+)
+from loxia_core.thir import (
+    TFnDecl as FunDecl,
+)
+from loxia_core.thir import (
+    TFunction,
+    TStmt,
 )
 
 MAX_GENERIC_FUNCTIONS = 256
@@ -132,24 +142,27 @@ def _budget_error(message: str, line: int | None) -> BackendError:
 
 
 class GenericLowering(LoweringBase):
-    def _prepare_generics(self, statements: list[Any]) -> None:
+    def _prepare_generics(self, statements: tuple[TStmt, ...]) -> None:
         self._generic_fns = {
-            stmt.name.lexeme: stmt
-            for stmt in statements
-            if isinstance(stmt, Function) and stmt.type_params
+            statement.fn.name or "": statement.fn
+            for statement in statements
+            if isinstance(statement, FunDecl) and statement.fn.type_params
         }
 
-    def _prepare_generic_classes(self, statements: list[Any]) -> None:
+    def _prepare_generic_classes(self, statements: tuple[TStmt, ...]) -> None:
         self._generic_class_nodes = {
-            stmt.name.lexeme: stmt
-            for stmt in statements
-            if isinstance(stmt, Class) and stmt.type_params
+            statement.klass.name: statement.klass
+            for statement in statements
+            if isinstance(statement, Class) and statement.klass.type_params
         }
         by_source: dict[str, list[ClassLayout]] = {}
-        classes = sorted(
-            self.generic_classes,
-            key=lambda ty: (ty.name, tuple(display(arg) for arg in ty.args)),
-        )
+        # O THIR publica todas as instanciações (funções e classes) em
+        # `instances`; só as que nomeiam uma classe genérica entram aqui.
+        classes = [
+            ClassTy(instance.name, tuple(instance.type_args))
+            for instance in self.thir.instances
+            if instance.name in self._generic_class_nodes
+        ]
         for class_ty in classes:
             if not class_ty.args or not self._concrete_class_type(class_ty):
                 continue
@@ -181,12 +194,13 @@ class GenericLowering(LoweringBase):
         if stmt is None:
             raise _unsupported(f"Generic class '{class_ty.name}'", None)
 
-        self.budget.spend_class(class_ty.args, key, stmt.name.line)
-        names = [param.lexeme for param in stmt.type_params]
+        class_line = self._decl_line(stmt.decl)
+        self.budget.spend_class(class_ty.args, key, class_line)
+        names = list(stmt.type_params)
         if len(names) != len(class_ty.args):
             raise BackendError(
                 f"Generic class '{class_ty.name}' has the wrong arity.",
-                stmt.name.line,
+                class_line,
             )
         subst = dict(zip(names, class_ty.args, strict=True))
         saved = self._type_subst
@@ -213,7 +227,7 @@ class GenericLowering(LoweringBase):
             methods,
             init,
             init_node=next(
-                (method for method in stmt.methods if method.name.lexeme == "init"),
+                (method for method in stmt.methods if method.name == "init"),
                 None,
             ),
             ir_name=key,
@@ -222,8 +236,8 @@ class GenericLowering(LoweringBase):
             init_method=init_method,
             vtable_size=new_methods,
             instance_type=instance_type,
-            decl_token=stmt.name,
-            interfaces=tuple(token.lexeme for token in stmt.implements),
+            decl_token=self._decl_span(stmt.decl),
+            interfaces=stmt.interfaces,
         )
         layout.ctor = llvm_ir.declare(
             self.module,
@@ -285,13 +299,13 @@ class GenericLowering(LoweringBase):
         for index, parameter in enumerate(generic.fn.params):
             if index >= len(expr.arguments):
                 break
-            actual = self.types.get(expr.arguments[index])
+            actual = expr.arguments[index].storage_ty
             if actual is None:
-                raise _unsupported("Generic lambda argument type", expr.paren.line)
+                raise _unsupported("Generic lambda argument type", self._line(expr.paren_span))
             if isinstance(parameter, TyVar):
                 mapping[parameter.name] = actual
         if any(variable.name not in mapping for variable in generic.type_params):
-            raise _unsupported("Generic lambda without type arguments", expr.paren.line)
+            raise _unsupported("Generic lambda without type arguments", self._line(expr.paren_span))
         saved = self._type_subst
         self._type_subst = {**saved, **mapping}
         try:
@@ -301,11 +315,11 @@ class GenericLowering(LoweringBase):
                 generic.fn.min_params,
             )
             key = (id(node), tuple(mapping.values()))
-            info = self._generic_fn_cache.get(key)  # type: ignore[arg-type]
+            info = self._generic_fn_cache.get(key)
             if info is None:
-                info = self._lambda_info(node, fn_ty)
+                info = self._lambda_info(node, fn_ty, self._line(expr.paren_span))
                 info = replace(info, type_subst=dict(mapping))
-                self._generic_fn_cache[key] = info  # type: ignore[index]
+                self._generic_fn_cache[key] = info
                 captures = self._make_captures(node)
                 self._emit_function(info, node, captures)
                 closure = self._build_closure(info, captures, "<lambda>")
@@ -316,7 +330,9 @@ class GenericLowering(LoweringBase):
 
     def _call_generic_class(self, name: str, expr: Call) -> Value:
         layout = None
-        ty = self.types.get(expr) or self.generic_class_sites.get(expr)
+        ty: Ty | None = expr.storage_ty
+        if ty is None and expr.class_instance is not None:
+            ty = ClassTy(expr.class_instance.name, tuple(expr.class_instance.type_args))
         if ty is not None:
             ty = self._subst_ty(ty)
         if isinstance(ty, ClassTy) and self._concrete_class_type(ty):
@@ -330,14 +346,14 @@ class GenericLowering(LoweringBase):
         elif len(self._generic_class_by_source.get(name, [])) == 1:
             layout = self._generic_class_by_source[name][0]
         if layout is None:
-            raise _unsupported("Generic class construction", expr.paren.line)
+            raise _unsupported("Generic class construction", self._line(expr.paren_span))
 
         binding = self._globals[layout.name]
         class_ptr = self._guard_closure(
             self._load_binding(binding),
             layout.display,
-            expr.paren.line,
-            expr.paren.column,
+            self._line(expr.paren_span),
+            self._column(expr.paren_span),
         )
         arguments = [self._expr(argument) for argument in expr.arguments]
         init = layout.effective_init()
@@ -346,7 +362,7 @@ class GenericLowering(LoweringBase):
         count = len(arguments)
         if not minimum <= count <= maximum:
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 self._arity_message(minimum, maximum, count),
                 code=Code.RUNTIME_ARITY,
             )
@@ -357,11 +373,11 @@ class GenericLowering(LoweringBase):
                 assert default is not None
                 arguments.append(self._expr(default))
             arguments = [
-                self._coerce(argument, expected, expr.paren.line)
+                self._coerce(argument, expected, self._line(expr.paren_span))
                 for argument, expected in zip(arguments, init.fn_sig.params, strict=True)
             ]
         _ = class_ptr
-        self._set_call_site(expr.paren)
+        self._set_call_site(expr.paren_span)
         call = self.builder.call(
             layout.ctor,
             [
@@ -384,23 +400,23 @@ class GenericLowering(LoweringBase):
             parts.append(text.strip("_"))
         return name + "$" + "$".join(parts)
 
-    def _generic_subst(self, stmt: Function, type_args: tuple[Ty, ...]) -> dict[str, Ty]:
-        names = [param.lexeme for param in stmt.type_params]
+    def _generic_subst(self, fn: TFunction, type_args: tuple[Ty, ...]) -> dict[str, Ty]:
+        names = list(fn.type_params)
         if len(names) != len(type_args):
             raise BackendError(
-                f"Generic function '{stmt.name.lexeme}' expected {len(names)} type argument(s).",
-                stmt.name.line,
+                f"Generic function '{fn.name}' expected {len(names)} type argument(s).",
+                self._decl_line(fn.id),
             )
         return dict(zip(names, type_args, strict=True))
 
     def _generic_function(
         self,
-        stmt: Function,
+        fn: TFunction,
         type_args: tuple[Ty, ...],
         *,
         line: int | None = None,
     ) -> FunctionInfo:
-        name = stmt.name.lexeme
+        name = fn.name or ""
         key = (
             name,
             tuple(display(arg) for arg in type_args),
@@ -413,14 +429,14 @@ class GenericLowering(LoweringBase):
         self.budget.spend_function(
             type_args,
             llvm_name,
-            line if line is not None else stmt.name.line,
+            line if line is not None else self._decl_line(fn.id),
         )
-        subst = self._generic_subst(stmt, type_args)
+        subst = self._generic_subst(fn, type_args)
         saved = self._type_subst
         self._type_subst = subst
         try:
             info = self._function_info(
-                stmt,
+                fn,
                 llvm_name=llvm_name,
                 allow_generic=True,
             )
@@ -430,38 +446,38 @@ class GenericLowering(LoweringBase):
 
         # Registra antes de emitir para recursão direta.
         self._generic_fn_cache[key] = info
-        self._emit_function(info, stmt, ())
+        self._emit_function(info, fn, ())
         return info
 
-    def _call_generic(self, stmt: Function, expr: Call) -> Value:
-        instance = self.generic_instances.get(expr)
+    def _call_generic(self, fn: TFunction, expr: Call) -> Value:
+        instance = expr.instance
         if instance is None:
             raise _unsupported(
                 "A generic call without a checker instantiation",
-                expr.paren.line,
+                self._line(expr.paren_span),
             )
 
         type_args = tuple(self._subst_ty(arg) for arg in instance.type_args)
         if any(self._has_type_var(arg) for arg in type_args):
             raise _unsupported(
                 "A generic call inside another generic body",
-                expr.paren.line,
+                self._line(expr.paren_span),
             )
 
-        info = self._generic_function(stmt, type_args, line=expr.paren.line)
+        info = self._generic_function(fn, type_args, line=self._line(expr.paren_span))
         arguments = [self._expr(argument) for argument in expr.arguments]
         prepared = self._prepare_call_arguments(
             info.fn_sig,
             info,
             arguments,
             expr.spread,
-            expr.paren,
+            expr.paren_span,
             sources=list(expr.arguments),
         )
         if prepared is None:
             return self._zero_desc(info.fn_sig.ret)
         arguments = prepared
-        self._set_call_site(expr.paren)
+        self._set_call_site(expr.paren_span)
         call = self.builder.call(
             info.ir,
             [

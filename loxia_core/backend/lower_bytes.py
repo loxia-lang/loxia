@@ -16,7 +16,12 @@ from loxia_core.backend.lower_model import (
 )
 from loxia_core.diagnostics.codes import Code
 from loxia_core.execution.bytes_api import BYTES_METHODS, BYTES_STATICS
-from loxia_core.frontend.expr import Call, Get, Variable
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import (
+    TGet as Get,
+)
 
 
 class BytesLowering(LoweringBase):
@@ -24,21 +29,16 @@ class BytesLowering(LoweringBase):
 
     def _bytes_static(self, expr: Call) -> Value | None:
         callee = expr.callee
-        if not (
-            isinstance(callee, Get)
-            and isinstance(callee.object, Variable)
-            and callee.object.name.lexeme == "Bytes"
-            and self.depths.get(callee.object) is None
-        ):
+        if not isinstance(callee, Get) or self._global_ref_name(callee.receiver) != "Bytes":
             return None
-        name = callee.name.lexeme
+        name = callee.name
         signature = BYTES_STATICS.get(name)
         if signature is None:
-            raise _unsupported(f"Bytes member '{name}'", callee.name.line)
-        line = callee.name.line
+            raise _unsupported(f"Bytes member '{name}'", self._line(callee.name_span))
+        line = self._line(callee.name_span)
         if len(expr.arguments) != len(signature.params):
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 self._arity_message(
                     len(signature.params), len(signature.params), len(expr.arguments)
                 ),
@@ -65,8 +65,8 @@ class BytesLowering(LoweringBase):
                     ),
                     [
                         value.llvm,
-                        llvm_ir.constant(_I32, expr.paren.line),
-                        llvm_ir.constant(_I32, expr.paren.column),
+                        llvm_ir.constant(_I32, self._line(expr.paren_span)),
+                        llvm_ir.constant(_I32, self._column(expr.paren_span)),
                     ],
                 )
                 return Value(ValueType.BYTES, call)
@@ -96,15 +96,15 @@ class BytesLowering(LoweringBase):
     def _call_bytes_method(self, expr: Call, obj: Value) -> Value:
         callee = expr.callee
         assert isinstance(callee, Get)
-        name = callee.name.lexeme
-        line = callee.name.line
-        column = callee.name.column
+        name = callee.name
+        line = self._line(callee.name_span)
+        column = self._column(callee.name_span)
         signature = BYTES_METHODS.get(name)
         if signature is None:
             raise _unsupported(f"Bytes method '{name}'", line)
         if len(expr.arguments) != len(signature.params):
             self._poison(
-                expr.paren,
+                expr.paren_span,
                 self._arity_message(
                     len(signature.params), len(signature.params), len(expr.arguments)
                 ),
@@ -170,7 +170,7 @@ class BytesLowering(LoweringBase):
                 raise _unsupported(f"Bytes method '{name}'", line)
 
     def _call_optional_bytes_method(self, expr: Call, receiver: Value) -> Value:
-        result_desc = self._expr_type_desc(expr, expr.paren.line)
+        result_desc = self._expr_type_desc(expr, self._line(expr.paren_span))
         some = self._control.new_block(self._function_ir, "bytes.opt.some")
         nothing = self._control.new_block(self._function_ir, "bytes.opt.nil")
         end = self._control.new_block(self._function_ir, "bytes.opt.end")
@@ -201,4 +201,4 @@ class BytesLowering(LoweringBase):
         )
 
     def _bytes_method_value(self, expr: Get) -> Value:
-        raise _unsupported("Bytes method value", expr.name.line)
+        raise _unsupported("Bytes method value", self._line(expr.name_span))

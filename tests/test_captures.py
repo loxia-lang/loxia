@@ -1,27 +1,87 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Testes do passe de captura do backend (ADR-0046)."""
+"""Capturas e células: o contrato que o THIR publica para os motores (ADR-0046).
+
+O passe `backend/captures.py` existia só enquanto o lowering lia o AST. Com o THIR,
+a decisão mora em `Decl.cell` e `TFunction.captures` (ordem canônica) e é o próprio
+produtor que a toma; estes testes fixam o comportamento no produtor.
+"""
 
 from __future__ import annotations
 
-from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
-from loxia_core.frontend.expr import Lambda
+from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
-from loxia_core.frontend.stmt import Block, Function, Stmt, Var
+from loxia_core.semantics.checker import Checker
+from loxia_core.semantics.resolver import Resolver
+from loxia_core.semantics.thir_build import build_thir
+from loxia_core.thir import Decl, DeclKind, TFunction, TModule
 
 
-def _parse(source: str) -> list[Stmt]:
-    statements = Parser(Scanner(source).scan_tokens()).parse()
-    assert statements is not None
-    return statements
+def _module(source: str) -> TModule:
+    """THIR de um fonte sem anotações: o checker gradual publica os tipos."""
+    reporter = ErrorReporter()
+    statements = Parser(Scanner(source, reporter).scan_tokens(), reporter=reporter).parse()
+    assert statements is not None, "parse falhou"
+    assert not reporter.had_error, "erro de sintaxe no caso de teste"
+    Resolver(Interpreter(reporter), reporter).resolve(statements)
+    checker = Checker(reporter, gradual=True, warn_missing=False)
+    checker.check(statements)
+    assert not reporter.had_fatal_error, "erro fatal no caso de teste"
+    return build_thir(
+        statements,
+        storage_types=checker.storage_types,
+        flow_types=checker.types,
+        generic_instances=checker.generic_fn_instances,
+        generic_classes=checker.concrete_class_types(),
+        generic_class_sites=checker.generic_class_sites,
+        type_aliases=checker.type_aliases(),
+        function_types=checker.function_types,
+        source_path="case.lx",
+    )
 
 
-def _capture_names(analysis: CaptureAnalysis, node: Function | Lambda) -> list[str]:
-    return [capture.name for capture in analysis.captures_of(node)]
+def _functions(module: TModule) -> list[TFunction]:
+    found: list[TFunction] = []
+
+    def walk(value: object) -> None:
+        if isinstance(value, TFunction):
+            found.append(value)
+            for statement in value.body:
+                walk(statement)
+            return
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                walk(item)
+            return
+        if hasattr(value, "__dataclass_fields__"):
+            for name in value.__dataclass_fields__:
+                walk(getattr(value, name))
+
+    walk(module.statements)
+    return found
+
+
+def _function(module: TModule, name: str) -> TFunction:
+    matches = [function for function in _functions(module) if function.display_name == name]
+    assert len(matches) == 1, f"função '{name}' não encontrada uma única vez"
+    return matches[0]
+
+
+def _capture_names(function: TFunction) -> list[str]:
+    return [capture.name for capture in function.captures]
+
+
+def _decl(module: TModule, name: str, kind: DeclKind | None = None) -> Decl:
+    matches = [
+        decl for decl in module.decls if decl.name == name and (kind is None or decl.kind is kind)
+    ]
+    assert len(matches) == 1, f"declaração '{name}' não encontrada uma única vez"
+    return matches[0]
 
 
 def test_captured_var_becomes_cell_and_enters_env() -> None:
-    statements = _parse(
+    module = _module(
         """
         fn make() {
           var i = 0;
@@ -31,21 +91,13 @@ def test_captured_var_becomes_cell_and_enters_env() -> None:
         }
         """
     )
-    make = statements[0]
-    assert isinstance(make, Function)
-    declared = make.body[0]
-    count = make.body[1]
-    assert isinstance(declared, Var)
-    assert isinstance(count, Function)
 
-    analysis = analyze_captures(statements)
-
-    assert _capture_names(analysis, count) == ["i"]
-    assert analysis.is_captured(declared)
+    assert _capture_names(_function(module, "count")) == ["i"]
+    assert _decl(module, "i", DeclKind.VAR).cell
 
 
 def test_uncaptured_local_is_not_boxed() -> None:
-    statements = _parse(
+    module = _module(
         """
         fn make() {
           var i = 0;
@@ -53,18 +105,12 @@ def test_uncaptured_local_is_not_boxed() -> None:
         }
         """
     )
-    make = statements[0]
-    assert isinstance(make, Function)
-    declared = make.body[0]
-    assert isinstance(declared, Var)
 
-    analysis = analyze_captures(statements)
-
-    assert not analysis.is_captured(declared)
+    assert not _decl(module, "i", DeclKind.VAR).cell
 
 
 def test_capture_propagates_through_intermediate_function() -> None:
-    statements = _parse(
+    module = _module(
         """
         fn outer() {
           var x = 1;
@@ -76,24 +122,14 @@ def test_capture_propagates_through_intermediate_function() -> None:
         }
         """
     )
-    outer = statements[0]
-    assert isinstance(outer, Function)
-    declared = outer.body[0]
-    middle = outer.body[1]
-    assert isinstance(declared, Var)
-    assert isinstance(middle, Function)
-    inner = middle.body[0]
-    assert isinstance(inner, Function)
 
-    analysis = analyze_captures(statements)
-
-    assert _capture_names(analysis, middle) == ["x"]
-    assert _capture_names(analysis, inner) == ["x"]
-    assert analysis.is_captured(declared)
+    assert _capture_names(_function(module, "middle")) == ["x"]
+    assert _capture_names(_function(module, "inner")) == ["x"]
+    assert _decl(module, "x", DeclKind.VAR).cell
 
 
 def test_global_is_not_captured() -> None:
-    statements = _parse(
+    module = _module(
         """
         var a = 1;
         fn show() {
@@ -101,16 +137,12 @@ def test_global_is_not_captured() -> None:
         }
         """
     )
-    show = statements[1]
-    assert isinstance(show, Function)
 
-    analysis = analyze_captures(statements)
-
-    assert _capture_names(analysis, show) == []
+    assert _capture_names(_function(module, "show")) == []
 
 
 def test_captured_parameter_is_boxed() -> None:
-    statements = _parse(
+    module = _module(
         """
         fn f(x) {
           fn g() {
@@ -119,20 +151,13 @@ def test_captured_parameter_is_boxed() -> None:
         }
         """
     )
-    function = statements[0]
-    assert isinstance(function, Function)
-    param = function.params[0]
-    nested = function.body[0]
-    assert isinstance(nested, Function)
 
-    analysis = analyze_captures(statements)
-
-    assert _capture_names(analysis, nested) == ["x"]
-    assert analysis.is_captured(param)
+    assert _capture_names(_function(module, "g")) == ["x"]
+    assert _decl(module, "x", DeclKind.PARAM).cell
 
 
 def test_self_recursive_local_function_captures_its_own_binding() -> None:
-    statements = _parse(
+    module = _module(
         """
         {
           fn f() {
@@ -141,19 +166,13 @@ def test_self_recursive_local_function_captures_its_own_binding() -> None:
         }
         """
     )
-    block = statements[0]
-    assert isinstance(block, Block)
-    function = block.statements[0]
-    assert isinstance(function, Function)
 
-    analysis = analyze_captures(statements)
-
-    assert _capture_names(analysis, function) == ["f"]
-    assert analysis.is_captured(function)
+    assert _capture_names(_function(module, "f")) == ["f"]
+    assert _decl(module, "f", DeclKind.FUNCTION).cell
 
 
 def test_lambda_captures_enclosing_local() -> None:
-    statements = _parse(
+    module = _module(
         """
         fn outer() {
           var x = 1;
@@ -161,16 +180,7 @@ def test_lambda_captures_enclosing_local() -> None:
         }
         """
     )
-    outer = statements[0]
-    assert isinstance(outer, Function)
-    declared = outer.body[0]
-    binding = outer.body[1]
-    assert isinstance(declared, Var)
-    assert isinstance(binding, Var)
-    lambda_ = binding.initializer
-    assert isinstance(lambda_, Lambda)
 
-    analysis = analyze_captures(statements)
-
-    assert _capture_names(analysis, lambda_) == ["x"]
-    assert analysis.is_captured(declared)
+    lambda_ = _function(module, "<lambda>")
+    assert _capture_names(lambda_) == ["x"]
+    assert _decl(module, "x", DeclKind.VAR).cell

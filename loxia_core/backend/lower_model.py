@@ -13,11 +13,16 @@ from typing import Any
 
 from loxia_core.backend import llvm_ir
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Expr
-from loxia_core.frontend.stmt import Function, Param
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.token_type import TokenType
-from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import FnTy, Ty
+from loxia_core.thir import (
+    TExpr,
+    TFunction,
+)
+from loxia_core.thir import (
+    TParam as Param,
+)
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -261,7 +266,7 @@ class FieldLayout:
     name: str
     ty: TypeDesc
     mutable: bool
-    initializer: Expr | None
+    initializer: TExpr | None
     index: int
     line: int
     column: int = 0
@@ -283,7 +288,7 @@ class MethodLayout:
     name: str
     info: FunctionInfo
     index: int
-    node: Function | None = None
+    node: TFunction | None = None
     thunk: Any = None
 
 
@@ -294,7 +299,7 @@ class ClassLayout:
     fields: list[FieldLayout]
     methods: list[MethodLayout]
     init: FunctionInfo | None
-    init_node: Function | None = None
+    init_node: TFunction | None = None
     super_name: str | None = None
     super_layout: ClassLayout | None = None
     local: bool = False
@@ -307,7 +312,7 @@ class ClassLayout:
     ctor: Any = None
     instance_type: Any = None
     # Declaração da classe: nome exibível nos frames e posição do R1015 no ctor.
-    decl_token: Token | None = None
+    decl_token: Span | None = None
     # `Exception`/`RuntimeError`: ctor sintético de 1 argumento (`message`),
     # sem `init` no AST. Ver `_ctor_body`/`_call_class`.
     synthetic_exception: bool = False

@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -29,11 +30,14 @@ from loxia_core.execution.limits import (
     TRACE_HEAD,
     TRACE_TAIL,
 )
-from loxia_core.frontend.expr import Expr
-from loxia_core.frontend.stmt import Function, Stmt
-from loxia_core.frontend.ty import Ty
 from loxia_core.native_build import static_library as regex_static_library
-from loxia_core.semantics.layers import REGEX_PRIMITIVES, uses_primitive
+from loxia_core.semantics.layers import REGEX_PRIMITIVES
+from loxia_core.thir import (
+    Storage,
+    TGet,
+    TModule,
+    TVar,
+)
 
 Emit = Literal["ll", "obj", "exe"]
 
@@ -81,51 +85,33 @@ def _runtime_flags(heap_bytes: int) -> tuple[str, ...]:
 
 
 def build(
-    statements: list[Stmt],
+    module: TModule,
     *,
     emit: Emit,
     output: Path | None,
     stem: str,
-    types: dict[Expr, Ty],
-    depths: dict[Expr, int],
-    flow_types: dict[Expr, Ty] | None = None,
-    generic_instances: Any = None,
-    generic_classes: Any = None,
-    generic_class_sites: Any = None,
-    type_aliases: dict[str, Ty] | None = None,
-    function_types: dict[Any, Any] | None = None,
     source_path: str = "<lox>",
     max_heap: int | None = None,
     debug: bool = False,
-    entry: Function | None = None,
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
     try:
-        module = lower_program(
-            statements,
-            types=types,
-            depths=depths,
-            flow_types=flow_types,
-            generic_instances=generic_instances,
-            generic_classes=generic_classes,
-            generic_class_sites=generic_class_sites,
-            type_aliases=type_aliases,
-            function_types=function_types,
+        ir_module = lower_program(
+            module,
             source_path=source_path,
             debug=debug,
-            entry=entry,
         )
-        _verify(module)
+        _verify(ir_module)
 
         if emit == "ll":
-            text = llvm_ir.emit_text(module)
+            text = llvm_ir.emit_text(ir_module)
             if output is None:
                 sys.stdout.write(text if text.endswith("\n") else f"{text}\n")
                 return None
             output.write_text(text, encoding="utf-8")
             return output
 
-        object_bytes = llvm_ir.emit_object(module)
+        object_bytes = llvm_ir.emit_object(ir_module)
     except BackendError:
         raise
     except Exception as error:
@@ -140,7 +126,7 @@ def build(
 
     target = output or Path(stem)
     heap_bytes = DEFAULT_HEAP_BYTES if max_heap is None else max_heap
-    regex_used = uses_primitive(statements, depths, REGEX_PRIMITIVES)
+    regex_used = _uses_regex(module)
     try:
         _link(object_bytes, target, heap_bytes, regex_used)
     except BackendError:
@@ -150,6 +136,30 @@ def build(
             f"internal error: native link failed: {type(error).__name__}: {error}"
         ) from error
     return target
+
+
+def _uses_regex(module: TModule) -> bool:
+    """`True` quando o programa usa uma capacidade native-only de regex.
+
+    A regra é a de `layers.named_uses`, agora sobre o THIR: um `TGet` cujo receptor
+    é uma variável resolvida fora do escopo local (namespace global/builtin).
+    """
+    stack: list[object] = [module]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, TGet):
+            receiver = node.receiver
+            if (
+                isinstance(receiver, TVar)
+                and receiver.ref.storage in (Storage.GLOBAL, Storage.BUILTIN, Storage.UNRESOLVED)
+                and f"{receiver.ref.name}.{node.name}" in REGEX_PRIMITIVES
+            ):
+                return True
+        if isinstance(node, (list, tuple)):
+            stack.extend(node)
+        elif is_dataclass(node) and not isinstance(node, type):
+            stack.extend(getattr(node, field.name) for field in fields(node))
+    return False
 
 
 def _verify(module: Any) -> None:

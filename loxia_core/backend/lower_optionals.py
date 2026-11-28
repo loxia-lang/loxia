@@ -38,7 +38,6 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import BOOL as TY_BOOL
@@ -63,6 +62,7 @@ from loxia_core.frontend.ty import (
     UnionTy,
 )
 from loxia_core.frontend.ty import STRING as TY_STRING
+from loxia_core.thir import TExpr
 
 
 class OptionalLowering(LoweringBase):
@@ -204,13 +204,13 @@ class OptionalLowering(LoweringBase):
                 # parâmetros, locais e phis. O valor lógico continua `NIL`.
                 return _I32
 
-    def _expr_type_desc(self, expr: Expr, line: int | None) -> TypeDesc:
-        ty = self.types.get(expr)
+    def _expr_type_desc(self, expr: TExpr, line: int | None) -> TypeDesc:
+        ty = expr.storage_ty
         if ty is None:
             raise _unsupported("Type information for an expression", line)
         return self._type_desc(ty, line)
 
-    def _narrowed(self, expr: Expr, value: Value, line: int | None) -> Value:
+    def _narrowed(self, expr: TExpr, value: Value, line: int | None) -> Value:
         """Desembrulha `Any` quando o checker publicou um tipo estreitado.
 
         O checker refina `a is C`/`a != nil`, mas o slot continua guardando o box de
@@ -219,7 +219,7 @@ class OptionalLowering(LoweringBase):
         """
         if value.ty is not ValueType.ANY:
             return value
-        narrowed = self.flow_types.get(expr)
+        narrowed = expr.ty
         if narrowed is None:
             return value
         desc = self._type_desc(narrowed, line)
@@ -557,7 +557,7 @@ class OptionalLowering(LoweringBase):
         expected: TypeDesc,
         line: int | None,
         *,
-        source: Expr | None = None,
+        source: TExpr | None = None,
     ) -> Value:
         """Converte `nil`/`T` para `T?` e faz unwrap checado de `T?` para `T`.
 
@@ -567,7 +567,7 @@ class OptionalLowering(LoweringBase):
         um erro estático adiado em `internal lowering error` — o binário precisa do
         mesmo `Rxxxx` do tree-walk (I1).
         """
-        if value.error or (source is not None and self.types.get(source) == TY_ERROR):
+        if value.error or (source is not None and source.storage_ty is TY_ERROR):
             return self._zero_desc(expected)
 
         if expected.interface_name is not None:

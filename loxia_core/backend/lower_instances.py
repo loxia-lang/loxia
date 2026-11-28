@@ -22,8 +22,16 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
-from loxia_core.frontend.expr import Get, Set, Variable
-from loxia_core.frontend.tokens import Token
+from loxia_core.diagnostics.diagnostic import Span
+from loxia_core.thir import (
+    TGet as Get,
+)
+from loxia_core.thir import (
+    TSet as Set,
+)
+from loxia_core.thir import (
+    TVar as Variable,
+)
 
 
 class InstanceLowering(LoweringBase):
@@ -185,21 +193,21 @@ class InstanceLowering(LoweringBase):
         self._set_bitmap(instance, field)
 
     def _get(self, expr: Get) -> Value:
-        if isinstance(expr.object, Variable) and expr.object.name.lexeme in self._enum_layouts:
+        if isinstance(expr.receiver, Variable) and expr.receiver.ref.name in self._enum_layouts:
             return self._enum_get(expr)
-        obj = self._narrowed(expr.object, self._expr(expr.object), expr.name.line)
+        obj = self._narrowed(expr.receiver, self._expr(expr.receiver), self._line(expr.name_span))
         if obj.ty is ValueType.BYTES:
             return cast("Value", self._bytes_method_value(expr))
         if expr.optional:
             if obj.ty is ValueType.NIL:
-                return self._zero_desc(self._expr_type_desc(expr, expr.name.line))
+                return self._zero_desc(self._expr_type_desc(expr, self._line(expr.name_span)))
             if obj.optional:
                 return self._get_optional(obj, expr)
 
         return self._get_instance(obj, expr)
 
     def _get_optional(self, obj: Value, expr: Get) -> Value:
-        result = self._expr_type_desc(expr, expr.name.line)
+        result = self._expr_type_desc(expr, self._line(expr.name_span))
         if result.ty is ValueType.NIL and not result.optional:
             # `c = nil; c?.x`: o checker já sabe que o resultado é nil.
             return Value(ValueType.NIL)
@@ -216,7 +224,7 @@ class InstanceLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(some)
         payload = self._optional_payload(obj)
-        value = self._coerce(self._get_instance(payload, expr), result, expr.name.line)
+        value = self._coerce(self._get_instance(payload, expr), result, self._line(expr.name_span))
         self.builder.branch(end)
         some_end = self.builder.block
 
@@ -260,55 +268,57 @@ class InstanceLowering(LoweringBase):
         return cast(Value, self._concat(prefix, message))
 
     def _get_instance(self, obj: Value, expr: Get) -> Value:
-        return self._get_instance_name(obj, expr.name)
+        return self._get_instance_name(obj, expr.name, expr.name_span)
 
-    def _get_instance_name(self, obj: Value, name: Token) -> Value:
+    def _get_instance_name(self, obj: Value, name: str, span: Span | None) -> Value:
+        line = self._line(span)
         if obj.ty is not ValueType.INSTANCE:
-            self._poison(name, "Only instances have properties.", code=Code.INVALID_VALUE)
+            self._poison(span, "Only instances have properties.", code=Code.INVALID_VALUE)
             return self._zero(ValueType.INT)
 
         if obj.interface_name is not None and obj.class_name is None:
-            return self._interface_bound_method(obj, obj.interface_name, name)
+            return self._interface_bound_method(obj, obj.interface_name, name, span)
 
-        layout = self._layout_for(obj, name.line)
-        field = layout.field(name.lexeme)
+        layout = self._layout_for(obj, line)
+        field = layout.field(name)
         if field is not None:
-            return self._load_field(obj, field, name.line, name.column)
-        method = layout.method(name.lexeme)
+            return self._load_field(obj, field, line, self._column(span))
+        method = layout.method(name)
         if method is not None:
             return self._bound_method(obj, layout, method)
 
         for interface in layout.effective_interfaces():
-            if self._interface_has_method(interface, name.lexeme):
-                return self._interface_bound_method(obj, interface, name)
+            if self._interface_has_method(interface, name):
+                return self._interface_bound_method(obj, interface, name, span)
 
-        self._poison(name, f"Undefined property '{name.lexeme}'.")
+        self._poison(span, f"Undefined property '{name}'.")
         return self._zero(ValueType.INT)
 
     def _set(self, expr: Set) -> Value:
-        obj = self._narrowed(expr.object, self._expr(expr.object), expr.name.line)
+        line = self._line(expr.name_span)
+        obj = self._narrowed(expr.receiver, self._expr(expr.receiver), line)
         field: FieldLayout | None = None
         if obj.ty is ValueType.INSTANCE:
-            layout = self._layout_for(obj, expr.name.line)
-            field = layout.field(expr.name.lexeme)
+            layout = self._layout_for(obj, line)
+            field = layout.field(expr.name)
         # Resolve the field first so a `[]` initializer can inherit its element type;
         # the value is still lowered exactly once, before either poison path.
         value = self._expr_with_expected(expr.value, None if field is None else field.annotation)
         if obj.ty is not ValueType.INSTANCE:
-            self._poison(expr.name, "Only instances have fields.", code=Code.INVALID_VALUE)
+            self._poison(expr.name_span, "Only instances have fields.", code=Code.INVALID_VALUE)
             return value
         if field is None:
             self._poison(
-                expr.name, f"Undefined field '{expr.name.lexeme}'.", code=Code.UNDEFINED_PROPERTY
+                expr.name_span, f"Undefined field '{expr.name}'.", code=Code.UNDEFINED_PROPERTY
             )
             return value
 
-        value = self._coerce(value, field.ty, expr.name.line)
+        value = self._coerce(value, field.ty, line)
 
         if not field.mutable:
             if not self._in_init:
                 self._poison(
-                    expr.name,
+                    expr.name_span,
                     f"Can't assign to immutable field '{field.name}'.",
                     code=Code.RUNTIME_IMMUTABLE,
                 )
@@ -327,7 +337,7 @@ class InstanceLowering(LoweringBase):
 
             self.builder = llvm_ir.builder(used)
             self._poison(
-                expr.name,
+                expr.name_span,
                 f"Can't assign to immutable field '{field.name}'.",
                 code=Code.RUNTIME_IMMUTABLE,
             )

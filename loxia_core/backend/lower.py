@@ -21,7 +21,6 @@ from loxia_core.diagnostics.codes import Code
 __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from loxia_core.backend import llvm_ir
-from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
 from loxia_core.backend.control_ir import ControlIR
 from loxia_core.backend.lower_base import CleanupContext, LoopContext
 from loxia_core.backend.lower_bytes import BytesLowering
@@ -60,53 +59,7 @@ from loxia_core.backend.lower_range import RangeLowering
 from loxia_core.backend.lower_strings import StringLowering
 from loxia_core.backend.lower_tuples import TupleLowering
 from loxia_core.backend.lower_variables import VariableLowering
-from loxia_core.frontend.expr import (
-    As,
-    Assign,
-    Binary,
-    Call,
-    Conditional,
-    Expr,
-    Get,
-    Grouping,
-    Index,
-    IndexSet,
-    InterpolatedString,
-    Is,
-    Lambda,
-    ListLiteral,
-    Literal,
-    Logical,
-    MapLiteral,
-    Match,
-    Range,
-    Set,
-    Super,
-    This,
-    TupleLiteral,
-    Unary,
-    Variable,
-)
-from loxia_core.frontend.stmt import (
-    Block,
-    Break,
-    Class,
-    Continue,
-    Destructure,
-    EnumDecl,
-    Expression,
-    ForIn,
-    Function,
-    If,
-    Interface,
-    Raise,
-    Return,
-    Stmt,
-    Try,
-    TypeAlias,
-    Var,
-    While,
-)
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import (
@@ -114,6 +67,137 @@ from loxia_core.frontend.ty import (
 )
 from loxia_core.frontend.ty import (
     Ty,
+)
+from loxia_core.thir import (
+    Decl,
+    DeclId,
+    FnId,
+    TClass,
+    TExpr,
+    TFunction,
+    TModule,
+    TStmt,
+    decl_table,
+)
+from loxia_core.thir import (
+    TAs as As,
+)
+from loxia_core.thir import (
+    TAssign as Assign,
+)
+from loxia_core.thir import (
+    TBinary as Binary,
+)
+from loxia_core.thir import (
+    TBlock as Block,
+)
+from loxia_core.thir import (
+    TBreak as Break,
+)
+from loxia_core.thir import (
+    TCall as Call,
+)
+from loxia_core.thir import (
+    TClassDecl as Class,
+)
+from loxia_core.thir import (
+    TConditional as Conditional,
+)
+from loxia_core.thir import (
+    TConst as Literal,
+)
+from loxia_core.thir import (
+    TContinue as Continue,
+)
+from loxia_core.thir import (
+    TDestructureStmt as Destructure,
+)
+from loxia_core.thir import (
+    TEnumDecl as EnumDecl,
+)
+from loxia_core.thir import (
+    TExprStmt as Expression,
+)
+from loxia_core.thir import (
+    TFnDecl as Function,
+)
+from loxia_core.thir import (
+    TForIn as ForIn,
+)
+from loxia_core.thir import (
+    TGet as Get,
+)
+from loxia_core.thir import (
+    TIf as If,
+)
+from loxia_core.thir import (
+    TIndex as Index,
+)
+from loxia_core.thir import (
+    TIndexSet as IndexSet,
+)
+from loxia_core.thir import (
+    TInterfaceDecl as Interface,
+)
+from loxia_core.thir import (
+    TInterp as InterpolatedString,
+)
+from loxia_core.thir import (
+    TIs as Is,
+)
+from loxia_core.thir import (
+    TLambda as Lambda,
+)
+from loxia_core.thir import (
+    TList as ListLiteral,
+)
+from loxia_core.thir import (
+    TLogical as Logical,
+)
+from loxia_core.thir import (
+    TMap as MapLiteral,
+)
+from loxia_core.thir import (
+    TMatch as Match,
+)
+from loxia_core.thir import (
+    TRaise as Raise,
+)
+from loxia_core.thir import (
+    TRange as Range,
+)
+from loxia_core.thir import (
+    TReturn as Return,
+)
+from loxia_core.thir import (
+    TSet as Set,
+)
+from loxia_core.thir import (
+    TSuper as Super,
+)
+from loxia_core.thir import (
+    TThis as This,
+)
+from loxia_core.thir import (
+    TTry as Try,
+)
+from loxia_core.thir import (
+    TTuple as TupleLiteral,
+)
+from loxia_core.thir import (
+    TTypeAlias as TypeAlias,
+)
+from loxia_core.thir import (
+    TUnary as Unary,
+)
+from loxia_core.thir import (
+    TVar as Variable,
+)
+from loxia_core.thir import (
+    TVarStmt as Var,
+)
+from loxia_core.thir import (
+    TWhile as While,
 )
 
 
@@ -139,33 +223,17 @@ class Lowerer(
         self,
         module: Any,
         *,
-        types: dict[Expr, Ty],
-        depths: dict[Expr, int],
-        flow_types: dict[Expr, Ty] | None = None,
-        generic_instances: Any = None,
-        generic_classes: Any = None,
-        generic_class_sites: Any = None,
-        type_aliases: dict[str, Ty] | None = None,
-        function_types: dict[Any, Any] | None = None,
+        thir: TModule,
         source_path: str = "<lox>",
         debug: bool = False,
-        entry: Function | None = None,
     ) -> None:
+        # `module` é o módulo llvmlite; `thir` é a árvore de entrada tipada.
         self.module: Any = module
-        # `main -> Result` do arquivo de entrada (ADR-0148); `None` para scripts.
-        self.entry = entry
+        self.thir: TModule = thir
+        self.decls: dict[DeclId, Decl] = decl_table(thir)
         self.source_path: str = source_path
         self.debug = debug
-        self.types = types
-        # Tipo de fluxo (com narrowing) por expressão; `types` guarda a
-        # representação declarada (ADR-0045). O unbox de `Any` usa este mapa.
-        self.flow_types = flow_types if flow_types is not None else types
-        self.depths = depths
-        self.generic_instances = generic_instances or {}
-        self.generic_classes = generic_classes or set()
-        self.generic_class_sites = generic_class_sites or {}
-        self.type_aliases = type_aliases or {}
-        self._function_types = function_types or {}
+        self.type_aliases: dict[str, Ty] = dict(thir.type_aliases)
         self.main: Any = None
         self._control = ControlIR()
         self.builder: Any = None
@@ -180,7 +248,7 @@ class Lowerer(
         self._scopes: list[dict[str, Binding]] = [{}]
         self._captures: dict[str, Binding] = {}
         self._globals: dict[str, Binding] = {}
-        self._top_level: dict[int, FunctionInfo] = {}
+        self._top_level: dict[FnId, FunctionInfo] = {}
         self._class_names: set[str] = set()
         self._classes: dict[str, ClassLayout] = {}
         self._local_class_counter = 0
@@ -188,7 +256,6 @@ class Lowerer(
         self._return_type_desc = TypeDesc(ValueType.NIL)
         self._in_init = False
         self._method_class: str | None = None
-        self._analysis = CaptureAnalysis({}, frozenset())
         self._type_subst: dict[str, Ty] = {}
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
@@ -199,14 +266,14 @@ class Lowerer(
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
         self._map_expected_value: Ty | None = None
-        self._generic_fns: dict[str, Function] = {}
-        self._generic_fn_cache: dict[tuple[str, tuple[str, ...]], FunctionInfo] = {}
+        self._generic_fns: dict[str, TFunction] = {}
+        self._generic_fn_cache: dict[Any, FunctionInfo] = {}
         self._generic_class_layouts: dict[str, ClassLayout] = {}
         self._generic_class_by_source: dict[str, list[ClassLayout]] = {}
-        self._generic_class_nodes: dict[str, Class] = {}
+        self._generic_class_nodes: dict[str, TClass] = {}
         self._generic_descriptors: dict[str, Any] = {}
         self._interface_ids: dict[str, int] = {}
-        self._interface_nodes: dict[str, Interface] = {}
+        self._interface_nodes: dict[str, Any] = {}
         self._interface_method_names: dict[str, tuple[str, ...]] = {}
         self._interface_method_infos: dict[str, dict[str, FunctionInfo]] = {}
         self._interface_default_closures: dict[str, dict[str, Value]] = {}
@@ -223,8 +290,8 @@ class Lowerer(
 
     # --- programa ---
 
-    def lower(self, statements: list[Stmt]) -> None:
-        self._analysis = analyze_captures(statements)
+    def lower(self) -> None:
+        statements = self.thir.statements
         self._prepare_generics(statements)
         self._prepare_enums(statements)
         self._prepare_exception_classes()
@@ -259,21 +326,21 @@ class Lowerer(
             if self._function_ir is self.main:
                 self._drain_pending_generic_classes()
 
-        if self.entry is not None and not self.builder.block.is_terminated:
-            self._call_entry(self.entry)
+        if self.thir.entry is not None and not self.builder.block.is_terminated:
+            self._call_entry(self.thir.entry)
 
         if not self.builder.block.is_terminated:
             self.builder.ret(llvm_ir.constant(_I32, 0))
         self._seal_blocks(main)
 
         for statement in statements:
-            if not isinstance(statement, Function) or statement.type_params:
+            if not isinstance(statement, Function) or statement.fn.type_params:
                 continue
-            info = self._top_level[id(statement)]
-            self._emit_function(info, statement, ())
+            info = self._top_level[statement.fn.id]
+            self._emit_function(info, statement.fn, ())
         self._control.verify_all()
 
-    def _call_entry(self, entry: Function) -> None:
+    def _call_entry(self, entry: FnId) -> None:
         """Chama o `main -> Result` do arquivo de entrada (ADR-0148).
 
         O entry é uma função de topo sem capturas: o closure tem env nulo e o símbolo
@@ -281,11 +348,11 @@ class Lowerer(
         `Err` delega ao runtime (`error[R1016]: <msg>` + exit 70), com os mesmos bytes
         do tree-walk.
         """
-        info = self._top_level.get(id(entry))
+        info = self._top_level.get(entry)
         if info is None:
-            raise _unsupported("Entry point 'main'", entry.name.line)
+            raise _unsupported("Entry point 'main'", self._decl_line(entry))
 
-        self._set_call_site(entry.name)
+        self._set_call_site(self._decl_span(entry))
         result = self.builder.call(info.ir, [llvm_ir.null_pointer()])
         is_err = self.builder.call(
             self._function("lox_enum_variant_index", _INT, [_I8_PTR, _I8_PTR]),
@@ -307,11 +374,11 @@ class Lowerer(
 
     # --- statements ---
 
-    def _stmt(self, stmt: Stmt) -> None:
+    def _stmt(self, stmt: TStmt) -> None:
         if isinstance(stmt, Block):
             self._scopes.append({})
             try:
-                for inner in stmt.statements:
+                for inner in stmt.body:
                     if self.builder.block.is_terminated:
                         break
                     self._stmt(inner)
@@ -324,15 +391,16 @@ class Lowerer(
         elif isinstance(stmt, Continue):
             self._loop_transfer(stmt, "continue")
         elif isinstance(stmt, Function):
-            if stmt.type_params:
+            fn = stmt.fn
+            if fn.type_params:
                 return
-            info = self._top_level.get(id(stmt))
+            info = self._top_level.get(fn.id)
             if info is not None:
-                self._define_top_level_function(stmt, info)
+                self._define_top_level_function(fn, info)
             else:
-                self._local_function(stmt)
+                self._local_function(fn)
         elif isinstance(stmt, Class):
-            self._class_declaration(stmt)
+            self._class_declaration(stmt.klass)
         elif isinstance(stmt, Interface):
             # Tipo apagado em runtime; defaults são emitidos no bootstrap.
             return
@@ -350,7 +418,7 @@ class Lowerer(
         elif isinstance(stmt, Destructure):
             self._destructure(stmt)
         elif isinstance(stmt, EnumDecl):
-            self._enum_decl(stmt)
+            self._enum_decl(stmt.enum)
         elif isinstance(stmt, Try):
             self._try(stmt)
         elif isinstance(stmt, Raise):
@@ -420,7 +488,7 @@ class Lowerer(
 
     def _loop_transfer(self, stmt: Break | Continue, kind: str) -> None:
         if not self._loop_stack:
-            raise _unsupported(kind, stmt.keyword.line)
+            raise _unsupported(kind, self._line(stmt.span))
 
         context = self._loop_stack[-1]
         target = context.break_block if kind == "break" else context.continue_block
@@ -527,7 +595,7 @@ class Lowerer(
 
     # --- expressões ---
 
-    def _expr(self, expr: Expr) -> Value:
+    def _expr(self, expr: TExpr) -> Value:
         if isinstance(expr, Variable):
             return self._variable(expr)
         if isinstance(expr, Assign):
@@ -546,8 +614,6 @@ class Lowerer(
             return self._as_expr(expr)
         if isinstance(expr, Literal):
             return self._literal(expr)
-        if isinstance(expr, Grouping):
-            return self._expr(expr.expression)
         if isinstance(expr, Unary):
             return self._unary(expr)
         if isinstance(expr, Binary):
@@ -604,11 +670,11 @@ class Lowerer(
         raise _unsupported("Literal", None)
 
     def _unary(self, expr: Unary) -> Value:
-        operand = self._expr(expr.right)
-        line = expr.operator.line
-        column = expr.operator.column
+        operand = self._expr(expr.operand)
+        line = self._line(expr.op_span)
+        column = self._column(expr.op_span)
 
-        match expr.operator.type:
+        match expr.op:
             case TokenType.MINUS:
                 if operand.ty is ValueType.ANY and not operand.optional:
                     boxed = self._box_value(operand, line)
@@ -689,13 +755,13 @@ class Lowerer(
                     self.builder.xor(operand.llvm, llvm_ir.constant(_INT, -1)),
                 )
 
-        raise _unsupported(f"Unary operator '{expr.operator.lexeme}'", line)
+        raise _unsupported(f"Unary operator '{expr.op.name}'", line)
 
     def _binary(self, expr: Binary) -> Value:
         left = self._expr(expr.left)
         right = self._expr(expr.right)
-        operator = expr.operator
-        line = operator.line
+        op_span = expr.op_span
+        line = self._line(op_span)
 
         # `Any` é o escape dinâmico: o checker aceita as operações e o runtime
         # decide pela tag, como o tree-walk. `==`/`!=` já têm caminho próprio.
@@ -703,50 +769,52 @@ class Lowerer(
             (left.ty is ValueType.ANY or right.ty is ValueType.ANY)
             and not left.optional
             and not right.optional
-            and operator.type not in (TokenType.EQUAL_EQUAL, TokenType.NOT_EQUAL)
+            and expr.op not in (TokenType.EQUAL_EQUAL, TokenType.NOT_EQUAL)
         ):
-            return self._any_operator(left, right, operator)
+            return self._any_operator(left, right, expr.op, op_span)
 
-        match operator.type:
+        match expr.op:
             case TokenType.PLUS:
-                return self._arithmetic(left, right, "add", "fadd", operator.type, operator)
+                return self._arithmetic(left, right, "add", "fadd", expr.op, op_span)
             case TokenType.MINUS:
-                return self._arithmetic(left, right, "sub", "fsub", operator.type, operator)
+                return self._arithmetic(left, right, "sub", "fsub", expr.op, op_span)
             case TokenType.STAR:
-                return self._arithmetic(left, right, "mul", "fmul", operator.type, operator)
+                return self._arithmetic(left, right, "mul", "fmul", expr.op, op_span)
             case TokenType.SLASH:
-                return self._float_division(left, right, operator)
+                return self._float_division(left, right, op_span)
             case TokenType.SLASH_SLASH:
-                return self._integer_division(left, right, operator)
+                return self._integer_division(left, right, op_span)
             case TokenType.PERCENT:
-                return self._modulo(left, right, operator)
+                return self._modulo(left, right, op_span)
             case (
                 TokenType.LESS | TokenType.LESS_EQUAL | TokenType.GREATER | TokenType.GREATER_EQUAL
             ):
-                return self._comparison(left, right, operator.type, operator)
+                return self._comparison(left, right, expr.op, op_span)
             case TokenType.EQUAL_EQUAL | TokenType.NOT_EQUAL:
-                return self._equality(left, right, operator.type)
+                return self._equality(left, right, expr.op)
             case TokenType.STAR_STAR:
-                return self._power(left, right, operator)
+                return self._power(left, right, op_span)
             case TokenType.AMPERSAND:
-                return self._bitwise(left, right, "and", operator)
+                return self._bitwise(left, right, "and", op_span)
             case TokenType.PIPE:
-                return self._bitwise(left, right, "or", operator)
+                return self._bitwise(left, right, "or", op_span)
             case TokenType.CARET:
-                return self._bitwise(left, right, "xor", operator)
+                return self._bitwise(left, right, "xor", op_span)
             case TokenType.LESS_LESS:
-                return self._shift(left, right, 0, operator)
+                return self._shift(left, right, 0, op_span)
             case TokenType.GREATER_GREATER:
-                return self._shift(left, right, 1, operator)
+                return self._shift(left, right, 1, op_span)
             case TokenType.GREATER_GREATER_GREATER:
-                return self._shift(left, right, 2, operator)
+                return self._shift(left, right, 2, op_span)
 
-        raise _unsupported(f"Binary operator '{operator.lexeme}'", line)
+        raise _unsupported(f"Binary operator '{expr.op.name}'", line)
 
-    def _any_operator(self, left: Value, right: Value, operator: Token) -> Value:
+    def _any_operator(
+        self, left: Value, right: Value, operator: TokenType, op_span: Span | None
+    ) -> Value:
         """Operador binário com pelo menos um operando `Any` (L6 dinâmico)."""
-        line = operator.line
-        column = operator.column
+        line = self._line(op_span)
+        column = self._column(op_span)
         boxed_left = self._box_value(left, line)
         boxed_right = self._box_value(right, line)
         left_tag = self.builder.extract_value(boxed_left.llvm, 0)
@@ -754,7 +822,7 @@ class Lowerer(
         right_tag = self.builder.extract_value(boxed_right.llvm, 0)
         right_payload = self.builder.extract_value(boxed_right.llvm, 1)
 
-        if operator.type in (
+        if operator in (
             TokenType.LESS,
             TokenType.LESS_EQUAL,
             TokenType.GREATER,
@@ -765,7 +833,7 @@ class Lowerer(
                 TokenType.LESS_EQUAL: 1,
                 TokenType.GREATER: 2,
                 TokenType.GREATER_EQUAL: 3,
-            }[operator.type]
+            }[operator]
             call = self.builder.call(
                 self._function(
                     "lox_any_compare",
@@ -801,9 +869,9 @@ class Lowerer(
             TokenType.LESS_LESS: 10,
             TokenType.GREATER_GREATER: 11,
             TokenType.GREATER_GREATER_GREATER: 12,
-        }.get(operator.type)
+        }.get(operator)
         if op is None:
-            raise _unsupported(f"Binary operator '{operator.lexeme}' on Any", line)
+            raise _unsupported(f"Binary operator '{operator.name}' on Any", line)
         call = self.builder.call(
             self._function(
                 "lox_any_binary",
@@ -822,9 +890,9 @@ class Lowerer(
         )
         return Value(ValueType.ANY, call)
 
-    def _power(self, left: Value, right: Value, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _power(self, left: Value, right: Value, op_span: Span | None) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         left = self._unwrap_operand(
             left,
             line,
@@ -870,9 +938,9 @@ class Lowerer(
         )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-    def _bitwise(self, left: Value, right: Value, op: str, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _bitwise(self, left: Value, right: Value, op: str, op_span: Span | None) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         left = self._unwrap_operand(
             left,
             line,
@@ -902,9 +970,9 @@ class Lowerer(
         }[op]
         return Value(ValueType.INT, operation(left.llvm, right.llvm))
 
-    def _shift(self, left: Value, right: Value, kind: int, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _shift(self, left: Value, right: Value, kind: int, op_span: Span | None) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         left = self._unwrap_operand(
             left,
             line,
@@ -946,10 +1014,10 @@ class Lowerer(
         integer_op: str,
         float_op: str,
         operator: TokenType,
-        token: Token,
+        op_span: Span | None,
     ) -> Value:
-        line = token.line
-        column = token.column
+        line = self._line(op_span)
+        column = self._column(op_span)
         message = _OPERAND_MESSAGES[operator]
         left = self._unwrap_operand(left, line, message, column=column, code=Code.RUNTIME_OPERANDS)
         right = self._unwrap_operand(
@@ -996,9 +1064,9 @@ class Lowerer(
         )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-    def _float_division(self, left: Value, right: Value, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _float_division(self, left: Value, right: Value, op_span: Span | None) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         left = self._unwrap_operand(
             left,
             line,
@@ -1034,9 +1102,9 @@ class Lowerer(
         )
         return Value(ValueType.FLOAT, call)
 
-    def _integer_division(self, left: Value, right: Value, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _integer_division(self, left: Value, right: Value, op_span: Span | None) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         left = self._unwrap_operand(
             left,
             line,
@@ -1073,9 +1141,9 @@ class Lowerer(
         )
         return Value(ValueType.INT, call)
 
-    def _modulo(self, left: Value, right: Value, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _modulo(self, left: Value, right: Value, op_span: Span | None) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         left = self._unwrap_operand(
             left,
             line,
@@ -1125,9 +1193,11 @@ class Lowerer(
         )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-    def _comparison(self, left: Value, right: Value, operator: TokenType, token: Token) -> Value:
-        line = token.line
-        column = token.column
+    def _comparison(
+        self, left: Value, right: Value, operator: TokenType, op_span: Span | None
+    ) -> Value:
+        line = self._line(op_span)
+        column = self._column(op_span)
         predicates = {
             TokenType.LESS: "<",
             TokenType.LESS_EQUAL: "<=",
@@ -1349,14 +1419,14 @@ class Lowerer(
             else:
                 raise BackendError(
                     "Returning nil from a non-Nil function is not supported by the backend yet.",
-                    stmt.keyword.line,
+                    self._line(stmt.span),
                     code=Code.BACKEND_UNSUPPORTED,
                 )
         else:
             value = self._coerce(
                 self._expr(stmt.value),
                 self._return_type_desc,
-                stmt.keyword.line,
+                self._line(stmt.span),
                 source=stmt.value,
             )
             if self._return_type_desc.ty is ValueType.NIL:
@@ -1483,7 +1553,7 @@ class Lowerer(
         )
 
     def _logical(self, expr: Logical) -> Value:
-        if expr.operator.type is TokenType.QUESTION_QUESTION:
+        if expr.op is TokenType.QUESTION_QUESTION:
             return self._coalesce(expr)
         return self._short_circuit(expr)
 
@@ -1493,7 +1563,7 @@ class Lowerer(
             # `Any` carrega o próprio nil na tag: a otimização "não-opcional logo
             # não-nil" não vale e o lado direito não é morto.
             return self._coalesce_any(left, expr)
-        if self.types.get(expr.right) is TY_NIL:
+        if expr.right.storage_ty is TY_NIL:
             # `a ?? nil` é o próprio `a`: nil ou o valor, sem mudar a
             # representação (importante para a sentinela de função).
             return left
@@ -1511,11 +1581,11 @@ class Lowerer(
                 return left
             return self._expr(expr.right)
 
-        coalesced = self.types.get(expr)
+        coalesced = expr.storage_ty
         coalesced_desc: TypeDesc | None = None
         if coalesced is not None:
             try:
-                coalesced_desc = self._type_desc(coalesced, expr.operator.line)
+                coalesced_desc = self._type_desc(coalesced, self._line(expr.op_span))
             except BackendError:
                 # União de não-escalares (E4001 declarado): o caminho opcional
                 # abaixo ainda tenta coagir o direito e recusa com a mensagem.
@@ -1564,18 +1634,18 @@ class Lowerer(
                 else:
                     right_llvm = self._some(
                         optional_struct,
-                        self._coerce(right_value, inner, expr.operator.line),
+                        self._coerce(right_value, inner, self._line(expr.op_span)),
                     ).llvm
             else:
                 right_llvm = self._coerce(
                     right_value,
                     inner,
-                    expr.operator.line,
+                    self._line(expr.op_span),
                 ).llvm
         except BackendError:
             raise _unsupported(
                 "Coalesce with different types",
-                expr.operator.line,
+                self._line(expr.op_span),
             ) from None
         self.builder.branch(end)
         nothing_end = self.builder.block
@@ -1611,7 +1681,7 @@ class Lowerer(
             some_value = left
         else:
             present = self._optional_tag(left)
-            some_value = self._box_value(self._optional_payload(left), expr.operator.line)
+            some_value = self._box_value(self._optional_payload(left), self._line(expr.op_span))
         self.builder.cbranch(present, some, nothing)
 
         self.builder = llvm_ir.builder(some)
@@ -1619,7 +1689,7 @@ class Lowerer(
         some_end = self.builder.block
 
         self.builder = llvm_ir.builder(nothing)
-        right = self._box_value(self._expr(expr.right), expr.operator.line)
+        right = self._box_value(self._expr(expr.right), self._line(expr.op_span))
         self.builder.branch(end)
         nothing_end = self.builder.block
 
@@ -1633,7 +1703,7 @@ class Lowerer(
         return Value(ValueType.ANY, merged)
 
     def _short_circuit(self, expr: Logical) -> Value:
-        operator = expr.operator.type
+        operator = expr.op
         left = self._expr(expr.left)
         if left.ty is ValueType.NIL:
             # Só `nil` é falsy: `nil and x` é nil; `nil or x` é x.
@@ -1668,7 +1738,7 @@ class Lowerer(
         if left.ty is ValueType.ANY:
             # O checker tipa o resultado como `Any`; encaixa o direito e funde dois
             # agregados (o esquerdo já é `{tag, payload}`).
-            right = self._box_value(right, expr.operator.line)
+            right = self._box_value(right, self._line(expr.op_span))
             common = TypeDesc(ValueType.ANY)
         elif left.optional:
             common = left.desc
@@ -1676,9 +1746,9 @@ class Lowerer(
             if not self._compatible(right.desc, inner):
                 raise _unsupported(
                     "and/or with an optional left operand and an incompatible right",
-                    expr.operator.line,
+                    self._line(expr.op_span),
                 )
-            right = self._coerce(right, common, expr.operator.line)
+            right = self._coerce(right, common, self._line(expr.op_span))
         elif left.desc.same_as(right.desc):
             common = left.desc
         else:
@@ -1693,10 +1763,10 @@ class Lowerer(
 
         if common is None:
             raise BackendError(
-                f"Operands of '{expr.operator.lexeme}' are {left.ty.name} and "
+                f"Operands of '{operator.name.lower()}' are {left.ty.name} and "
                 f"{right.ty.name}; union types are not supported by the backend "
                 "yet.",
-                expr.operator.line,
+                self._line(expr.op_span),
             )
 
         if not right_open:
@@ -1764,7 +1834,7 @@ class Lowerer(
 
     def _poison(
         self,
-        target: Token | int,
+        target: Token | int | Span | None,
         message: str,
         *,
         column: int = 0,
@@ -1776,9 +1846,14 @@ class Lowerer(
         espelhar o erro que o tree-walk levantaria em runtime (mesmo ponto, mesma
         família), senão o stderr do binário diverge do interpretado e o I1 quebra.
         """
-        if isinstance(target, Token):
+        if isinstance(target, Span):
+            line = target.start.line
+            column = target.start.column or 0
+        elif isinstance(target, Token):
             line = target.line
             column = target.column
+        elif target is None:
+            line = 0
         else:
             line = target
         function = self._panic_function()
@@ -1856,21 +1931,36 @@ class Lowerer(
         )
 
     def _stack_enter_class(self, layout: ClassLayout) -> None:
-        token = layout.decl_token
-        if token is None:
+        span = layout.decl_token
+        if span is None:
             self._emit_stack_enter(layout.display, self.source_path, 0, 1)
             return
-        self._emit_stack_enter(layout.display, token.file, token.line, token.column)
-
-    def _set_call_site(self, token: Token) -> None:
-        """Grava o call site para o prologue do chamado (lido em `lox_stack_enter`)."""
-        file_ptr = llvm_ir.cstring_pointer(
-            self.builder,
-            self._trace_string(token.file or self.source_path, "file"),
+        self._emit_stack_enter(
+            layout.display,
+            span.file,
+            span.start.line,
+            span.start.column or 0,
         )
+
+    def _set_call_site(self, span: Span | None) -> None:
+        """Grava o call site para o prologue do chamado (lido em `lox_stack_enter`)."""
+        if span is None:
+            file_ptr = llvm_ir.cstring_pointer(
+                self.builder,
+                self._trace_string(self.source_path, "file"),
+            )
+            line = 0
+            column = 0
+        else:
+            file_ptr = llvm_ir.cstring_pointer(
+                self.builder,
+                self._trace_string(span.file or self.source_path, "file"),
+            )
+            line = span.start.line
+            column = span.start.column or 0
         self.builder.store(file_ptr, self._call_file_global)
-        self.builder.store(llvm_ir.constant(_I32, token.line), self._call_line_global)
-        self.builder.store(llvm_ir.constant(_I32, max(1, token.column)), self._call_column_global)
+        self.builder.store(llvm_ir.constant(_I32, line), self._call_line_global)
+        self.builder.store(llvm_ir.constant(_I32, max(1, column)), self._call_column_global)
 
     def _restore_call_site(self) -> None:
         """Devolve o call site do frame atual (ctor → init, após inicializadores)."""
@@ -1881,33 +1971,16 @@ class Lowerer(
 
 
 def lower_program(
-    statements: list[Stmt],
+    module: TModule,
     *,
-    types: dict[Expr, Ty],
-    depths: dict[Expr, int],
-    flow_types: dict[Expr, Ty] | None = None,
-    generic_instances: Any = None,
-    generic_classes: Any = None,
-    generic_class_sites: Any = None,
-    type_aliases: dict[str, Ty] | None = None,
-    function_types: dict[Any, Any] | None = None,
     source_path: str = "<lox>",
     debug: bool = False,
-    entry: Function | None = None,
 ) -> Any:
-    module = llvm_ir.new_module()
+    ir_module = llvm_ir.new_module()
     Lowerer(
-        module,
-        types=types,
-        depths=depths,
-        flow_types=flow_types,
-        generic_instances=generic_instances,
-        generic_classes=generic_classes,
-        generic_class_sites=generic_class_sites,
-        type_aliases=type_aliases,
-        function_types=function_types,
+        ir_module,
+        thir=module,
         source_path=source_path,
         debug=debug,
-        entry=entry,
-    ).lower(statements)
-    return module
+    ).lower()
+    return ir_module

@@ -9,6 +9,16 @@ pytest.importorskip("llvmlite")
 
 from loxia_core.backend import driver, llvm_ir
 from loxia_core.backend.lower import BackendError
+from loxia_core.thir import TModule
+
+_EMPTY_MODULE = TModule(
+    source_path="<test>",
+    statements=(),
+    decls=(),
+    instances=(),
+    type_aliases=(),
+    entry=None,
+)
 
 _VALID_IR = "define i32 @f() {\nentry:\n  ret i32 0\n}\n"
 _INVALID_IR = "define i32 @f() {\nentry:\n  ret i64 0\n}\n"
@@ -35,10 +45,8 @@ def test_driver_converte_ir_invalido_em_backend_error(monkeypatch: pytest.Monkey
 
     with pytest.raises(BackendError, match="invalid LLVM IR"):
         driver.build(
-            [],
+            _EMPTY_MODULE,
             emit="ll",
             output=None,
             stem="broken",
-            types={},
-            depths={},
         )
