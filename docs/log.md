@@ -1573,3 +1573,18 @@ caído para 76% no ratchet de cobertura do CI).
   para 92% (piso 78%) removendo o caminho morto de tipagem por elemento.
 
 <!-- triaged: f0cbbf3 -->
+## 2026-11-28 — F2 concluída: fechamento da fase
+
+Intervalo: `477160c..HEAD` (merge do port do lowering e fechamento da fase).
+
+- `docs/roadmap.md` — **updated**: F1 e F2 saem de "Próximo" para "Agora" como entregues;
+  F3 (#284) entra em "Próximo".
+- `docs/plano-de-motores.md` — **updated**: linha da F2 marcada concluída e ligada à #270;
+  linha da F3 ligada à #284; painel de fases atualizado.
+- `docs/spec/garantias.md` — **no-change**: gerado; nenhum nível/promessa mudou.
+- `docs/spec/semantica.md` — **no-change**: nenhuma semântica observável mudou.
+- `docs/tech/control-ir.md` — **no-change**: a IR de controle não foi tocada.
+- `docs/tech/python-coverage.md` — **no-change**: pisos iguais; `lower_tuples.py` subiu
+  para 92% no commit anterior e o baseline não mudou.
+
+<!-- triaged: ab9f4a3 -->

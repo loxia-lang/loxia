@@ -122,7 +122,9 @@ def _last_commit(files: list[str]) -> int:
 def _commits_since(files: list[str], timestamp: int) -> list[str]:
     if not files or timestamp == 0:
         return _git("log", "--format=%h %s", "--", *files).splitlines()
-    return _git("log", "--format=%h %s", f"{timestamp + 1}..HEAD", "--", *files).splitlines()
+    # `--since` compara data de commit; um range `<epoch>..HEAD` não é revisão
+    # válida e o git devolvia vazio ("0 commit(s)").
+    return _git("log", "--format=%h %s", f"--since=@{timestamp + 1}", "--", *files).splitlines()
 
 
 def _dirty(files: list[str]) -> list[str]:

@@ -47,8 +47,8 @@ As janelas são ilustrativas (meses a partir do início). O que decide é o port
 | --- | --- | --- | --- | --- | --- |
 | **F0** | 0–1 | `run` AOT+cache; `--interpret`; medição | paridade de canais + latência aceitável + docs | — | [#244](https://github.com/loxia-lang/loxia/issues/244) |
 | **F1** | 1–2 | IR de controle (blocos/phi/cleanup; [ADR-0153](adr/0153-ir-de-controle-desenho.md)) | ADR-0065 honrado; corpus verde; I4 | — | [#245](https://github.com/loxia-lang/loxia/issues/245) |
-| **F2** | 2–5 | THIR + serialização; lowering consome THIR | 100% do corpus via THIR; side tables removidas; snapshot | — | a abrir no fim de F1 |
-| **F3** | 5–8 | THIR eval em Loxia (`loxvm`) | G1–G4 + soak 4 sem + fuzz 24 h | interpretador (+resolver) | a abrir no fim de F2 |
+| **F2** | 2–5 | THIR + serialização; lowering consome THIR | **concluída em 2026-11-28**: 100% do corpus via THIR; side tables removidas; snapshot | — | [#270](https://github.com/loxia-lang/loxia/issues/270) |
+| **F3** | 5–8 | THIR eval em Loxia (`loxvm`) | G1–G4 + soak 4 sem + fuzz 24 h | interpretador (+resolver) | [#284](https://github.com/loxia-lang/loxia/issues/284) |
 | **F4** | 8–12 | compilador Loxia (THIR → `.ll` → `cc`) | G1–G4 + I4 + erros | lowering+driver | a abrir no fim de F3 |
 | **F5** | 12–15 | front Loxia + ponte AST JSON | AST/JSON/diagnósticos 100% | frontend (+loader) | a abrir no fim de F4 |
 | **F6** | 15–18+ | checker Loxia | paridade de `--check` + bootstrap | checker | a abrir no fim de F5 |
@@ -181,8 +181,9 @@ Python. "Self-hosted" é o objetivo pessoal; o checker é a conta.
 | --- | --- | --- |
 | F0 | [#244](https://github.com/loxia-lang/loxia/issues/244) `tooling: run compila com cache (AOT) e --interpret` | entregue (2026-11-27) |
 | F1 | [#245](https://github.com/loxia-lang/loxia/issues/245) `backend: IR de controle (blocos, phi, cleanup)` | entregue (2026-11-27, [#275](https://github.com/loxia-lang/loxia/pull/275)) |
-| F2 | [#270](https://github.com/loxia-lang/loxia/issues/270) `backend: THIR + serialization` | aberta |
-| F3–F6 | — | a abrir no fim da fase anterior |
+| F2 | [#270](https://github.com/loxia-lang/loxia/issues/270) `backend: THIR + serialization` | **concluída** (2026-11-28) |
+| F3 | [#284](https://github.com/loxia-lang/loxia/issues/284) `loxvm: THIR eval in Loxia` | aberta |
+| F4–F6 | — | a abrir no fim da fase anterior |
 
 ## Referências
 
