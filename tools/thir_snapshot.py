@@ -50,8 +50,8 @@ def build_manifest() -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--check", action="store_true", help="confere contra o manifesto/goldens")
-    group.add_argument("--update", action="store_true", help="regrava manifesto e goldens")
+    group.add_argument("--check", action="store_true", help="confere o manifesto versionado")
+    group.add_argument("--update", action="store_true", help="regrava o manifesto")
     args = parser.parse_args(argv)
 
     manifest = build_manifest()
@@ -74,11 +74,13 @@ def main(argv: list[str] | None = None) -> int:
         assert isinstance(expected, dict)
         cases = current.get("cases", {})
         assert isinstance(cases, dict)
-        for case, digest in expected.items():
-            if cases.get(case) != digest:
-                problems.append(f"{case}: hash do THIR mudou")
+        for case in sorted(set(expected) - set(cases)):
+            problems.append(f"{case}: caso novo no corpus declarado (manifesto desatualizado)")
         for case in sorted(set(cases) - set(expected)):
             problems.append(f"{case}: caso não está mais no corpus declarado")
+        for case, digest in expected.items():
+            if case in cases and cases[case] != digest:
+                problems.append(f"{case}: hash do THIR mudou")
 
     if problems:
         sys.stderr.write(

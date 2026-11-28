@@ -284,8 +284,19 @@ def _decode_record(value: object, cls: type[object]) -> object:
     return cast(Any, cls)(**kwargs)
 
 
+def _expect_fields(payload: dict[str, object], allowed: set[str], what: str) -> None:
+    """Payload desconhecido ou incompleto é erro de contrato, não `KeyError`."""
+    unknown = sorted(set(payload) - allowed)
+    if unknown:
+        raise ThirFormatError(f"unexpected fields for THIR {what}: {unknown}")
+    missing = sorted(allowed - set(payload))
+    if missing:
+        raise ThirFormatError(f"missing fields for THIR {what}: {missing}")
+
+
 def _decode_span(value: object) -> Span:
     payload = cast(dict[str, object], value)
+    _expect_fields(payload, {"file", "start", "end"}, "Span")
     return Span(
         file=cast(str, payload.get("file", "")),
         start=_decode_position(cast(dict[str, object], payload["start"])),
@@ -294,6 +305,7 @@ def _decode_span(value: object) -> Span:
 
 
 def _decode_position(payload: dict[str, object]) -> Position:
+    _expect_fields(payload, {"line", "column", "offset"}, "Position")
     column = payload.get("column")
     offset = payload.get("offset")
     return Position(
@@ -303,9 +315,32 @@ def _decode_position(payload: dict[str, object]) -> Position:
     )
 
 
+_TY_FIELDS: dict[str, set[str]] = {
+    "prim": {"k", "name"},
+    "var": {"k", "name", "id", "bounds"},
+    "list": {"k", "element"},
+    "map": {"k", "key", "value"},
+    "tuple": {"k", "items"},
+    "class": {"k", "name", "args"},
+    "enum": {"k", "name", "args"},
+    "enum_object": {"k", "name"},
+    "class_object": {"k", "name"},
+    "interface": {"k", "name"},
+    "native_module": {"k", "name"},
+    "union": {"k", "members"},
+    "fn": {"k", "params", "ret", "min_params", "variadic"},
+    "generic_fn": {"k", "name", "type_params", "fn"},
+    "native_fn": {"k", "name"},
+}
+
+
 def _decode_ty(value: object) -> Ty:
     payload = cast(dict[str, object], value)
     kind = payload.get("k")
+    allowed = _TY_FIELDS.get(str(kind))
+    if allowed is None:
+        raise ThirFormatError(f"unsupported Ty kind in THIR: {kind!r}")
+    _expect_fields(payload, allowed, f"Ty[{kind}]")
     if kind == "prim":
         return Prim(cast(str, payload["name"]))
     if kind == "var":

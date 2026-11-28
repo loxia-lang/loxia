@@ -752,8 +752,12 @@ class Loxia:
         # llvmlite nem de `cc`, e é o artefato que o snapshot revisa (F2).
         if emit == "thir":
             from loxia_core.semantics.thir_build import ThirBuildError, build_thir
+            from loxia_core.thir.serialize import ThirFormatError
             from loxia_core.thir.serialize import dumps as dump_thir
 
+            # Produção, serialização e escrita ficam sob o mesmo contrato de erro: um
+            # drift entre o modelo e o encoder ou um `-o` inválido é diagnóstico
+            # `E4002` com exit 65, nunca traceback/exit 1.
             try:
                 module = build_thir(
                     statements,
@@ -768,17 +772,31 @@ class Loxia:
                     globals_scope=checker.global_scope,
                     source_path=self._file,
                 )
+                text = dump_thir(module)
+                if output is None:
+                    sys.stdout.write(text)
+                else:
+                    output.write_text(text, encoding="utf-8")
             except ThirBuildError as error:
                 self.reporter.backend_error(
                     None, f"internal THIR error: {error}", code=Code.BACKEND_INTERNAL
                 )
                 self.flush(command, exit_code=65, always=True)
                 return False
-            text = dump_thir(module)
-            if output is None:
-                sys.stdout.write(text)
-            else:
-                output.write_text(text, encoding="utf-8")
+            except ThirFormatError as error:
+                self.reporter.backend_error(
+                    None, f"internal THIR serialization error: {error}", code=Code.BACKEND_INTERNAL
+                )
+                self.flush(command, exit_code=65, always=True)
+                return False
+            except OSError as error:
+                self.reporter.backend_error(
+                    None,
+                    f"internal error: cannot write the THIR output: {error}",
+                    code=Code.BACKEND_INTERNAL,
+                )
+                self.flush(command, exit_code=65, always=True)
+                return False
             self.flush(command, exit_code=0, always=True)
             return True
 

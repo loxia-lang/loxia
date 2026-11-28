@@ -82,6 +82,56 @@ def test_unknown_schema_version_is_rejected() -> None:
         from_payload(payload)
 
 
+def test_payload_with_unknown_field_is_rejected() -> None:
+    payload = to_payload(module_for_source("print(1)"))
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    first = statements[0]
+    assert isinstance(first, dict)
+    first["bogus"] = True
+    with pytest.raises(ThirFormatError, match="unexpected fields"):
+        from_payload(payload)
+
+
+def test_payload_with_missing_field_is_rejected() -> None:
+    payload = to_payload(module_for_source("val x: Int = 1\nprint(x)"))
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    declaration = statements[0]
+    assert isinstance(declaration, dict)
+    del declaration["decl"]
+    with pytest.raises(ThirFormatError, match="missing field"):
+        from_payload(payload)
+
+
+def test_ty_with_unknown_or_missing_field_is_rejected() -> None:
+    payload = to_payload(module_for_source("val x: Int = 1\nprint(x)"))
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    declaration = statements[0]
+    assert isinstance(declaration, dict)
+    initializer = declaration["initializer"]
+    assert isinstance(initializer, dict)
+    ty = initializer["ty"]
+    assert isinstance(ty, dict)
+    ty["bogus"] = 1
+    with pytest.raises(ThirFormatError, match="unexpected fields"):
+        from_payload(payload)
+
+    payload = to_payload(module_for_source("val x: Int = 1\nprint(x)"))
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    declaration = statements[0]
+    assert isinstance(declaration, dict)
+    initializer = declaration["initializer"]
+    assert isinstance(initializer, dict)
+    ty = initializer["ty"]
+    assert isinstance(ty, dict)
+    del ty["name"]
+    with pytest.raises(ThirFormatError, match="missing fields"):
+        from_payload(payload)
+
+
 def test_wrong_kind_is_rejected() -> None:
     with pytest.raises(ThirFormatError):
         from_payload({"k": "TStmt", "span": None})
@@ -140,6 +190,15 @@ def test_cli_emit_thir_reports_producer_error_without_traceback(
     assert result.returncode == 65
     assert "internal THIR error" in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def test_cli_emit_thir_unwritable_output_is_a_diagnostic(tmp_path: Path) -> None:
+    target = tmp_path / "missing-dir" / "out.json"
+    result = run_cli("build", "tests/cases/generic_class.lx", "--emit=thir", "-o", str(target))
+    assert result.returncode == 65
+    assert "E4002" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not target.exists()
 
 
 def test_cli_emit_thir_to_stdout_is_stable() -> None:
