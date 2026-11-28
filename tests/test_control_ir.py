@@ -60,6 +60,15 @@ def test_builder_rejects_raw_block_creation() -> None:
         builder.append_basic_block("ghost")
 
 
+def test_verify_all_rejects_unregistered_llvm_block() -> None:
+    control, function, entry = _function()
+    _builder(control, entry).ret(llvm_ir.constant(llvm_ir.int_type(64), 0))
+    function.append_basic_block("ghost")
+
+    with pytest.raises(ControlIRError, match="ghost"):
+        control.verify_all()
+
+
 def test_c1_block_without_terminator() -> None:
     control, function, _entry = _function()
 

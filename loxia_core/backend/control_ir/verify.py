@@ -194,3 +194,15 @@ def verify_function(function: ControlFunction) -> list[str]:
             errors.append(f"{label}: duplicate phi labels in '{block.name}' (C7)")
 
     return errors
+
+
+def verify_registration(function: ControlFunction) -> list[str]:
+    """Return LLVM blocks created outside ``ControlIR.new_block``/``observe``."""
+    unregistered = [block for block in function.llvm.blocks if block not in function.block_map]
+    if not unregistered:
+        return []
+    labels = [block.name or "<unnamed>" for block in unregistered]
+    return [
+        f"function '{function.name}': LLVM block(s) missing from the control IR: "
+        f"{', '.join(labels)}"
+    ]

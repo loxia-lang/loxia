@@ -128,11 +128,12 @@ class ControlIR:
         function.cleanup_depth = depth
 
     def verify_all(self) -> None:
-        from loxia_core.backend.control_ir.verify import verify_function
+        from loxia_core.backend.control_ir.verify import verify_function, verify_registration
 
         errors: list[str] = []
         for function in self.functions.values():
             errors.extend(verify_function(function))
+            errors.extend(verify_registration(function))
         if errors:
             raise ControlIRError("\n".join(errors))
 
