@@ -33,6 +33,25 @@ def _schema() -> dict[str, object]:
     return payload
 
 
+def test_schema_pins_the_version() -> None:
+    """Um consumidor valida versão pelo schema, não só pelo `from_payload`."""
+    definitions = _schema()["$defs"]
+    assert isinstance(definitions, dict)
+    module_schema = definitions["TModule"]
+    assert isinstance(module_schema, dict)
+    properties = module_schema["properties"]
+    assert isinstance(properties, dict)
+    assert properties["schema_version"] == {"const": 1}
+
+
+def test_schema_refuses_a_payload_from_another_version() -> None:
+    module = module_for_case("tests/cases/arithmetic.lx")
+    payload = to_payload(module)
+    payload["schema_version"] = 2
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(payload, _schema())
+
+
 def test_checked_in_schema_matches_the_model() -> None:
     current = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     assert current == build_schema(), (

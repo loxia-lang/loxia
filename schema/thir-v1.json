@@ -2232,7 +2232,7 @@
           "const": "TModule"
         },
         "schema_version": {
-          "type": "integer"
+          "const": 1
         },
         "source_path": {
           "type": "string"

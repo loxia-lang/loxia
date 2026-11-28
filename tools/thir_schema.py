@@ -25,6 +25,7 @@ from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.ty import Ty
 from loxia_core.thir import model
+from loxia_core.thir.model import THIR_SCHEMA_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "schema" / "thir-v1.json"
@@ -218,6 +219,13 @@ def build_schema() -> dict[str, object]:
         if name in _BASES:
             continue
         definitions[name] = _node_schema(cls)
+    # A versão é parte do contrato: o schema pina o número, não só o tipo. Sem isso um
+    # consumidor (loxvm) validaria um payload de outra versão como se fosse v1.
+    module_schema = definitions["TModule"]
+    assert isinstance(module_schema, dict)
+    properties = module_schema["properties"]
+    assert isinstance(properties, dict)
+    properties["schema_version"] = {"const": THIR_SCHEMA_VERSION}
     for base in _BASES:
         parent = classes[base]
         definitions[base] = {

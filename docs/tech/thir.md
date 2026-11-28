@@ -208,7 +208,11 @@ THIR, não há segunda implementação a comparar: a equivalência é policiada 
 - **Versão**: `schema_version` viaja no topo e só muda em quebra; `from_payload` recusa
   versão desconhecida. O schema versionado é [`schema/thir-v1.json`](../../schema/thir-v1.json),
   gerado do modelo por `tools/thir_schema.py` (`make thir-schema`) e validado com
-  `jsonschema` nos casos de contrato.
+  `jsonschema` nos casos de contrato — o campo é `const: 1`, então o próprio schema recusa
+  outra versão.
+- **v1 congelado na F2** (2026-11-28): `op_span` e `abstract` entraram ainda durante a
+  fase, antes do fechamento. A partir daqui, campo obrigatório novo ou remoção é **v2**
+  (o schema tem `additionalProperties: false`, então não há extensão compatível de campo).
 - **Determinismo**: `sort_keys` em todo objeto, listas na ordem canônica do modelo, nada de
   `set`/`dict` derivado. O mesmo programa produz os mesmos bytes, inclusive entre processos
   com `PYTHONHASHSEED` diferentes (`tests/test_thir_serialization.py`).
