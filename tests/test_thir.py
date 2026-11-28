@@ -19,6 +19,7 @@ from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.stmt import Stmt
+from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.ty import INT, STRING, display
 from loxia_core.semantics.checker import Checker
 from loxia_core.semantics.resolver import Resolver
@@ -32,13 +33,16 @@ from loxia_core.thir import (
     TBinary,
     TCall,
     TClassDecl,
+    TConditional,
     TDestructureStmt,
     TExpr,
     TExprStmt,
     TFnDecl,
     TForIn,
     TFunction,
+    TGet,
     TInterfaceDecl,
+    TInterp,
     TIs,
     TLambda,
     TLogical,
@@ -46,9 +50,11 @@ from loxia_core.thir import (
     TModule,
     TNamePattern,
     TRange,
+    TStmt,
     TTuplePattern,
     TVar,
     TVariantPattern,
+    TWhile,
 )
 from loxia_core.thir.serialize import canonical, dumps, loads
 from tests.corpus_manifest import LEVELS
@@ -135,6 +141,25 @@ def _expr_statements(module: TModule) -> list[TExpr]:
         if isinstance(value, TExprStmt):
             found.append(value.expression)
             return
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                walk(item)
+            return
+        if hasattr(value, "__dataclass_fields__"):
+            for name in value.__dataclass_fields__:
+                walk(getattr(value, name))
+
+    walk(module.statements)
+    return found
+
+
+def _all_nodes(module: TModule) -> list[TExpr | TStmt]:
+    """Todas as expressões e statements do módulo, em pré-ordem."""
+    found: list[TExpr | TStmt] = []
+
+    def walk(value: object) -> None:
+        if isinstance(value, (TExpr, TStmt)):
+            found.append(value)
         if isinstance(value, (list, tuple)):
             for item in value:
                 walk(item)
@@ -482,6 +507,58 @@ def test_match_arms_bind_their_own_decls() -> None:
     assert isinstance(body, TVar)
     assert body.ref.decl == binding.id
     assert body.ref.storage is Storage.LOCAL
+
+
+# --- desugaring (ADR-0156) ----------------------------------------------------
+
+
+def test_control_sugar_stays_explicit_in_the_contract() -> None:
+    """O THIR não desuga controle: cada forma continua um nó do contrato (ADR-0156).
+
+    Desugar `for-in`/`match`/`?:`/interpolação fixaria uma estratégia de lowering para
+    todos os motores e exigiria tipos/builtins que a linguagem não tem. Este teste é a
+    guarda: se alguém desugarar em silêncio, ele falha.
+    """
+    module = _thir(
+        """
+        class C {
+          var n: Int?
+
+          fn init() {
+            this.n = nil
+          }
+        }
+
+        fn f(items: List[Int], c: C?) -> Int {
+          var total = 0
+          for item in items {
+            total = total + item
+          }
+          val a = c?.n ?? 0
+          val b = true if a > 0 else false
+          print("total=${total} ${b}")
+          return match total {
+            0 => 0,
+            _ => total
+          }
+        }
+        """
+    )
+    nodes = _all_nodes(module)
+
+    assert any(isinstance(node, TForIn) for node in nodes)
+    assert any(isinstance(node, TMatch) for node in nodes)
+    assert any(isinstance(node, TConditional) for node in nodes)
+    assert any(isinstance(node, TInterp) for node in nodes)
+    assert any(
+        isinstance(node, TLogical) and node.op is TokenType.QUESTION_QUESTION for node in nodes
+    )
+    assert any(isinstance(node, TGet) and node.optional for node in nodes)
+
+    # Sem nó sintético de desugaring: o `for-in` não virou `while` (o programa não tem
+    # nenhum `while` no fonte) e o `match` continua um nó só.
+    assert not any(isinstance(node, TWhile) for node in nodes), "for-in desugarado para while"
+    assert len([node for node in nodes if isinstance(node, TMatch)]) == 1
 
 
 # --- genéricos ----------------------------------------------------------------

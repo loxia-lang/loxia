@@ -20,7 +20,8 @@ atualizado **no portão**, não a cada commit.
    oráculo. Dev e prod usam o mesmo backend.
 2. **Congela-se o motor, não o Python inteiro.** O checker é serviço de build e a última
    peça; enquanto ele for Python, "Python congelado" tem uma fronteira declarada.
-3. **THIR é o eixo.** Uma árvore tipada e desugarada; não é CFG. O AST fica para tooling.
+3. **THIR é o eixo.** Uma árvore tipada e resolvida, sem desugaring de controle
+   ([ADR-0156](adr/0156-sem-desugaring-no-thir.md)); não é CFG. O AST fica para tooling.
 4. **IR de controle é interna ao backend.** Blocos/phi/cleanup; não é pública.
 5. **Um interpretador.** THIR eval em Loxia; VM só com decisão explícita.
 6. **O oráculo migra.** Python congelado → corpus dourado + spec; o diferencial vira

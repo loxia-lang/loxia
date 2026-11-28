@@ -396,10 +396,11 @@ class Triangle(Figure) implements Shape, Drawable { ... }
 C-style `for (init; cond; incr)` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md));
 use `for x in ...` or `while`. `for` only introduces `for-in`:
 
-`for-in` becomes the node `ForIn(name, iterable, body)` and does **not** desugar to `while`,
-because the interpreter needs to report "not iterable" and the codegen needs the loop per
-iterable (Range/String/List/Map/Tuple — `Map` yields the keys). See
-[`semantica.md`](semantica.md#ranges-and-for-in).
+`for-in` becomes the node `ForIn(name, iterable, body)` and does **not** desugar to `while`:
+the interpreter must report "not iterable" and each engine chooses the loop per iterable
+(see [`semantica.md`](semantica.md#ranges-and-for-in)). The THIR keeps the same node —
+control desugaring is not part of the contract
+([ADR-0156](../adr/0156-sem-desugaring-no-thir.md)).
 
 ### Blocks
 
