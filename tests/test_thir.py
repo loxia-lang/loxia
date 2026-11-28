@@ -15,13 +15,15 @@ from pathlib import Path
 import pytest
 
 from loxia_core.backend.captures import analyze_captures
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.expr import Lambda
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
-from loxia_core.frontend.spans import node_span
+from loxia_core.frontend.spans import node_span, span_of_token_exact
 from loxia_core.frontend.stmt import Function, Stmt
+from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import INT, STRING, display
 from loxia_core.semantics.checker import Checker
 from loxia_core.semantics.resolver import Resolver
@@ -593,9 +595,20 @@ def test_corpus_produces_thir(case: str) -> None:
         for node in _ast_functions(statements)
     }
     assert thir_captures == ast_captures, f"{case}: capturas divergem do backend"
-    assert sum(1 for decl in module.decls if decl.cell) == len(analysis.captured_decls), (
-        f"{case}: número de células diverge do backend"
-    )
+    # Célula é identidade, não contagem: comparar o conjunto de spans das declarações
+    # capturadas. Duas implementações (THIR e `analyze_captures`) podem concordar na
+    # contagem e discordar em qual decl é célula — e isso mudaria codegen na fatia 3.
+    captured = [
+        capture
+        for captures in analysis.captures.values()
+        for capture in captures
+        if capture.name != "this"
+    ]
+    ast_cells = {_decl_span(capture.decl) for capture in captured}
+    thir_cells = {
+        decl.span for decl in module.decls if decl.cell and decl.kind is not DeclKind.THIS
+    }
+    assert thir_cells == ast_cells, f"{case}: conjunto de células diverge do backend"
     unresolved = {ref.name for ref in _refs(module) if ref.storage is Storage.UNRESOLVED}
     assert not unresolved, f"{case}: nomes não resolvidos em programa check-limpo: {unresolved}"
 
@@ -606,6 +619,16 @@ def test_corpus_produces_thir(case: str) -> None:
         f"{case}: snapshot do THIR divergente; se a mudança é intencional, "
         "rode `make thir-snapshot` e revise o diff"
     )
+
+
+def _decl_span(value: object) -> Span | None:
+    """Span do nome da declaração como `captures` a enxerga (Token, `Param`, `Var`, …)."""
+    if isinstance(value, Token):
+        return span_of_token_exact(value)
+    token = getattr(value, "name", None)
+    if isinstance(token, Token):
+        return span_of_token_exact(token)
+    return node_span(value)
 
 
 def _ast_functions(statements: list[Stmt]) -> list[Function | Lambda]:
