@@ -218,3 +218,71 @@ Atualizar é revisão consciente: `make thir-snapshot` regrava e o diff de hashe
 exatamente quais casos o contrato mudou — "consertar para passar" é proibido. Para ler o
 contrato de um caso, `loxia build <caso> --emit=thir` imprime o JSON (o THIR é verboso por
 causa dos spans, então goldens completos versionados seriam ruído, não revisão).
+
+## Migração do lowering (fatia 3)
+
+O lowering deixa de consumir o AST e passa a consumir o `TModule`. O contrato é **só a
+fronteira**: mesmo programa, mesmo `.ll` byte a byte, congelado em `tests/ll/manifest.json`
+(`make ll-snapshot`) e policiado por `tests/test_lowering_ll.py`.
+
+### Por que é atômico
+
+A árvore é uma só. No instante em que `Lowerer` recebe `TModule`, todo handler recebe nós
+THIR; não existe nó híbrido e um dispatch duplo (AST **ou** THIR) reintroduziria a duas
+rotas que o [ADR-0154](../adr/0154-fronteira-do-thir.md) elimina. O port é um PR, com
+commits por subsistema; o gate cobre cada commit.
+
+### O que o lowering lê hoje (inventário medido)
+
+| superfície | sítios | como o THIR responde |
+| --- | --- | --- |
+| `isinstance` de nó (dispatch) | 92 | nós `T*` correspondentes |
+| acessos de campo (`expr.x`/`stmt.x`) | 617 | campos homônimos + spans |
+| leituras de side table (`types`, `flow_types`, `depths`, genéricos) | 82 | `TExpr.ty`/`storage_ty`, `Ref`, `TCall.instance` |
+| `analyze_captures` (escopos, células) | 402 linhas | `Decl.cell` + `TFunction.captures` |
+
+Renomes mecânicos:
+
+| AST | THIR |
+| --- | --- |
+| `expr.operator` (`.type`, `.line`) | `op` + `op_span` |
+| `expr.paren.line` | `paren_span.start.line` |
+| `expr.bracket.line` | `bracket_span.start.line` |
+| `expr.keyword.line`, `stmt.keyword.line` | `span.start.line` |
+| `expr.name.lexeme` (variável/atribuição) | `Ref.name` (+ `Ref.storage`) |
+| `expr.name.lexeme` (campo) | `TGet`/`TSet.name` + `name_span` |
+| `stmt.name.lexeme` | `Decl` do id (`decl_table(module)`) |
+| `stmt.type_annotation` | `Decl.ty` / `TParam.ty` / `TField.ty` |
+| `param.default` | `TParam.default` (template avaliado no call site) |
+| `self.types[expr]` | `TExpr.storage_ty` |
+| `self.flow_types[expr]` | `TExpr.ty` |
+| `self.depths.get(expr)` | `Ref.storage` + índice em `TFunction.captures` |
+| `Function.abstract`, `doc`, `fn_token`, `params_end`, `arrow` | não usados no backend |
+
+### O que morre
+
+- `self.types`, `self.flow_types`, `self.depths` e as tabelas por identidade de nó;
+- `loxia_core/backend/captures.py` (a decisão vira `Decl.cell` + `captures`);
+- a pilha `_scopes` por **nome**: o lowering passa a resolver `DeclId → slot` numa tabela
+  própria (o layout de frame continua sendo dele, não do THIR).
+
+### Lacuna conhecida
+
+`TClass` não carrega o span do **nome da superclasse**; o refusal
+`Inheritance from 'X' is not supported by the backend yet` (`lower_class_layout.py`) usa a
+linha do nome. Na migração ele cai para o span da declaração da classe (mesma linha no
+caso comum). Se um teste exigir a precisão, o campo `superclass_span` entra junto com a
+migração — e o snapshot do THIR muda de propósito.
+
+### Ordem dos commits
+
+1. `lower.py` — entrada `lower(module)`, dispatch de statements/expressões, aritmética;
+2. `lower_variables` — slots/células por `DeclId`;
+3. `lower_functions` — ABI de closure, `TFunction`, defaults;
+4. `lower_calls` — kernel × closure × método × classe, `TInstance`;
+5. optionais/`Any` (`lower_optionals`);
+6. containers/strings/bytes/tuplas/range/math;
+7. classes/instâncias/generics (`lower_class_codegen`, `lower_instances`, `lower_generics`);
+8. exceções/enums/`match` (`lower_exceptions`, `lower_enums`), remoção de `captures.py` e
+   das assinaturas antigas (`driver`, `engine`).
+

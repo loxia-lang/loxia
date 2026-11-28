@@ -1502,3 +1502,13 @@ ainda, e nenhuma promessa mudou.
 
 <!-- triaged: 203c8db -->
 
+## 2026-11-27 — mapa da migração do lowering (#270, F2 fatia 3b)
+
+Intervalo: `e5e84e4..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
+
+O commit só documenta o mapa AST → THIR e a ordem dos commits do port; nenhuma promessa
+muda. As páginas candidatas continuam com o veredicto da triagem anterior (o gate e o mapa
+não alteram semântica, MCP, cobertura ou runner).
+
+<!-- triaged: 203c8db -->
+
