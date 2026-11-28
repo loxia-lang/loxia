@@ -38,17 +38,18 @@ Parses RFC 8259 JSON text into Loxia values.
 Accepts `null`, booleans, numbers, strings, arrays and objects. A number without a
 fraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;
 non-finite values are rejected. Objects preserve key order and a repeated key keeps
-the last value. Invalid input (bad escapes, trailing characters, nesting deeper than
-16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the
-caller must distinguish malformed text from a valid `null`.
+the last value. Invalid input (bad escapes, trailing characters) returns `nil`; a
+valid JSON `null` also returns `nil`. Use `parseResult` when the caller must
+distinguish malformed text from a valid `null`.
 
 ### `fn parseResult(text: String) -> JsonResult`
 
 Parses JSON text, preserving the difference between `null` and invalid text.
 
 Returns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`
-for malformed input, including the 16-level nesting cap. The message is the same one
-`parse` used to hide and never contains a path, timestamp or address.
+for malformed input. Nesting is not capped (the reader uses an explicit stack,
+ADR-0158). The message is the same one `parse` used to hide and never contains a
+path, timestamp or address.
 
 ### `fn isOk(result: JsonResult) -> Bool`
 

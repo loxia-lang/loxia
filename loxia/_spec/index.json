@@ -4470,9 +4470,9 @@
           "title": "Functions",
           "level": 2,
           "line_start": 32,
-          "line_end": 84,
+          "line_end": 85,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#functions",
-          "text": "## Functions\n\n### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters, nesting deeper than\n16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the\ncaller must distinguish malformed text from a valid `null`.\n\n### `fn parseResult(text: String) -> JsonResult`\n\nParses JSON text, preserving the difference between `null` and invalid text.\n\nReturns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`\nfor malformed input, including the 16-level nesting cap. The message is the same one\n`parse` used to hide and never contains a path, timestamp or address.\n\n### `fn isOk(result: JsonResult) -> Bool`\n\nReturns `true` when `result` came from a valid JSON text.\n\nExists because an enum type exported by a module cannot be named in another module's\nannotations; callers use these helpers instead of writing a typed wrapper function.\n\n### `fn value(result: JsonResult) -> Any`\n\nReturns the parsed value, or `nil` when the text was invalid.\n\n### `fn error(result: JsonResult) -> String | Nil`\n\nReturns the error message, or `nil` when the text was valid.\n\n### `fn stringify(value: Any) -> String`\n\nSerializes a Loxia value as compact JSON.\n\nSupports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and\n`Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;\na non-finite float raises `RuntimeError`. Object keys keep insertion order, and any\nother type raises `RuntimeError`.\n\n### `fn pretty(value: Any, indent: Int = ...) -> String`\n\nSerializes a Loxia value as indented JSON.\n\nUses `indent` spaces per nesting level and the same value rules as `stringify`.\n`indent <= 0` falls back to compact output. Non-empty containers are always broken\nacross lines; empty ones render as `[]` or `{}`.\n"
+          "text": "## Functions\n\n### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters) returns `nil`; a\nvalid JSON `null` also returns `nil`. Use `parseResult` when the caller must\ndistinguish malformed text from a valid `null`.\n\n### `fn parseResult(text: String) -> JsonResult`\n\nParses JSON text, preserving the difference between `null` and invalid text.\n\nReturns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`\nfor malformed input. Nesting is not capped (the reader uses an explicit stack,\nADR-0158). The message is the same one `parse` used to hide and never contains a\npath, timestamp or address.\n\n### `fn isOk(result: JsonResult) -> Bool`\n\nReturns `true` when `result` came from a valid JSON text.\n\nExists because an enum type exported by a module cannot be named in another module's\nannotations; callers use these helpers instead of writing a typed wrapper function.\n\n### `fn value(result: JsonResult) -> Any`\n\nReturns the parsed value, or `nil` when the text was invalid.\n\n### `fn error(result: JsonResult) -> String | Nil`\n\nReturns the error message, or `nil` when the text was valid.\n\n### `fn stringify(value: Any) -> String`\n\nSerializes a Loxia value as compact JSON.\n\nSupports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and\n`Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;\na non-finite float raises `RuntimeError`. Object keys keep insertion order, and any\nother type raises `RuntimeError`.\n\n### `fn pretty(value: Any, indent: Int = ...) -> String`\n\nSerializes a Loxia value as indented JSON.\n\nUses `indent` spaces per nesting level and the same value rules as `stringify`.\n`indent <= 0` falls back to compact output. Non-empty containers are always broken\nacross lines; empty ones render as `[]` or `{}`.\n"
         },
         {
           "id": "stdlib/json#fn-parsetext-string---any",
@@ -4482,7 +4482,7 @@
           "line_start": 34,
           "line_end": 45,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-parsetext-string---any",
-          "text": "### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters, nesting deeper than\n16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the\ncaller must distinguish malformed text from a valid `null`.\n"
+          "text": "### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters) returns `nil`; a\nvalid JSON `null` also returns `nil`. Use `parseResult` when the caller must\ndistinguish malformed text from a valid `null`.\n"
         },
         {
           "id": "stdlib/json#fn-parseresulttext-string---jsonresult",
@@ -4490,17 +4490,17 @@
           "title": "fn parseResult(text: String) -> JsonResult",
           "level": 3,
           "line_start": 45,
-          "line_end": 53,
+          "line_end": 54,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-parseresulttext-string---jsonresult",
-          "text": "### `fn parseResult(text: String) -> JsonResult`\n\nParses JSON text, preserving the difference between `null` and invalid text.\n\nReturns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`\nfor malformed input, including the 16-level nesting cap. The message is the same one\n`parse` used to hide and never contains a path, timestamp or address.\n"
+          "text": "### `fn parseResult(text: String) -> JsonResult`\n\nParses JSON text, preserving the difference between `null` and invalid text.\n\nReturns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`\nfor malformed input. Nesting is not capped (the reader uses an explicit stack,\nADR-0158). The message is the same one `parse` used to hide and never contains a\npath, timestamp or address.\n"
         },
         {
           "id": "stdlib/json#fn-isokresult-jsonresult---bool",
           "anchor": "fn-isokresult-jsonresult---bool",
           "title": "fn isOk(result: JsonResult) -> Bool",
           "level": 3,
-          "line_start": 53,
-          "line_end": 60,
+          "line_start": 54,
+          "line_end": 61,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-isokresult-jsonresult---bool",
           "text": "### `fn isOk(result: JsonResult) -> Bool`\n\nReturns `true` when `result` came from a valid JSON text.\n\nExists because an enum type exported by a module cannot be named in another module's\nannotations; callers use these helpers instead of writing a typed wrapper function.\n"
         },
@@ -4509,8 +4509,8 @@
           "anchor": "fn-valueresult-jsonresult---any",
           "title": "fn value(result: JsonResult) -> Any",
           "level": 3,
-          "line_start": 60,
-          "line_end": 64,
+          "line_start": 61,
+          "line_end": 65,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-valueresult-jsonresult---any",
           "text": "### `fn value(result: JsonResult) -> Any`\n\nReturns the parsed value, or `nil` when the text was invalid.\n"
         },
@@ -4519,8 +4519,8 @@
           "anchor": "fn-errorresult-jsonresult---string--nil",
           "title": "fn error(result: JsonResult) -> String | Nil",
           "level": 3,
-          "line_start": 64,
-          "line_end": 68,
+          "line_start": 65,
+          "line_end": 69,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-errorresult-jsonresult---string--nil",
           "text": "### `fn error(result: JsonResult) -> String | Nil`\n\nReturns the error message, or `nil` when the text was valid.\n"
         },
@@ -4529,8 +4529,8 @@
           "anchor": "fn-stringifyvalue-any---string",
           "title": "fn stringify(value: Any) -> String",
           "level": 3,
-          "line_start": 68,
-          "line_end": 77,
+          "line_start": 69,
+          "line_end": 78,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-stringifyvalue-any---string",
           "text": "### `fn stringify(value: Any) -> String`\n\nSerializes a Loxia value as compact JSON.\n\nSupports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and\n`Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;\na non-finite float raises `RuntimeError`. Object keys keep insertion order, and any\nother type raises `RuntimeError`.\n"
         },
@@ -4539,8 +4539,8 @@
           "anchor": "fn-prettyvalue-any-indent-int-----string",
           "title": "fn pretty(value: Any, indent: Int = ...) -> String",
           "level": 3,
-          "line_start": 77,
-          "line_end": 84,
+          "line_start": 78,
+          "line_end": 85,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-prettyvalue-any-indent-int-----string",
           "text": "### `fn pretty(value: Any, indent: Int = ...) -> String`\n\nSerializes a Loxia value as indented JSON.\n\nUses `indent` spaces per nesting level and the same value rules as `stringify`.\n`indent <= 0` falls back to compact output. Non-empty containers are always broken\nacross lines; empty ones render as `[]` or `{}`.\n"
         }

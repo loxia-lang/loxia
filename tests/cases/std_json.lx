@@ -26,7 +26,9 @@ print(len(json.stringify(json.parse("{\"k\": [1, 2, 3]}"))))
 val exato = strings.repeat("[", 16) + strings.repeat("]", 16)
 print(json.stringify(json.parse(exato)) == exato)
 val fundo = strings.repeat("[", 17) + strings.repeat("]", 17)
-print(json.parse(fundo))
+print(json.stringify(json.parse(fundo)) == fundo)
+val profundo = strings.repeat("[", 256) + strings.repeat("]", 256)
+print(json.stringify(json.parse(profundo)) == profundo)
 val nulo = json.parseResult("null")
 print(json.isOk(nulo))
 print(json.value(nulo) == nil)
@@ -56,7 +58,8 @@ print(json.isOk(json.parseResult("{")))
 # expect: "{\"a\":[1,2]}"
 # expect: 13
 # expect: true
-# expect: nil
+# expect: true
+# expect: true
 # expect: true
 # expect: true
 # expect: true

@@ -27,6 +27,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Mudado (quebra)
 
+- **`std.json` sem cap de aninhamento** ([ADR-0158](docs/adr/0158-json-sem-cap-de-aninhamento.md)):
+  o leitor virou iterativo (pilha explícita) e `parse`/`parseResult` aceitam qualquer
+  profundidade que caiba na memória; o erro `Invalid JSON: nesting is too deep.` deixa de
+  existir. `stringify`/`pretty` continuam recursivos e limitados pela profundidade de
+  chamadas (10.000, `R1015`): um valor pode ser lido e não escrito, e isso é documentado.
+  Um documento de 17+ níveis que antes virava `nil` agora parseia.
 - **`loxia run` compila por padrão**: usa o check **estrito** do `build`, então programa sem
   anotação (`E3004`) deixa de rodar e recebe uma dica apontando `--interpret`; o
   interpretador (gradual) continua disponível em `run --interpret`, no REPL e como oráculo.
