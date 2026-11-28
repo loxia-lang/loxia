@@ -184,3 +184,46 @@ def test_lambda_captures_enclosing_local() -> None:
     lambda_ = _function(module, "<lambda>")
     assert _capture_names(lambda_) == ["x"]
     assert _decl(module, "x", DeclKind.VAR).cell
+
+
+def test_captures_are_ordered_by_name_not_by_declaration_order() -> None:
+    """A ordem é canônica (nome): `z` declarado antes de `a` sai como `["a", "z"]`."""
+    module = _module(
+        """
+        fn outer() {
+          var z = 1;
+          var a = 2;
+          val f = fn() => z + a;
+        }
+        """
+    )
+
+    lambda_ = _function(module, "<lambda>")
+    assert _capture_names(lambda_) == ["a", "z"]
+    assert _decl(module, "z", DeclKind.VAR).cell
+    assert _decl(module, "a", DeclKind.VAR).cell
+
+
+def test_shadowed_name_captures_the_visible_declaration() -> None:
+    """Com dois `x` no mesmo frame (blocos distintos), a lambda captura o interno."""
+    module = _module(
+        """
+        fn outer() {
+          var x = 1;
+          {
+            var x = 2;
+            val f = fn() => x;
+          }
+        }
+        """
+    )
+
+    lambda_ = _function(module, "<lambda>")
+    assert _capture_names(lambda_) == ["x"]
+
+    # Só o `x` interno (o mais próximo lexicalmente) é célula; o externo fica em slot.
+    decls = [decl for decl in module.decls if decl.name == "x" and decl.kind is DeclKind.VAR]
+    cells = [decl for decl in decls if decl.cell]
+    assert len(decls) == 2
+    assert len(cells) == 1
+    assert cells[0].span is not None and cells[0].span.start.line == 5

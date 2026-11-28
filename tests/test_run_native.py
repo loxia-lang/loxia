@@ -359,6 +359,30 @@ def test_sigint_sai_130_nos_dois_motores(tmp_path: Path, cache: Path) -> None:
         assert "KeyboardInterrupt" not in stderr
 
 
+def test_default_de_interface_com_corpo_vazio(tmp_path: Path, cache: Path) -> None:
+    """Regressão do converge: `fn m() {}` é default no-op, não assinatura.
+
+    Antes de `TFunction.abstract`, o lowering tratava corpo vazio como assinatura e o
+    programa (check-limpo) morria com `E4002` só no motor nativo.
+    """
+    script = _write(
+        tmp_path,
+        "interface Named {\n"
+        "  fn greet() -> Nil {}\n"
+        "}\n"
+        "class A implements Named {}\n"
+        "A().greet()\n"
+        'print("ok")\n',
+    )
+
+    interpreted = _run(["run", "--interpret", str(script)], cache=cache)
+    compiled = _run(["run", str(script)], cache=cache)
+
+    assert compiled.returncode == 0, compiled.stderr
+    assert (compiled.stdout, compiled.stderr) == (interpreted.stdout, interpreted.stderr)
+    assert compiled.stdout == "ok\n"
+
+
 def test_timeout_mata_o_binario_com_124(tmp_path: Path, cache: Path) -> None:
     script = _write(tmp_path, "while (true) {\n}\n")
 

@@ -94,9 +94,11 @@ class Ref:
     """Referência resolvida a um `Decl`.
 
     Para `CAPTURE`, a posição no `env` é o índice do `decl` na tupla
-    `TFunction.captures` da função que contém o uso — o motor faz uma busca por id,
-    não uma re-derivação de escopo. A ordem das capturas é canônica (nome), então
-    dois produtores independentes chegam ao mesmo índice.
+    `TFunction.captures` da função que contém o uso. A ordem das capturas é canônica
+    (nome), então dois produtores independentes chegam ao mesmo índice.
+    O motor pode mapear o slot pelo nome dentro do escopo (o resolver garante
+    unicidade por escopo — E2001) ou pelo `decl`; o contrato é o `storage`, não o
+    algoritmo de busca do lowering.
     """
 
     storage: Storage
@@ -476,6 +478,9 @@ class TFunction:
     type_params: tuple[str, ...]
     is_init: bool
     is_method: bool
+    # Assinatura de interface (sem corpo) — `False` inclui o default de corpo vazio
+    # (`fn m() {}`), que o lowering precisa emitir como no-op.
+    abstract: bool
     method_class: str | None
     this_decl: DeclId | None
     captures: tuple[TCapture, ...]

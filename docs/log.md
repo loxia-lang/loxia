@@ -1538,4 +1538,21 @@ Intervalo: `7561f36..4359fa3` (port do lowering para `TModule`).
 - `docs/decisoes.md` — **no-change**: nenhuma decisão nova; o ADR-0154 já fixa a fronteira
   do THIR e o ADR-0046 já cobre células/capturas.
 
-<!-- triaged: 4359fa3 -->
+## 2026-11-28 — converge do port do lowering (fatia 3)
+
+Intervalo: `4359fa3..HEAD` (o converge pegou 2 BLOQUEIA: DCO e o default de interface
+com corpo vazio; mais R1–R3).
+
+- `docs/tech/thir.md` — **updated**: `TFunction.abstract` na tabela de campos e no
+  mapa AST→THIR; a paridade de capturas deixou de citar `analyze_captures` (apagado neste
+  PR) e passou a citar o gate `.ll` + `tests/test_captures.py`; a métrica A9 virou
+  tabela com comando e números medidos (46→0 leituras de side table, 21→0 arquivos
+  importando `frontend.expr/stmt`), porque os números antigos (92/617/82) não tinham
+  receita reproduzível; a linha de "resolução por `DeclId`" foi corrigida para o que o
+  lowering faz (classe vem do `Ref.storage`, slot por nome dentro do escopo).
+- `docs/tech/arquitetura.md` — **no-change**: o pacote `thir` e a fronteira já estavam
+  descritos no commit do port; a mudança de `abstract` não altera a arquitetura.
+- `docs/spec/garantias.md` — **no-change**: gerado; nenhum nível/promessa mudou.
+- Demais páginas — **no-change**: nenhuma superfície pública, CLI, spec ou stdlib mudou.
+
+<!-- triaged: eb0be6d -->

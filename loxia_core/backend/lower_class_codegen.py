@@ -134,9 +134,9 @@ class ClassCodegenLowering(LoweringBase):
             globals_: dict[str, Any] = {}
             infos = self._interface_method_infos[name]
             for method in interface.methods:
-                # O THIR não carrega `abstract`: um método sem corpo é uma
-                # assinatura (o parser o produz sem `{}`).
-                if not method.body:
+                # Assinatura de interface (`fn m()`) não tem default; o default de
+                # corpo vazio (`fn m() {}`) tem, e emite um thunk no-op.
+                if method.abstract:
                     continue
                 method_name = method.name or ""
                 info = infos[method_name]

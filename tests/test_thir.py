@@ -38,6 +38,7 @@ from loxia_core.thir import (
     TFnDecl,
     TForIn,
     TFunction,
+    TInterfaceDecl,
     TIs,
     TLambda,
     TLogical,
@@ -347,6 +348,19 @@ def test_span_of_node_points_at_the_source() -> None:
     assert binary.span.start.line == 3
     assert binary.op_span is not None
     assert binary.op_span.start.line == 3
+
+
+def test_interface_signature_and_empty_default_differ_by_abstract() -> None:
+    """`fn m()` é assinatura (`abstract`); `fn m() {}` é default de corpo vazio."""
+    module = _thir("interface I {\n  fn sig() -> Nil\n  fn def_() -> Nil {}\n}\n")
+    declared = next(s for s in module.statements if isinstance(s, TInterfaceDecl))
+    by_name = {method.name: method for method in declared.interface.methods}
+
+    assert by_name["sig"].abstract
+    assert not by_name["def_"].abstract
+    # Os dois têm corpo vazio: o discriminante é `abstract`, não a ausência de nós.
+    assert by_name["sig"].body == ()
+    assert by_name["def_"].body == ()
 
 
 def test_operator_spans_survive_on_every_operator() -> None:

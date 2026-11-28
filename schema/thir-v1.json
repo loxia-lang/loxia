@@ -1162,6 +1162,9 @@
     "TFunction": {
       "additionalProperties": false,
       "properties": {
+        "abstract": {
+          "type": "boolean"
+        },
         "body": {
           "items": {
             "$ref": "#/$defs/TStmt"
@@ -1273,6 +1276,7 @@
         "type_params",
         "is_init",
         "is_method",
+        "abstract",
         "method_class",
         "this_decl",
         "captures",

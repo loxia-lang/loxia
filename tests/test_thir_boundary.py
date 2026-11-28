@@ -61,6 +61,10 @@ def _imported_modules(tree: ast.AST) -> list[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module is not None:
             modules.append(node.module)
+            # `from loxia_core.frontend import expr` importa o módulo de nós por
+            # outro caminho: o `module` é o pacote, e o submódulo vem em `names`.
+            if node.module in {"loxia_core.frontend", "loxia_core"}:
+                modules.extend(f"{node.module}.{alias.name}" for alias in node.names)
         elif isinstance(node, ast.Import):
             modules.extend(alias.name for alias in node.names)
     return modules

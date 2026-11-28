@@ -476,6 +476,7 @@ class _Builder:
             ),
             is_init=is_init,
             is_method=is_method,
+            abstract=node.abstract if isinstance(node, Function) else False,
             method_class=lexical_class,
             this_decl=this_decl,
             captures=unit.ordered(),

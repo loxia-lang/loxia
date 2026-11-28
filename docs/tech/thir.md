@@ -138,7 +138,8 @@ closure ver o valor daquela volta) é decisão do motor, não do contrato.
 ### Módulo e declarações
 
 `TModule` é a raiz: `statements`, `decls`, `instances`, `type_aliases`, `entry` e
-`schema_version`. `TFunction` (função, método ou lambda), `TParam`, `TCapture`, `TField`, `TClass`,
+`schema_version`. `TFunction` (função, método ou lambda; `abstract` distingue assinatura de
+interface de default de corpo vazio), `TParam`, `TCapture`, `TField`, `TClass`,
 `TInterface`, `TEnum`, `TEnumVariant`, `THandler`, `Decl`.
 
 ## O que o THIR **não** carrega (v1)
@@ -167,11 +168,11 @@ resolvidas por uma pré-declaração de top-level que espelha o checker — sem 
 check-limpo nasceria cheio de `UNRESOLVED` e o motor emitiria panic sites falsos.
 `tests/test_thir.py` policia os dois casos e exige **zero** `UNRESOLVED` no corpus declarado.
 
-Escopo e captura seguem a mesma regra do `captures` do backend (ADR-0046), agora num lugar
-só: declaração no escopo de topo é `GLOBAL`, declaração interna é `LOCAL` da unidade dona, uso
-de fora é `CAPTURE`, e binding capturado vira `cell`. `tests/test_thir.py` compara, caso a
-caso do corpus, as capturas e a contagem de células com `analyze_captures` — a equivalência é
-policiada enquanto as duas implementações coexistirem.
+Escopo e captura seguem a mesma regra do antigo `captures` do backend (ADR-0046), agora num
+lugar só: declaração no escopo de topo é `GLOBAL`, declaração interna é `LOCAL` da unidade
+dona, uso de fora é `CAPTURE`, e binding capturado vira `cell`. Com o lowering já consumindo o
+THIR, não há segunda implementação a comparar: a equivalência é policiada pelo gate `.ll`
+(269 casos byte a byte) e por `tests/test_captures.py`, que fixa captura/célula no produtor.
 
 ## Determinismo (I3)
 
@@ -234,17 +235,23 @@ programa, mesmo `.ll` byte a byte, congelado em `tests/ll/manifest.json`
 
 A árvore é uma só. No instante em que `Lowerer` recebe `TModule`, todo handler recebe nós
 THIR; não existe nó híbrido e um dispatch duplo (AST **ou** THIR) reintroduziria as duas
-rotas que o [ADR-0154](../adr/0154-fronteira-do-thir.md) elimina. O port foi um PR, com
-commits por subsistema, e o gate cobriu cada commit.
+rotas que o [ADR-0154](../adr/0154-fronteira-do-thir.md) elimina. Por isso o port é **um
+commit** (mais um de triagem de docs): o gate `.ll` de 269 casos cobre a árvore inteira.
 
-### O que o lowering lia (inventário medido antes do port)
+### Métrica de complexidade (A9), com a receita
 
-| superfície | sítios | como o THIR responde |
-| --- | --- | --- |
-| `isinstance` de nó (dispatch) | 92 | nós `T*` correspondentes |
-| acessos de campo (`expr.x`/`stmt.x`) | 617 | campos homônimos + spans |
-| leituras de side table (`types`, `flow_types`, `depths`, genéricos) | 82 | `TExpr.ty`/`storage_ty`, `Ref`, `TCall.instance` |
-| `analyze_captures` (escopos, células) | 402 linhas | `Decl.cell` + `TFunction.captures` |
+Medido em `7561f36` (pré-port) e no HEAD, com o comando ao lado — número sem comando não
+conta:
+
+| métrica | antes | depois | comando |
+| --- | --- | --- | --- |
+| leituras de side table no backend (`self.` nas 6 tabelas) | 46 | **0** | `git grep -E "self\.(types\|flow_types\|depths\|generic_instances\|generic_class_sites\|generic_classes)\b" <rev> -- loxia_core/backend \| wc -l` |
+| arquivos do backend que importam `frontend.expr`/`frontend.stmt` | 21 | **0** | `git grep -l -E "from loxia_core\.frontend\.(expr\|stmt)" <rev> -- loxia_core/backend \| wc -l` |
+| `backend/captures.py` | 402 linhas | apagado | `git show 7561f36:loxia_core/backend/captures.py \| wc -l` |
+| diff do port | — | +1883/−1695 em 35 arquivos | `git diff --shortstat 7561f36..HEAD` |
+
+O dispatch continua sendo `isinstance` (41 sítios em `_expr`/`_stmt`), agora sobre nós `T*`;
+o ganho não é "menos branches", é **uma** árvore e nenhuma tabela por identidade de nó.
 
 Renomes mecânicos:
 
@@ -262,7 +269,8 @@ Renomes mecânicos:
 | `self.types[expr]` | `TExpr.storage_ty` |
 | `self.flow_types[expr]` | `TExpr.ty` |
 | `self.depths.get(expr)` | `Ref.storage` + índice em `TFunction.captures` |
-| `Function.abstract`, `doc`, `fn_token`, `params_end`, `arrow` | não usados no backend |
+| `Function.abstract` | `TFunction.abstract` (assinatura de interface × default de corpo vazio) |
+| `Function.doc`, `fn_token`, `params_end`, `arrow` | não usados no backend |
 
 ### O que morreu
 
@@ -270,7 +278,9 @@ Renomes mecânicos:
 - `loxia_core/backend/captures.py` (a decisão vira `Decl.cell` + `captures`), coberto por
   `tests/test_captures.py` no produtor;
 - a pilha `_scopes` por **nome** continua existindo no lowering (o layout de frame é dele,
-  não do THIR), mas a **resolução** é por `Ref.storage`/`DeclId`.
+  não do THIR): a **classe** do binding vem de `Ref.storage`, e o slot é achado pelo nome no
+  escopo — o resolver garante unicidade por escopo (`E2001`), então nome e `DeclId` coincidem
+  na prática. Um `Ref` que aponte para fora do escopo vivo é captura (`CAPTURE`), não `LOCAL`.
 
 ### `op_span` em todos os operadores
 
