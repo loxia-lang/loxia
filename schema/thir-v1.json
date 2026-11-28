@@ -1,0 +1,3536 @@
+{
+  "$defs": {
+    "Decl": {
+      "additionalProperties": false,
+      "properties": {
+        "cell": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "k": {
+          "const": "Decl"
+        },
+        "kind": {
+          "enum": [
+            "VAR",
+            "PARAM",
+            "THIS",
+            "FUNCTION",
+            "CLASS",
+            "INTERFACE",
+            "ENUM",
+            "PATTERN",
+            "HANDLER",
+            "LAMBDA"
+          ],
+          "type": "string"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "id",
+        "name",
+        "ty",
+        "mutable",
+        "kind",
+        "span",
+        "cell"
+      ],
+      "type": "object"
+    },
+    "Ref": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "k": {
+          "const": "Ref"
+        },
+        "name": {
+          "type": "string"
+        },
+        "storage": {
+          "enum": [
+            "LOCAL",
+            "CAPTURE",
+            "GLOBAL",
+            "BUILTIN",
+            "UNRESOLVED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "k",
+        "storage",
+        "decl",
+        "name"
+      ],
+      "type": "object"
+    },
+    "TAs": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TAs"
+        },
+        "operand": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_type": {
+          "$ref": "#/$defs/Ty"
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "operand",
+        "target_type"
+      ],
+      "type": "object"
+    },
+    "TAssign": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TAssign"
+        },
+        "name_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/TExpr"
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "ref",
+        "name_span",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TBinary": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TBinary"
+        },
+        "left": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "op": {
+          "enum": [
+            "LEFT_PAREN",
+            "RIGHT_PAREN",
+            "LEFT_BRACE",
+            "RIGHT_BRACE",
+            "COMMA",
+            "COLON",
+            "DOT",
+            "MINUS",
+            "PLUS",
+            "SEMICOLON",
+            "SLASH",
+            "SLASH_SLASH",
+            "STAR",
+            "STAR_STAR",
+            "PERCENT",
+            "QUESTION",
+            "QUESTION_QUESTION",
+            "QUESTION_DOT",
+            "LEFT_BRACKET",
+            "RIGHT_BRACKET",
+            "AMPERSAND",
+            "CARET",
+            "TILDE",
+            "NOT",
+            "NOT_EQUAL",
+            "EQUAL",
+            "EXCEPT",
+            "EQUAL_EQUAL",
+            "GREATER",
+            "GREATER_EQUAL",
+            "LESS",
+            "LESS_EQUAL",
+            "LESS_LESS",
+            "GREATER_GREATER",
+            "GREATER_GREATER_GREATER",
+            "DOT_DOT",
+            "DOT_DOT_EQUAL",
+            "ELLIPSIS",
+            "ARROW",
+            "FAT_ARROW",
+            "PIPE",
+            "IDENTIFIER",
+            "STRING",
+            "INTERPOLATED_STRING",
+            "NUMBER",
+            "AND",
+            "AS",
+            "ASYNC",
+            "AWAIT",
+            "BREAK",
+            "CLASS",
+            "CONTINUE",
+            "IMPORT",
+            "FROM",
+            "ELIF",
+            "ELSE",
+            "ENUM",
+            "FALSE",
+            "FINALLY",
+            "FN",
+            "FOR",
+            "IF",
+            "INTERFACE",
+            "MATCH",
+            "IN",
+            "IS",
+            "NIL",
+            "OR",
+            "RAISE",
+            "RETURN",
+            "SUPER",
+            "THIS",
+            "TRY",
+            "TRUE",
+            "VAL",
+            "VAR",
+            "WHILE",
+            "EOF"
+          ],
+          "type": "string"
+        },
+        "op_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "right": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "op",
+        "op_span",
+        "left",
+        "right"
+      ],
+      "type": "object"
+    },
+    "TBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/TStmt"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TBlock"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "body"
+      ],
+      "type": "object"
+    },
+    "TBreak": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TBreak"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TCall": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "items": {
+            "$ref": "#/$defs/TExpr"
+          },
+          "type": "array"
+        },
+        "callee": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "class_instance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TInstance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "instance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TInstance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "k": {
+          "const": "TCall"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "paren_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spread": {
+          "type": "boolean"
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "callee",
+        "arguments",
+        "paren_span",
+        "optional",
+        "spread",
+        "instance",
+        "class_instance"
+      ],
+      "type": "object"
+    },
+    "TCapture": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "k": {
+          "const": "TCapture"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "k",
+        "decl",
+        "name"
+      ],
+      "type": "object"
+    },
+    "TClass": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/TField"
+          },
+          "type": "array"
+        },
+        "interfaces": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TClass"
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/$defs/TFunction"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "superclass": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_params": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "k",
+        "decl",
+        "name",
+        "superclass",
+        "interfaces",
+        "type_params",
+        "fields",
+        "methods",
+        "display_name",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TClassDecl": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TClassDecl"
+        },
+        "klass": {
+          "$ref": "#/$defs/TClass"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "klass"
+      ],
+      "type": "object"
+    },
+    "TConditional": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "else_branch": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TConditional"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "then_branch": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "condition",
+        "then_branch",
+        "else_branch"
+      ],
+      "type": "object"
+    },
+    "TConst": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TConst"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {}
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TContinue": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TContinue"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TDestructurePattern": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TNamePattern"
+        },
+        {
+          "$ref": "#/$defs/TTuplePattern"
+        }
+      ]
+    },
+    "TDestructureStmt": {
+      "additionalProperties": false,
+      "properties": {
+        "initializer": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TDestructureStmt"
+        },
+        "pattern": {
+          "$ref": "#/$defs/TDestructurePattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "pattern",
+        "initializer"
+      ],
+      "type": "object"
+    },
+    "TEnum": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "k": {
+          "const": "TEnum"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_params": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/$defs/TEnumVariant"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "k",
+        "decl",
+        "name",
+        "type_params",
+        "variants",
+        "display_name",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TEnumDecl": {
+      "additionalProperties": false,
+      "properties": {
+        "enum": {
+          "$ref": "#/$defs/TEnum"
+        },
+        "k": {
+          "const": "TEnumDecl"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "enum"
+      ],
+      "type": "object"
+    },
+    "TEnumVariant": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TEnumVariant"
+        },
+        "name": {
+          "type": "string"
+        },
+        "payload": {
+          "items": {
+            "$ref": "#/$defs/Ty"
+          },
+          "type": "array"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "name",
+        "payload",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TExpr": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TAs"
+        },
+        {
+          "$ref": "#/$defs/TAssign"
+        },
+        {
+          "$ref": "#/$defs/TBinary"
+        },
+        {
+          "$ref": "#/$defs/TCall"
+        },
+        {
+          "$ref": "#/$defs/TConditional"
+        },
+        {
+          "$ref": "#/$defs/TConst"
+        },
+        {
+          "$ref": "#/$defs/TGet"
+        },
+        {
+          "$ref": "#/$defs/TIndex"
+        },
+        {
+          "$ref": "#/$defs/TIndexSet"
+        },
+        {
+          "$ref": "#/$defs/TInterp"
+        },
+        {
+          "$ref": "#/$defs/TIs"
+        },
+        {
+          "$ref": "#/$defs/TLambda"
+        },
+        {
+          "$ref": "#/$defs/TList"
+        },
+        {
+          "$ref": "#/$defs/TLogical"
+        },
+        {
+          "$ref": "#/$defs/TMap"
+        },
+        {
+          "$ref": "#/$defs/TMatch"
+        },
+        {
+          "$ref": "#/$defs/TRange"
+        },
+        {
+          "$ref": "#/$defs/TSet"
+        },
+        {
+          "$ref": "#/$defs/TSuper"
+        },
+        {
+          "$ref": "#/$defs/TThis"
+        },
+        {
+          "$ref": "#/$defs/TTuple"
+        },
+        {
+          "$ref": "#/$defs/TUnary"
+        },
+        {
+          "$ref": "#/$defs/TVar"
+        }
+      ]
+    },
+    "TExprStmt": {
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TExprStmt"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "expression"
+      ],
+      "type": "object"
+    },
+    "TField": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "initializer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "k": {
+          "const": "TField"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "decl",
+        "name",
+        "ty",
+        "mutable",
+        "initializer",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TFnDecl": {
+      "additionalProperties": false,
+      "properties": {
+        "fn": {
+          "$ref": "#/$defs/TFunction"
+        },
+        "k": {
+          "const": "TFnDecl"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "fn"
+      ],
+      "type": "object"
+    },
+    "TForIn": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/TStmt"
+        },
+        "decl": {
+          "type": "integer"
+        },
+        "iterable": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TForIn"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "decl",
+        "iterable",
+        "body"
+      ],
+      "type": "object"
+    },
+    "TFunction": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/TStmt"
+          },
+          "type": "array"
+        },
+        "captures": {
+          "items": {
+            "$ref": "#/$defs/TCapture"
+          },
+          "type": "array"
+        },
+        "decl_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "fn_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "integer"
+        },
+        "is_init": {
+          "type": "boolean"
+        },
+        "is_method": {
+          "type": "boolean"
+        },
+        "k": {
+          "const": "TFunction"
+        },
+        "method_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/TParam"
+          },
+          "type": "array"
+        },
+        "ret_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "this_decl": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_params": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "k",
+        "id",
+        "name",
+        "params",
+        "body",
+        "ret_ty",
+        "fn_ty",
+        "type_params",
+        "is_init",
+        "is_method",
+        "method_class",
+        "this_decl",
+        "captures",
+        "display_name",
+        "decl_span"
+      ],
+      "type": "object"
+    },
+    "TGet": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TGet"
+        },
+        "name": {
+          "type": "string"
+        },
+        "name_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "receiver": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "receiver",
+        "name",
+        "name_span",
+        "optional"
+      ],
+      "type": "object"
+    },
+    "THandler": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/TStmt"
+          },
+          "type": "array"
+        },
+        "decl": {
+          "type": "integer"
+        },
+        "k": {
+          "const": "THandler"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "k",
+        "type_name",
+        "decl",
+        "body",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TIf": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "else_branch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TStmt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "k": {
+          "const": "TIf"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "then_branch": {
+          "$ref": "#/$defs/TStmt"
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "condition",
+        "then_branch",
+        "else_branch"
+      ],
+      "type": "object"
+    },
+    "TIndex": {
+      "additionalProperties": false,
+      "properties": {
+        "bracket_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TIndex"
+        },
+        "receiver": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "receiver",
+        "index",
+        "bracket_span"
+      ],
+      "type": "object"
+    },
+    "TIndexSet": {
+      "additionalProperties": false,
+      "properties": {
+        "bracket_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TIndexSet"
+        },
+        "receiver": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/TExpr"
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "receiver",
+        "index",
+        "value",
+        "bracket_span"
+      ],
+      "type": "object"
+    },
+    "TInstance": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TInstance"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type_args": {
+          "items": {
+            "$ref": "#/$defs/Ty"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "k",
+        "name",
+        "type_args"
+      ],
+      "type": "object"
+    },
+    "TInterface": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "k": {
+          "const": "TInterface"
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/$defs/TFunction"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "decl",
+        "name",
+        "methods",
+        "display_name",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TInterfaceDecl": {
+      "additionalProperties": false,
+      "properties": {
+        "interface": {
+          "$ref": "#/$defs/TInterface"
+        },
+        "k": {
+          "const": "TInterfaceDecl"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "interface"
+      ],
+      "type": "object"
+    },
+    "TInterp": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TInterp"
+        },
+        "parts": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/TExpr"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "parts"
+      ],
+      "type": "object"
+    },
+    "TIs": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TIs"
+        },
+        "operand": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "test_type": {
+          "$ref": "#/$defs/Ty"
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "operand",
+        "test_type"
+      ],
+      "type": "object"
+    },
+    "TLambda": {
+      "additionalProperties": false,
+      "properties": {
+        "fn": {
+          "$ref": "#/$defs/TFunction"
+        },
+        "k": {
+          "const": "TLambda"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "fn"
+      ],
+      "type": "object"
+    },
+    "TList": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TExpr"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TList"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "items"
+      ],
+      "type": "object"
+    },
+    "TLiteralPattern": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TLiteralPattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {}
+      },
+      "required": [
+        "k",
+        "span",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TLogical": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TLogical"
+        },
+        "left": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "op": {
+          "enum": [
+            "LEFT_PAREN",
+            "RIGHT_PAREN",
+            "LEFT_BRACE",
+            "RIGHT_BRACE",
+            "COMMA",
+            "COLON",
+            "DOT",
+            "MINUS",
+            "PLUS",
+            "SEMICOLON",
+            "SLASH",
+            "SLASH_SLASH",
+            "STAR",
+            "STAR_STAR",
+            "PERCENT",
+            "QUESTION",
+            "QUESTION_QUESTION",
+            "QUESTION_DOT",
+            "LEFT_BRACKET",
+            "RIGHT_BRACKET",
+            "AMPERSAND",
+            "CARET",
+            "TILDE",
+            "NOT",
+            "NOT_EQUAL",
+            "EQUAL",
+            "EXCEPT",
+            "EQUAL_EQUAL",
+            "GREATER",
+            "GREATER_EQUAL",
+            "LESS",
+            "LESS_EQUAL",
+            "LESS_LESS",
+            "GREATER_GREATER",
+            "GREATER_GREATER_GREATER",
+            "DOT_DOT",
+            "DOT_DOT_EQUAL",
+            "ELLIPSIS",
+            "ARROW",
+            "FAT_ARROW",
+            "PIPE",
+            "IDENTIFIER",
+            "STRING",
+            "INTERPOLATED_STRING",
+            "NUMBER",
+            "AND",
+            "AS",
+            "ASYNC",
+            "AWAIT",
+            "BREAK",
+            "CLASS",
+            "CONTINUE",
+            "IMPORT",
+            "FROM",
+            "ELIF",
+            "ELSE",
+            "ENUM",
+            "FALSE",
+            "FINALLY",
+            "FN",
+            "FOR",
+            "IF",
+            "INTERFACE",
+            "MATCH",
+            "IN",
+            "IS",
+            "NIL",
+            "OR",
+            "RAISE",
+            "RETURN",
+            "SUPER",
+            "THIS",
+            "TRY",
+            "TRUE",
+            "VAL",
+            "VAR",
+            "WHILE",
+            "EOF"
+          ],
+          "type": "string"
+        },
+        "right": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "op",
+        "left",
+        "right"
+      ],
+      "type": "object"
+    },
+    "TMap": {
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/TExpr"
+              },
+              {
+                "$ref": "#/$defs/TExpr"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TMap"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "entries"
+      ],
+      "type": "object"
+    },
+    "TMatch": {
+      "additionalProperties": false,
+      "properties": {
+        "arms": {
+          "items": {
+            "$ref": "#/$defs/TMatchArm"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TMatch"
+        },
+        "scrutinee": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "scrutinee",
+        "arms"
+      ],
+      "type": "object"
+    },
+    "TMatchArm": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TMatchArm"
+        },
+        "pattern": {
+          "$ref": "#/$defs/TPattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "pattern",
+        "body",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TModule": {
+      "additionalProperties": false,
+      "properties": {
+        "decls": {
+          "items": {
+            "$ref": "#/$defs/Decl"
+          },
+          "type": "array"
+        },
+        "entry": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "instances": {
+          "items": {
+            "$ref": "#/$defs/TInstance"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TModule"
+        },
+        "schema_version": {
+          "type": "integer"
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "statements": {
+          "items": {
+            "$ref": "#/$defs/TStmt"
+          },
+          "type": "array"
+        },
+        "type_aliases": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Ty"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "k",
+        "source_path",
+        "statements",
+        "decls",
+        "instances",
+        "type_aliases",
+        "entry",
+        "schema_version"
+      ],
+      "type": "object"
+    },
+    "TNamePattern": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "k": {
+          "const": "TNamePattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "decl"
+      ],
+      "type": "object"
+    },
+    "TParam": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "k": {
+          "const": "TParam"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variadic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "k",
+        "decl",
+        "name",
+        "ty",
+        "default",
+        "variadic",
+        "mutable",
+        "span"
+      ],
+      "type": "object"
+    },
+    "TPattern": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TLiteralPattern"
+        },
+        {
+          "$ref": "#/$defs/TVariantPattern"
+        },
+        {
+          "$ref": "#/$defs/TWildcardPattern"
+        }
+      ]
+    },
+    "TRaise": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TRaise"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TRange": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "inclusive": {
+          "type": "boolean"
+        },
+        "k": {
+          "const": "TRange"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "start",
+        "end",
+        "inclusive"
+      ],
+      "type": "object"
+    },
+    "TReturn": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TReturn"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TSet": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TSet"
+        },
+        "name": {
+          "type": "string"
+        },
+        "name_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receiver": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/TExpr"
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "receiver",
+        "name",
+        "name_span",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TStmt": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TBlock"
+        },
+        {
+          "$ref": "#/$defs/TBreak"
+        },
+        {
+          "$ref": "#/$defs/TClassDecl"
+        },
+        {
+          "$ref": "#/$defs/TContinue"
+        },
+        {
+          "$ref": "#/$defs/TDestructureStmt"
+        },
+        {
+          "$ref": "#/$defs/TEnumDecl"
+        },
+        {
+          "$ref": "#/$defs/TExprStmt"
+        },
+        {
+          "$ref": "#/$defs/TFnDecl"
+        },
+        {
+          "$ref": "#/$defs/TForIn"
+        },
+        {
+          "$ref": "#/$defs/TIf"
+        },
+        {
+          "$ref": "#/$defs/TInterfaceDecl"
+        },
+        {
+          "$ref": "#/$defs/TRaise"
+        },
+        {
+          "$ref": "#/$defs/TReturn"
+        },
+        {
+          "$ref": "#/$defs/TTry"
+        },
+        {
+          "$ref": "#/$defs/TTypeAlias"
+        },
+        {
+          "$ref": "#/$defs/TVarStmt"
+        },
+        {
+          "$ref": "#/$defs/TWhile"
+        }
+      ]
+    },
+    "TSuper": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TSuper"
+        },
+        "method": {
+          "type": "string"
+        },
+        "method_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receiver": {
+          "$ref": "#/$defs/Ref"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "method",
+        "method_span",
+        "receiver"
+      ],
+      "type": "object"
+    },
+    "TThis": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TThis"
+        },
+        "ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "ref"
+      ],
+      "type": "object"
+    },
+    "TTry": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/TStmt"
+          },
+          "type": "array"
+        },
+        "finally_body": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TStmt"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "handlers": {
+          "items": {
+            "$ref": "#/$defs/THandler"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TTry"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "body",
+        "handlers",
+        "finally_body"
+      ],
+      "type": "object"
+    },
+    "TTuple": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TExpr"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TTuple"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "items"
+      ],
+      "type": "object"
+    },
+    "TTuplePattern": {
+      "additionalProperties": false,
+      "properties": {
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/TDestructurePattern"
+          },
+          "type": "array"
+        },
+        "k": {
+          "const": "TTuplePattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "elements"
+      ],
+      "type": "object"
+    },
+    "TTypeAlias": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TTypeAlias"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/Ty"
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "name",
+        "target"
+      ],
+      "type": "object"
+    },
+    "TUnary": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TUnary"
+        },
+        "op": {
+          "enum": [
+            "LEFT_PAREN",
+            "RIGHT_PAREN",
+            "LEFT_BRACE",
+            "RIGHT_BRACE",
+            "COMMA",
+            "COLON",
+            "DOT",
+            "MINUS",
+            "PLUS",
+            "SEMICOLON",
+            "SLASH",
+            "SLASH_SLASH",
+            "STAR",
+            "STAR_STAR",
+            "PERCENT",
+            "QUESTION",
+            "QUESTION_QUESTION",
+            "QUESTION_DOT",
+            "LEFT_BRACKET",
+            "RIGHT_BRACKET",
+            "AMPERSAND",
+            "CARET",
+            "TILDE",
+            "NOT",
+            "NOT_EQUAL",
+            "EQUAL",
+            "EXCEPT",
+            "EQUAL_EQUAL",
+            "GREATER",
+            "GREATER_EQUAL",
+            "LESS",
+            "LESS_EQUAL",
+            "LESS_LESS",
+            "GREATER_GREATER",
+            "GREATER_GREATER_GREATER",
+            "DOT_DOT",
+            "DOT_DOT_EQUAL",
+            "ELLIPSIS",
+            "ARROW",
+            "FAT_ARROW",
+            "PIPE",
+            "IDENTIFIER",
+            "STRING",
+            "INTERPOLATED_STRING",
+            "NUMBER",
+            "AND",
+            "AS",
+            "ASYNC",
+            "AWAIT",
+            "BREAK",
+            "CLASS",
+            "CONTINUE",
+            "IMPORT",
+            "FROM",
+            "ELIF",
+            "ELSE",
+            "ENUM",
+            "FALSE",
+            "FINALLY",
+            "FN",
+            "FOR",
+            "IF",
+            "INTERFACE",
+            "MATCH",
+            "IN",
+            "IS",
+            "NIL",
+            "OR",
+            "RAISE",
+            "RETURN",
+            "SUPER",
+            "THIS",
+            "TRY",
+            "TRUE",
+            "VAL",
+            "VAR",
+            "WHILE",
+            "EOF"
+          ],
+          "type": "string"
+        },
+        "op_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operand": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "op",
+        "op_span",
+        "operand"
+      ],
+      "type": "object"
+    },
+    "TVar": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TVar"
+        },
+        "ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "storage_ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "ty",
+        "storage_ty",
+        "span",
+        "ref"
+      ],
+      "type": "object"
+    },
+    "TVarStmt": {
+      "additionalProperties": false,
+      "properties": {
+        "decl": {
+          "type": "integer"
+        },
+        "initializer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "k": {
+          "const": "TVarStmt"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "decl",
+        "initializer"
+      ],
+      "type": "object"
+    },
+    "TVariantPattern": {
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "enum": {
+          "type": "string"
+        },
+        "k": {
+          "const": "TVariantPattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variant": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "enum",
+        "variant",
+        "bindings"
+      ],
+      "type": "object"
+    },
+    "TWhile": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/TStmt"
+        },
+        "condition": {
+          "$ref": "#/$defs/TExpr"
+        },
+        "k": {
+          "const": "TWhile"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span",
+        "condition",
+        "body"
+      ],
+      "type": "object"
+    },
+    "TWildcardPattern": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "const": "TWildcardPattern"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "k",
+        "span"
+      ],
+      "type": "object"
+    },
+    "Ty": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "prim"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bounds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "id": {
+              "type": "integer"
+            },
+            "k": {
+              "const": "var"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name",
+            "id",
+            "bounds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/Ty"
+            },
+            "k": {
+              "const": "list"
+            }
+          },
+          "required": [
+            "k",
+            "element"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "map"
+            },
+            "key": {
+              "$ref": "#/$defs/Ty"
+            },
+            "value": {
+              "$ref": "#/$defs/Ty"
+            }
+          },
+          "required": [
+            "k",
+            "key",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "items": {
+                "$ref": "#/$defs/Ty"
+              },
+              "type": "array"
+            },
+            "k": {
+              "const": "tuple"
+            }
+          },
+          "required": [
+            "k",
+            "items"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "args": {
+              "items": {
+                "$ref": "#/$defs/Ty"
+              },
+              "type": "array"
+            },
+            "k": {
+              "const": "class"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name",
+            "args"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "args": {
+              "items": {
+                "$ref": "#/$defs/Ty"
+              },
+              "type": "array"
+            },
+            "k": {
+              "const": "enum"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name",
+            "args"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "enum_object"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "class_object"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "interface"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "native_module"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "union"
+            },
+            "members": {
+              "items": {
+                "$ref": "#/$defs/Ty"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "k",
+            "members"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "fn"
+            },
+            "min_params": {
+              "type": "integer"
+            },
+            "params": {
+              "items": {
+                "$ref": "#/$defs/Ty"
+              },
+              "type": "array"
+            },
+            "ret": {
+              "$ref": "#/$defs/Ty"
+            },
+            "variadic": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "k",
+            "params",
+            "ret",
+            "min_params",
+            "variadic"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fn": {
+              "$ref": "#/$defs/Ty"
+            },
+            "k": {
+              "const": "generic_fn"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type_params": {
+              "items": {
+                "$ref": "#/$defs/Ty"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "k",
+            "name",
+            "type_params",
+            "fn"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "const": "native_fn"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "k",
+            "name"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "position": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "line": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "line",
+        "column",
+        "offset"
+      ],
+      "type": "object"
+    },
+    "span": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/position"
+        },
+        "file": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/position"
+        }
+      },
+      "required": [
+        "file",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://loxia-lang.github.io/loxia/schema/thir-v1.json",
+  "$ref": "#/$defs/TModule",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Contrato tipado entre o checker e os motores (ADR-0149, ADR-0154).",
+  "title": "Loxia THIR v1"
+}

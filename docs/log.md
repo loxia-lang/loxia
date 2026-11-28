@@ -1463,3 +1463,16 @@ commit que o squash descarta).
 
 <!-- triaged: 203c8db -->
 
+## 2026-11-27 — THIR: serialização, schema e snapshot (#270, F2 fatia 2)
+
+Intervalo: `4bdda9d..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
+
+- `docs/tech/thir.md` — **updated**: ganhou a seção de serialização (formato JSON v1, `Ty`
+  estruturado, versão, determinismo, caminho de exibição) e o snapshot (manifesto de hash e
+  `build --emit=thir` como leitura sob demanda).
+- `docs/tech/arquitetura.md` — **updated**: o pipeline mostra o ramo `THIR → JSON v1`.
+- `docs/spec/semantica.md` e `docs/spec/garantias.md` — **no-change**: nenhuma semântica
+  observável mudou; `--emit=thir` é superfície de build/debug, não promessa de execução.
+
+<!-- triaged: 203c8db -->
+
