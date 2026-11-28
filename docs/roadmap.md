@@ -57,23 +57,24 @@ issue.
    `run prog.lx` compila e executa o binário, `--interpret` mantém o tree-walk, o REPL segue
    interpretado e o cache não muda bytes. A medição cold/warm vive no
    [`plano-de-motores.md`](plano-de-motores.md).
-2. **F1 — IR de controle** ([#245](https://github.com/loxia-lang/loxia/issues/245)): blocos,
-   terminadores, phi e pilha de cleanup internos ao backend, migrando exceções/`match`/
-   classes e honrando o gatilho do [ADR-0065](adr/0065-hir-lite-controle.md) (o lowering de
-   exceções e enums já passou do orçamento de ~350 linhas). Sem mudança de ABI nem de
-   bytes; a F2 (THIR) abre no fim desta.
-3. **Publicar o cliente VS Code 1.1.0**: criar o publisher `loxia-lang` no Marketplace e o
+2. **F1 — IR de controle** ([#245](https://github.com/loxia-lang/loxia/issues/245)):
+   **entregue**: blocos, terminadores, phi e cleanup internos ao backend, com exceções,
+   `match` e classes migrados ([ADR-0153](adr/0153-ir-de-controle-desenho.md)).
+3. **F2 — THIR + serialização** ([#270](https://github.com/loxia-lang/loxia/issues/270)):
+   **entregue em 2026-11-28**. O THIR é o contrato tipado entre checker e motores — modelo,
+   produtor, serialização v1 com snapshot determinístico, e o lowering consome o THIR
+   (side tables por identidade de nó e `analyze_captures` removidos; `.ll` dos 269 casos
+   byte a byte no gate). O desugaring v2 fica para a fase seguinte (ADR-0154 §4).
+4. **Publicar o cliente VS Code 1.1.0**: criar o publisher `loxia-lang` no Marketplace e o
    namespace no Open VSX, configurar `VSCE_PAT`/`OVSX_PAT` e taguear no repo
    [`loxia-vscode`](https://github.com/loxia-lang/loxia-vscode). É o último item do
    ecossistema que não depende de código novo.
 
 ## Próximo (Next)
 
-- **F2 — THIR + serialização** (issue abre no fim da F1): árvore tipada e desugarada com
-  binding em slots/células, IDs estáveis, desugaring explícito e spans preservados; o
-  lowering passa a consumi-la e as side tables por identidade de nó somem. O snapshot do
-  THIR vira contrato de revisão, como o do front
-  ([ADR-0129](adr/0129-oraculo-do-front-end.md)).
+- **F3 — THIR eval em Loxia (`loxvm`)** ([#284](https://github.com/loxia-lang/loxia/issues/284)):
+  o segundo motor consome o THIR serializado (sem parser) e reproduz o oráculo; portão
+  G1–G4 + soak. O desugaring v2 do THIR (ADR-0154 §4) é decisão de abertura da fase.
 - **Piloto de `std.contracts`** em módulos da stdlib/exemplos e property tests
   ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) — em andamento em
   `std.paths`/`std.convert`; `std.numeric`/`std.lists` ficaram só com property tests após o
