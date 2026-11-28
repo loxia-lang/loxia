@@ -61,18 +61,20 @@ Values are opaque handles to the target. `match` lowers to a chain of `CondBr` p
 Every assignment to `Lowerer.builder` is wrapped by `ControlIRBuilder`. Control operations
 (`branch`, `cbranch`, `ret`, `ret_void`, `unreachable`, `phi`) are recorded; everything else
 is forwarded to the `llvmlite` builder, so arithmetic, calls, loads and stores stay direct.
-`ControlIR.new_block` is used by every backend lowerer (exceptions, `match`, classes,
-optionals, containers, calls, ranges, strings, bytes, math and `lower.py`), so blocks are
-registered at creation instead of only when first observed. `loxia_core/backend/control_ir/builder.py`
-is the only creator: no lowerer calls `llvm_ir.append_block`/`block_of`, directly or through
-an alias. `tests/test_control_ir_boundary.py` polices the known identifiers
-(`append_block`, `append_basic_block`, `block_of`, `IRBuilder`) recursively over
-`loxia_core/backend/`, excluding `control_ir/` and the `llvm_ir.py` boundary.
+`ControlIR.new_block` is used by every block-creating lowerer (exceptions, `match`,
+classes, functions, instances, optionals, containers, calls, ranges, strings, bytes, math,
+variables and `lower.py`), so blocks are registered at creation instead of only when first
+observed. `loxia_core/backend/control_ir/builder.py` is the only creator: no lowerer calls
+`llvm_ir.append_block`/`block_of`, directly or through a static alias.
+`tests/test_control_ir_boundary.py` polices those identifiers recursively over
+`loxia_core/backend/`, excluding `control_ir/` and the root `llvm_ir.py` boundary. A dynamic
+`getattr` escape is closed by `verify_all` (see below), not by the static scan.
 
 ## Invariants
 
-`verify_function` runs on the model before emission. A violation is an internal compiler
-error (`ControlIRError`), never a user-facing `not supported by the backend yet`.
+`verify_all` runs `verify_function` and `verify_registration` on the model before emission.
+A violation is an internal compiler error (`ControlIRError`), never a user-facing
+`not supported by the backend yet`.
 
 | ID | Rule | Failure it prevents |
 | --- | --- | --- |
@@ -83,6 +85,11 @@ error (`ControlIRError`), never a user-facing `not supported by the backend yet`
 | C5 | The cleanup depth is balanced at the end of the function. | `finally` skipped or run twice. |
 | C6 | A value does not cross a cleanup boundary outwards (definition depth ≤ use depth). | Reading a value after its region was unwound. |
 | C7 | Block labels and phi labels are unique; block order is the creation order, covered by the deterministic dump test. | Nondeterministic `.ll` / binary (I3). |
+
+`verify_registration` rejects an LLVM block that belongs to a function known to the model
+but is absent from `ControlFunction.blocks` — a ghost block created outside
+`ControlIR.new_block`/`observe`, including via `getattr`. C1–C7 assume every block is in the
+model.
 
 C6 is an approximation: the depth is captured at block creation, so a value
 defined and used inside a block that spans a cleanup exit is not distinguished; the check
