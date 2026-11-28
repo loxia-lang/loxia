@@ -1445,3 +1445,21 @@ commit que o squash descarta).
 
 <!-- triaged: f23f409 -->
 
+## 2026-11-27 — THIR: modelo e produtor (#270, F2, pré-merge)
+
+Intervalo: `203c8db..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`, não um
+commit que o squash descarta).
+
+- `docs/tech/thir.md` — **nova**: modelo, binding/captura sem `depth`, o que a v1 não
+  carrega, desugaring adiado e determinismo; `tests/test_thir_docs.py` policia a tabela
+  de nós.
+- `docs/tech/arquitetura.md` — **updated**: o pacote `loxia_core/thir/` e o `thir_build`
+  entram no mapa de módulos.
+- `docs/decisoes.md` — **updated**: linhas do ADR-0154 (fronteira do THIR) e do ADR-0155
+  (troca de coletor).
+- `docs/spec/garantias.md` — **no-change**: nenhum caso do corpus foi promovido e o
+  produtor do THIR ainda não está no caminho de build; o comportamento observável e as
+  promessas I1–I4 são os mesmos.
+
+<!-- triaged: 203c8db -->
+

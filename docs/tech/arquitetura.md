@@ -52,7 +52,8 @@ Packages by phase (dependency only downward):
 | Package | Phase |
 | --- | --- |
 | [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`), `ast_printer` (debug) and `ast_json` (oracle, ADR-0129) |
-| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo), `type_ops`/`decl_table` (split do ADR-0141) and gradual `checker` |
+| [`loxia_core/thir/`](../../loxia_core/thir) | THIR model (ADR-0149 §2, ADR-0154): typed tree consumed by the lowering; no layout, no CFG, no target values |
+| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo), `type_ops`/`decl_table` (split do ADR-0141), gradual `checker` and `thir_build` (AST + checker tables → THIR) |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
 | [`loxia_core/loader/`](../../loxia_core/loader) | module loader, manifest, lock and dependency resolution (ADR-0073/0104) |
@@ -101,6 +102,8 @@ Packages by phase (dependency only downward):
 | [`loxia_core/loader/deps.py`](../../loxia_core/loader/deps.py) | dependency resolution: `.lx` tree hash, lock generation, `--frozen` verification, `fetch`, git mirror/checkout cache and `C0002` |
 | [`loxia_core/loader/gitenv.py`](../../loxia_core/loader/gitenv.py) | clean environment for the `git` calls Loxia spawns (product and tests) |
 | [`loxia_core/backend/control_ir/`](../../loxia_core/backend/control_ir) | backend-internal control IR (ADR-0153): blocks, phi, terminators, cleanup depth and the C1-C7 verifier |
+| [`loxia_core/semantics/thir_build.py`](../../loxia_core/semantics/thir_build.py) | the only reader of the checker's per-node tables (`types`, `flow_types`, instantiations); assigns `DeclId`, resolves bindings/captures and preserves spans |
+| [`loxia_core/thir/model.py`](../../loxia_core/thir/model.py) | THIR nodes, `Decl`/`Ref`/`Storage`, `TModule`; documented in [`thir.md`](thir.md) |
 | [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | single boundary with `llvmlite` (module, target machine, object file) |
 | [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | lowering coordination: program, statements, expressions, arithmetic and control flow |
 | [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | types, values, bindings and field/class layouts (ABI from ADR-0048) |

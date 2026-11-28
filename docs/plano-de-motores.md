@@ -180,8 +180,9 @@ Python. "Self-hosted" é o objetivo pessoal; o checker é a conta.
 | Fase | Issue | Estado |
 | --- | --- | --- |
 | F0 | [#244](https://github.com/loxia-lang/loxia/issues/244) `tooling: run compila com cache (AOT) e --interpret` | entregue (2026-11-27) |
-| F1 | [#245](https://github.com/loxia-lang/loxia/issues/245) `backend: IR de controle (blocos, phi, cleanup)` | aberta |
-| F2–F6 | — | a abrir no fim da fase anterior |
+| F1 | [#245](https://github.com/loxia-lang/loxia/issues/245) `backend: IR de controle (blocos, phi, cleanup)` | entregue (2026-11-27, [#275](https://github.com/loxia-lang/loxia/pull/275)) |
+| F2 | [#270](https://github.com/loxia-lang/loxia/issues/270) `backend: THIR + serialization` | aberta |
+| F3–F6 | — | a abrir no fim da fase anterior |
 
 ## Referências
 
