@@ -27,7 +27,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.hash`](hash.md) | Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes. |
 | [`std.io`](io.md) | Standard input/output. The read functions are ambient where they block. |
 | [`std.iter`](iter.md) | Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`). |
-| [`std.json`](json.md) | RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap. |
+| [`std.json`](json.md) | RFC 8259 JSON with insertion-ordered objects; the reader has no nesting cap. |
 | [`std.jsonrpc`](jsonrpc.md) | JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages. |
 | [`std.lists`](lists.md) | Generic list combinators; every function leaves the input unchanged. |
 | [`std.log`](log.md) | Leveled logging to stderr, without timestamps. |

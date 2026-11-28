@@ -3,8 +3,9 @@
 #
 # Deterministic: objects keep insertion order, `Int` and `Float` stay distinct, and no
 # locale is consulted. `parse` returns `nil` both for JSON `null` and for invalid input;
-# there is no separate null sentinel. Nesting is capped at 16 levels (`parse` returns
-# `nil` above that) to keep recursion bounded (ADR-0077).
+# there is no separate null sentinel. The reader uses an explicit stack (ADR-0158): no
+# nesting cap, bounded only by memory; the writers stay recursive and are bounded by the
+# call-depth contract (ADR-0077).
 
 class _Parser {
   val text: String
@@ -54,17 +55,10 @@ class _Parser {
     this.index = this.index + len(literal)
   }
 
-  fn _parseValue(depth: Int) -> Any {
-    this._skipSpace()
+  fn _parseScalar() -> Any {
     val code = this._peek()
     if (code == nil) {
       raise RuntimeError("Invalid JSON: unexpected end of input.")
-    }
-    if (code == 123) {
-      return this._parseObject(depth)
-    }
-    if (code == 91) {
-      return this._parseArray(depth)
     }
     if (code == 34) {
       return this._parseString()
@@ -87,70 +81,135 @@ class _Parser {
     raise RuntimeError("Invalid JSON: unexpected character.")
   }
 
-  fn _parseArray(depth: Int) -> Any {
-    if (depth >= 16) {
-      raise RuntimeError("Invalid JSON: nesting is too deep.")
-    }
-    this.index = this.index + 1
-    val result: List[Any] = []
-    this._skipSpace()
-    if (this._peek() == 93) {
-      this.index = this.index + 1
-      return result
-    }
-    while (true) {
-      result.push(this._parseValue(depth + 1))
+  fn _parseDocument() -> Any {
+    # Pilha explícita (ADR-0158): sem recursão por aninhamento e sem cap fixo. Cada
+    # frame é `List[Any]` ou `Map[String, Any]`; `keys` guarda a chave pendente de cada
+    # objeto. Estado: 0 = valor, 1 = chave, 2 = ':', 3 = ',' ou fechamento.
+    val stack: List[Any] = []
+    val keys: List[String] = []
+    var result: Any = nil
+    var done = false
+    var state = 0
+    while (not done) {
       this._skipSpace()
-      val separator = this._peek()
-      if (separator == nil) {
-        raise RuntimeError("Invalid JSON: unterminated array.")
-      }
-      this.index = this.index + 1
-      if (separator == 93) {
-        return result
-      }
-      if (separator != 44) {
-        raise RuntimeError("Invalid JSON: expected ',' or ']'.")
+      if (state == 0) {
+        val code = this._peek()
+        if (code == nil) {
+          raise RuntimeError("Invalid JSON: unexpected end of input.")
+        }
+        if (code == 91) {
+          this.index = this.index + 1
+          val items: List[Any] = []
+          stack.push(items)
+          this._skipSpace()
+          if (this._peek() == 93) {
+            this.index = this.index + 1
+            stack.pop()
+            if (this._finish(stack, keys, items)) {
+              result = items
+              done = true
+            } else {
+              state = 3
+            }
+          }
+        } elif (code == 123) {
+          this.index = this.index + 1
+          val map: Map[String, Any] = {}
+          stack.push(map)
+          keys.push("")
+          this._skipSpace()
+          if (this._peek() == 125) {
+            this.index = this.index + 1
+            stack.pop()
+            keys.pop()
+            if (this._finish(stack, keys, map)) {
+              result = map
+              done = true
+            } else {
+              state = 3
+            }
+          } else {
+            state = 1
+          }
+        } else {
+          val value = this._parseScalar()
+          if (this._finish(stack, keys, value)) {
+            result = value
+            done = true
+          } else {
+            state = 3
+          }
+        }
+      } elif (state == 1) {
+        if (this._peek() == 34) {
+          keys[len(keys) - 1] = this._parseString()
+          state = 2
+        } else {
+          raise RuntimeError("Invalid JSON: expected a string key.")
+        }
+      } elif (state == 2) {
+        if (this._peek() != 58) {
+          raise RuntimeError("Invalid JSON: expected ':'.")
+        }
+        this.index = this.index + 1
+        state = 0
+      } else {
+        val top = stack[len(stack) - 1]
+        val code = this._peek()
+        if (code == nil) {
+          if (top is List[Any]) {
+            raise RuntimeError("Invalid JSON: unterminated array.")
+          }
+          raise RuntimeError("Invalid JSON: unterminated object.")
+        }
+        if (top is List[Any]) {
+          if (code == 93) {
+            this.index = this.index + 1
+            stack.pop()
+            if (this._finish(stack, keys, top)) {
+              result = top
+              done = true
+            }
+          } elif (code == 44) {
+            this.index = this.index + 1
+            state = 0
+          } else {
+            raise RuntimeError("Invalid JSON: expected ',' or ']'.")
+          }
+        } else {
+          if (code == 125) {
+            this.index = this.index + 1
+            stack.pop()
+            keys.pop()
+            if (this._finish(stack, keys, top)) {
+              result = top
+              done = true
+            }
+          } elif (code == 44) {
+            this.index = this.index + 1
+            state = 1
+          } else {
+            raise RuntimeError("Invalid JSON: expected ',' or '}'.")
+          }
+        }
       }
     }
+    return result
   }
 
-  fn _parseObject(depth: Int) -> Any {
-    if (depth >= 16) {
-      raise RuntimeError("Invalid JSON: nesting is too deep.")
+  fn _finish(stack: List[Any], keys: List[String], value: Any) -> Bool {
+    if (len(stack) == 0) {
+      return true
     }
-    this.index = this.index + 1
-    val result: Map[String, Any] = {}
-    this._skipSpace()
-    if (this._peek() == 125) {
-      this.index = this.index + 1
-      return result
+    val top = stack[len(stack) - 1]
+    if (top is List[Any]) {
+      val items = top as List[Any]
+      items.push(value)
+      return false
     }
-    while (true) {
-      this._skipSpace()
-      if (this._peek() != 34) {
-        raise RuntimeError("Invalid JSON: expected a string key.")
-      }
-      val key = this._parseString()
-      this._skipSpace()
-      if (this._peek() != 58) {
-        raise RuntimeError("Invalid JSON: expected ':'.")
-      }
-      this.index = this.index + 1
-      result[key] = this._parseValue(depth + 1)
-      this._skipSpace()
-      val separator = this._peek()
-      if (separator == nil) {
-        raise RuntimeError("Invalid JSON: unterminated object.")
-      }
-      this.index = this.index + 1
-      if (separator == 125) {
-        return result
-      }
-      if (separator != 44) {
-        raise RuntimeError("Invalid JSON: expected ',' or '}'.")
-      }
-    }
+    val map = top as Map[String, Any]
+    map[keys[len(keys) - 1]] = value
+    return false
   }
 
   fn _parseString() -> String {
@@ -391,9 +450,9 @@ enum JsonResult { Ok(Any), Err(String) }
 /// Accepts `null`, booleans, numbers, strings, arrays and objects. A number without a
 /// fraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;
 /// non-finite values are rejected. Objects preserve key order and a repeated key keeps
-/// the last value. Invalid input (bad escapes, trailing characters, nesting deeper than
-/// 16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the
-/// caller must distinguish malformed text from a valid `null`.
+/// the last value. Invalid input (bad escapes, trailing characters) returns `nil`; a
+/// valid JSON `null` also returns `nil`. Use `parseResult` when the caller must
+/// distinguish malformed text from a valid `null`.
 fn parse(text: String) -> Any {
   return match parseResult(text) {
     JsonResult.Ok(value) => value
@@ -404,12 +463,13 @@ fn parse(text: String) -> Any {
 /// Parses JSON text, preserving the difference between `null` and invalid text.
 ///
 /// Returns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`
-/// for malformed input, including the 16-level nesting cap. The message is the same one
-/// `parse` used to hide and never contains a path, timestamp or address.
+/// for malformed input. Nesting is not capped (the reader uses an explicit stack,
+/// ADR-0158). The message is the same one `parse` used to hide and never contains a
+/// path, timestamp or address.
 fn parseResult(text: String) -> JsonResult {
   try {
     val parser = _Parser(text)
-    val value = parser._parseValue(0)
+    val value = parser._parseDocument()
     parser._skipSpace()
     if (parser.index != len(text)) {
       raise RuntimeError("Invalid JSON: trailing characters.")
@@ -452,7 +512,9 @@ fn error(result: JsonResult) -> String? {
 /// Supports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and
 /// `Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;
 /// a non-finite float raises `RuntimeError`. Object keys keep insertion order, and any
-/// other type raises `RuntimeError`.
+/// other type raises `RuntimeError`. The writer is recursive: depth is bounded by the
+/// call-depth contract (10,000 calls, `R1015`), unlike `parse`, which accepts any depth
+/// that fits memory (ADR-0158).
 fn stringify(value: Any) -> String {
   if (value == nil) {
     return "null"
@@ -529,7 +591,8 @@ fn _pretty(value: Any, indent: Int, level: Int) -> String {
 ///
 /// Uses `indent` spaces per nesting level and the same value rules as `stringify`.
 /// `indent <= 0` falls back to compact output. Non-empty containers are always broken
-/// across lines; empty ones render as `[]` or `{}`.
+/// across lines; empty ones render as `[]` or `{}`. Like `stringify`, it is recursive and
+/// bounded by the call-depth contract (10,000 calls, `R1015`).
 fn pretty(value: Any, indent: Int = 2) -> String {
   if (indent <= 0) {
     return stringify(value)

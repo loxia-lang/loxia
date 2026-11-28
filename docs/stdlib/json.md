@@ -7,7 +7,7 @@ sources:
 
 # std.json
 
-RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.
+RFC 8259 JSON with insertion-ordered objects; the reader has no nesting cap.
 
 ## API
 
@@ -38,17 +38,18 @@ Parses RFC 8259 JSON text into Loxia values.
 Accepts `null`, booleans, numbers, strings, arrays and objects. A number without a
 fraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;
 non-finite values are rejected. Objects preserve key order and a repeated key keeps
-the last value. Invalid input (bad escapes, trailing characters, nesting deeper than
-16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the
-caller must distinguish malformed text from a valid `null`.
+the last value. Invalid input (bad escapes, trailing characters) returns `nil`; a
+valid JSON `null` also returns `nil`. Use `parseResult` when the caller must
+distinguish malformed text from a valid `null`.
 
 ### `fn parseResult(text: String) -> JsonResult`
 
 Parses JSON text, preserving the difference between `null` and invalid text.
 
 Returns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`
-for malformed input, including the 16-level nesting cap. The message is the same one
-`parse` used to hide and never contains a path, timestamp or address.
+for malformed input. Nesting is not capped (the reader uses an explicit stack,
+ADR-0158). The message is the same one `parse` used to hide and never contains a
+path, timestamp or address.
 
 ### `fn isOk(result: JsonResult) -> Bool`
 
@@ -72,7 +73,9 @@ Serializes a Loxia value as compact JSON.
 Supports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and
 `Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;
 a non-finite float raises `RuntimeError`. Object keys keep insertion order, and any
-other type raises `RuntimeError`.
+other type raises `RuntimeError`. The writer is recursive: depth is bounded by the
+call-depth contract (10,000 calls, `R1015`), unlike `parse`, which accepts any depth
+that fits memory (ADR-0158).
 
 ### `fn pretty(value: Any, indent: Int = ...) -> String`
 
@@ -80,4 +83,5 @@ Serializes a Loxia value as indented JSON.
 
 Uses `indent` spaces per nesting level and the same value rules as `stringify`.
 `indent <= 0` falls back to compact output. Non-empty containers are always broken
-across lines; empty ones render as `[]` or `{}`.
+across lines; empty ones render as `[]` or `{}`. Like `stringify`, it is recursive and
+bounded by the call-depth contract (10,000 calls, `R1015`).

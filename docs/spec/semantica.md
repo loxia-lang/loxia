@@ -1165,8 +1165,10 @@ with fixed input.
 - `std.json`: `parse(text) -> Any`, `stringify(value) -> String` and
   `pretty(value, indent = 2) -> String`. Objects become `Map[String, Any]` (insertion
   order), arrays become `List[Any]`, `Int`/`Float` are distinct and `null` becomes `nil`.
-  Invalid JSON also becomes `nil`; nesting above 16 is invalid. `stringify`
-  raises `RuntimeError` for a non-finite `Float` or a value that is not JSON.
+  Invalid JSON also becomes `nil`; the reader has no fixed nesting cap — it uses an
+  explicit stack and is bounded by memory (ADR-0158). `stringify` raises `RuntimeError`
+  for a non-finite `Float` or a value that is not JSON, and is recursive: depth is
+  bounded by the call-depth contract (10,000 calls, `R1015`, ADR-0077).
 - `std.fmt`: `format(template, List[Any])` with `{}` and `{{`/`}}`, `pad(text, width,
   fill = " ")` (on the left), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`
   and `bytes(n)` (B/KiB/MiB/GiB/TiB). No locale; extra/missing arguments and `fixed` outside

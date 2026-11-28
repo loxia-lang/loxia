@@ -27,7 +27,7 @@ uma árvore **tipada e resolvida** que carrega a decisão semântica uma vez só
 o açúcar de controle fica explícito por decisão, não por adiamento
 ([ADR-0156](../adr/0156-sem-desugaring-no-thir.md)), ver §O que o THIR não carrega). O AST
 continua existindo para tooling (formatter, LSP, `ast_json`); o THIR é o que o lowering (F2) e
-o `loxvm` (F3) consomem.
+o THIR eval (F3) consomem.
 
 ```
 source .lx
@@ -157,7 +157,7 @@ Estas são decisões explícitas, não esquecimentos:
   teste de variante, `stringify` de linguagem): `match` não tem expressão “é a variante V”
   (o payload só existe como binding), `for-in` usaria `nil` como sentinela e perderia os
   *version checks* de `List`/`Map`, e o backend deixaria de especializar o loop por tipo
-  (`for i in 0..n` viraria iterador alocado). O `loxvm` avalia o nó; o lowering especializa.
+  (`for i in 0..n` viraria iterador alocado). O THIR eval avalia o nó; o lowering especializa.
 - **nada de resolução de alvo de chamada**: `kernel`, método de classe, closure e classe
   continuam sendo distinguidos pelo lowering. Isso é dívida declarada da v1, não contrato.
 - **nada de CFG**: sem blocos, phi ou cleanup. Quem precisa disso é a IR de controle.

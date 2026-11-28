@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""THIR — a árvore tipada e desugarada entre o checker e os motores (ADR-0149 §2).
+"""THIR — a árvore tipada e resolvida entre o checker e os motores (ADR-0149 §2, ADR-0156).
 
-Este pacote é o **contrato**: o modelo é lido pelo lowering (F2), pelo `loxvm` (F3) e
+Este pacote é o **contrato**: o modelo é lido pelo lowering (F2), pelo THIR eval (F3) e
 pelo compilador em Loxia (F4), e serializado para snapshot/revisão. Ele não importa
 `execution`, `semantics` nem `backend`; o produtor vive em `loxia_core.semantics`.
 """
