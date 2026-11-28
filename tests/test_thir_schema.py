@@ -10,11 +10,12 @@ from pathlib import Path
 import jsonschema  # type: ignore[import-untyped]
 import pytest
 
+from loxia_core.frontend import ty as ty_module
 from loxia_core.thir import model
 from loxia_core.thir.serialize import to_payload
 from tests.test_thir_serialization import GENERIC
 from tests.thir_support import module_for_case, module_for_source
-from tools.thir_schema import SCHEMA_PATH, build_schema
+from tools.thir_schema import SCHEMA_PATH, TY_CLASSES, build_schema
 
 REPRESENTATIVE_CASES = (
     "tests/cases/generic_class.lx",
@@ -37,6 +38,20 @@ def test_checked_in_schema_matches_the_model() -> None:
     assert current == build_schema(), (
         "schema/thir-v1.json está desatualizado; rode `make thir-schema`"
     )
+
+
+def test_ty_kinds_cover_every_ty_class() -> None:
+    expected = {cls.__name__ for cls in ty_module.Ty.__subclasses__()}
+    assert set(TY_CLASSES) == expected, "Ty novo sem kind no schema/serializador: " + ", ".join(
+        sorted(expected - set(TY_CLASSES))
+    )
+    definitions = _schema()["$defs"]
+    assert isinstance(definitions, dict)
+    ty_schema = definitions["Ty"]
+    assert isinstance(ty_schema, dict)
+    variants = ty_schema["oneOf"]
+    assert isinstance(variants, list)
+    assert len(variants) == len(TY_CLASSES)
 
 
 def test_schema_defines_every_model_class() -> None:

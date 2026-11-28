@@ -1473,6 +1473,14 @@ Intervalo: `4bdda9d..HEAD` (pilha da F2; o marcador abaixo é o tip de `dev`).
 - `docs/tech/arquitetura.md` — **updated**: o pipeline mostra o ramo `THIR → JSON v1`.
 - `docs/spec/semantica.md` e `docs/spec/garantias.md` — **no-change**: nenhuma semântica
   observável mudou; `--emit=thir` é superfície de build/debug, não promessa de execução.
+- `docs/spec/erros.md` — **no-change**: o novo ramo do `engine` só usa o diagnóstico de
+  backend que já existia (`E4002`); códigos, formato e canais continuam iguais.
+- `docs/tech/mcp.md` — **no-change**: as tools chamam `run --stdin --json --sandbox`, que
+  implicam `--interpret`; `--emit=thir` é só do `build` e não entra no MCP.
+- `docs/tech/python-coverage.md` — **no-change**: o piso e os alvos do dogfood não mudaram;
+  o ramo novo do `engine` está coberto pelos testes de `--emit=thir`.
+- `docs/tech/test-report.md` — **no-change**: envelope, `schema_version` e seleção do
+  runner continuam os mesmos.
 
 <!-- triaged: 203c8db -->
 

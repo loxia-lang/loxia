@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 import math
 import types
-from dataclasses import fields, is_dataclass
+from dataclasses import MISSING, fields, is_dataclass
 from enum import Enum
 from typing import Any, Union, cast, get_args, get_origin, get_type_hints
 
@@ -269,9 +269,16 @@ def _decode_record(value: object, cls: type[object]) -> object:
             raise ThirFormatError(f"expected THIR {cls.__name__}, got {kind!r}")
         return _decode_record(value, concrete)
     hints = get_type_hints(cls)
+    declared = list(fields(cast(Any, cls)))
+    names = {item.name for item in declared}
+    unknown = sorted(set(payload) - names - {"k"})
+    if unknown:
+        raise ThirFormatError(f"unexpected fields for THIR {cls.__name__}: {unknown}")
     kwargs: dict[str, object] = {}
-    for item in fields(cast(Any, cls)):
+    for item in declared:
         if item.name not in payload:
+            if item.default is MISSING and item.default_factory is MISSING:
+                raise ThirFormatError(f"missing field '{item.name}' for THIR {cls.__name__}")
             continue
         kwargs[item.name] = _decode(payload[item.name], hints[item.name])
     return cast(Any, cls)(**kwargs)

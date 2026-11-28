@@ -57,7 +57,7 @@ help:
 	@echo "make frontend-bench            mede parse+format do corpus (ADR-0129)"
 	@echo "make ast-schema                regenera schema/ast-v2.json a partir das dataclasses"
 	@echo "make thir-schema               regenera schema/thir-v1.json a partir do modelo THIR"
-	@echo "make thir-snapshot             regrava tests/thir (manifesto + goldens) do THIR"
+	@echo "make thir-snapshot             regrava o manifesto de hash do THIR (tests/thir)"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:

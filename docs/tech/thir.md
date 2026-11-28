@@ -3,8 +3,18 @@ sources:
   - loxia_core/thir/**
   - loxia_core/semantics/thir_build.py
   - loxia_core/frontend/spans.py
+  - loxia/engine.py
+  - loxia/cli_args.py
+  - schema/thir-v1.json
+  - tools/thir_schema.py
+  - tools/thir_snapshot.py
+  - tests/thir/manifest.json
+  - tests/thir_support.py
   - tests/test_thir.py
   - tests/test_thir_docs.py
+  - tests/test_thir_serialization.py
+  - tests/test_thir_schema.py
+  - tests/test_thir_snapshot.py
 ---
 
 # THIR — a árvore tipada entre o checker e os motores

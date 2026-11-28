@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Generate schema/thir-v1.json from the THIR dataclasses.
 
 O schema é contrato, não uma segunda fonte de verdade: nomes de campo e tipos vêm dos
@@ -36,6 +36,27 @@ def _node_classes() -> dict[str, type[object]]:
         for name, value in vars(model).items()
         if isinstance(value, type) and is_dataclass(value) and value.__module__ == model.__name__
     }
+
+
+# Toda subclasse direta de `Ty` precisa de um kind no schema e no serializador; o teste
+# compara esta lista com `Ty.__subclasses__()` para o drift não passar silencioso.
+TY_CLASSES = (
+    "Prim",
+    "TyVar",
+    "ListTy",
+    "MapTy",
+    "TupleTy",
+    "ClassTy",
+    "EnumTy",
+    "EnumObjectTy",
+    "ClassObjectTy",
+    "InterfaceTy",
+    "NativeModuleTy",
+    "UnionTy",
+    "FnTy",
+    "GenericFnTy",
+    "NativeFnTy",
+)
 
 
 # Classes-base que só existem para agrupar: o payload traz o `k` da subclasse concreta,

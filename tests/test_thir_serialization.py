@@ -127,6 +127,21 @@ def test_cli_build_emit_thir_writes_json(tmp_path: Path) -> None:
     assert payload["source_path"] == "tests/cases/generic_class.lx"
 
 
+def test_cli_emit_thir_reports_producer_error_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from loxia_core.semantics import thir_build
+
+    def boom(*args: object, **kwargs: object) -> object:
+        raise thir_build.ThirBuildError("boom")
+
+    monkeypatch.setattr(thir_build, "build_thir", boom)
+    result = run_cli("build", "tests/cases/generic_class.lx", "--emit=thir")
+    assert result.returncode == 65
+    assert "internal THIR error" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_cli_emit_thir_to_stdout_is_stable() -> None:
     first = run_cli("build", "tests/cases/generic_class.lx", "--emit=thir")
     second = run_cli("build", "tests/cases/generic_class.lx", "--emit=thir")

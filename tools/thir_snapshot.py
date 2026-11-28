@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Snapshot do THIR: hash por caso do corpus + goldens legíveis.
+"""Snapshot do THIR: hash por caso do corpus declarado.
 
 O THIR é o contrato entre o checker e os motores (ADR-0149, ADR-0154); o snapshot é o que
 torna uma mudança do produtor **visível na revisão** em vez de drift silencioso. Mesmo
