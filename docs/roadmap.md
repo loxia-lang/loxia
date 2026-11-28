@@ -73,10 +73,13 @@ issue.
 
 ## Próximo (Next)
 
-- **F3 — THIR eval em Loxia (`loxvm`)** ([#284](https://github.com/loxia-lang/loxia/issues/284)):
+- **F3 — THIR eval em Loxia (codename `loxvm`)** ([#284](https://github.com/loxia-lang/loxia/issues/284)):
   o segundo motor consome o THIR serializado (sem parser) e reproduz o oráculo; portão
-  G1–G4 + soak. A decisão de abertura (desugaring v2) está fechada: o THIR mantém os nós de
-  açúcar e desugaring é estratégia de motor ([ADR-0156](adr/0156-sem-desugaring-no-thir.md)).
+  G1–G4 + soak. As decisões de abertura estão fechadas: o THIR mantém os nós de açúcar
+  ([ADR-0156](adr/0156-sem-desugaring-no-thir.md)), a invocação é
+  `run --interpret`/`--engine=thir` com payload em arquivo temporário
+  ([ADR-0157](adr/0157-invocacao-e-distribuicao-do-thir-eval.md)) e o `std.json` perdeu o
+  cap de 16 níveis ([ADR-0158](adr/0158-json-sem-cap-de-aninhamento.md)).
 - **Piloto de `std.contracts`** em módulos da stdlib/exemplos e property tests
   ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) — em andamento em
   `std.paths`/`std.convert`; `std.numeric`/`std.lists` ficaram só com property tests após o

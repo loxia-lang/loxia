@@ -1,6 +1,10 @@
 # ADR-0079 — Stdlib T2: kernel mínimo, campos-container e módulos comuns
 
 > **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` passou a ser suportado com duas palavras inline (`{tag, payload}`); a recusa e a justificativa de §2 são históricas.
+>
+> **Emendado por** [ADR-0158](0158-json-sem-cap-de-aninhamento.md): o `std.json` deixou de ter
+> cap de 16 níveis — o leitor é iterativo e o limite é a memória; os escritores continuam
+> limitados pelo contrato de pilha de chamadas.
 
 - **Status:** accepted (implementado)
 - **Data:** 2026-11-15
