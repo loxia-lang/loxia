@@ -1512,3 +1512,30 @@ não alteram semântica, MCP, cobertura ou runner).
 
 <!-- triaged: 203c8db -->
 
+
+## 2026-11-28 — o lowering consome o THIR (F2 fatia 3)
+
+Intervalo: `7561f36..4359fa3` (port do lowering para `TModule`).
+
+- `docs/tech/thir.md` — **updated**: a seção da fatia 3 passou para o passado (o lowering
+  consome o `TModule`), `op_span` entrou na tabela de campos e no mapa de nós, e o
+  snapshot/schema do THIR mudaram de propósito.
+- `docs/tech/arquitetura.md` — **updated**: o pacote `thir/` deixou de dizer que o lowering
+  ainda caminha a AST; a decisão de captura/célula agora é do produtor, não de
+  `captures.py`.
+- `docs/spec/semantica.md` — **no-change**: nenhum comportamento observável mudou; o `.ll`
+  é 269/269 byte a byte e o diferencial I1 está verde.
+- `docs/spec/erros.md` — **no-change**: códigos, mensagens e canais iguais; `op_span` só
+  preserva o site de erro que o lowering já usava (inclusive a coluna do `R1011`).
+- `docs/spec/garantias.md` — **no-change**: gerado; níveis e promessas não mudaram.
+- `docs/tech/control-ir.md` — **no-change**: a IR de controle é interna e não mudou; o
+  lowering continua entrando por `ControlIR`/`ControlIRBuilder`.
+- `docs/tech/mcp.md` — **no-change**: `--emit=thir` e o `build` não mudaram de superfície;
+  o MCP continua em `--interpret`.
+- `docs/tech/python-coverage.md` — **no-change**: pisos e alvos iguais; só a entrada de
+  `captures.py` (arquivo removido) saiu do baseline do backend.
+- `docs/tech/test-report.md` — **no-change**: envelope e seleção do runner continuam iguais.
+- `docs/decisoes.md` — **no-change**: nenhuma decisão nova; o ADR-0154 já fixa a fronteira
+  do THIR e o ADR-0046 já cobre células/capturas.
+
+<!-- triaged: 4359fa3 -->
