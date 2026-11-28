@@ -25,6 +25,7 @@ Scanner ───────────────► list[Token]
    └──────────────────► Interpreter ──────► effects (`--interpret`, REPL, oráculo)
 
    (path `run`/`--emit`)  Checker ─────────► Lowerer ──► Control IR ──► llvmlite.ir ──► .o ──► cc
+                                     └─────► THIR (thir_build) ──► JSON v1 (`build --emit=thir`)
                                                                         └─► `--emit=ll`
 ```
 

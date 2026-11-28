@@ -8,11 +8,12 @@ determinísticos. O teste de corpus prova que o produtor cobre a linguagem intei
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
 
-from loxia.engine import Loxia
 from loxia_core.backend.captures import analyze_captures
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
@@ -47,9 +48,19 @@ from loxia_core.thir import (
     TVar,
     TVariantPattern,
 )
+from loxia_core.thir.serialize import canonical, dumps, loads
 from tests.corpus_manifest import LEVELS
+from tests.thir_support import analyze_case, module_for
 
 ROOT = Path(__file__).resolve().parents[1]
+SNAPSHOT = ROOT / "tests" / "thir" / "manifest.json"
+
+
+def _snapshot() -> dict[str, str]:
+    payload = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+    cases = payload["cases"]
+    assert isinstance(cases, dict)
+    return cases
 
 
 def _analyze(source: str) -> tuple[list[Stmt], Checker]:
@@ -551,24 +562,8 @@ def _corpus_cases() -> list[str]:
 @pytest.mark.parametrize("case", _corpus_cases(), ids=lambda case: Path(case).stem)
 def test_corpus_produces_thir(case: str) -> None:
     """Todo caso que compila produz THIR; capturas e células concordam com o backend."""
-    path = Path(case)
-    engine = Loxia()
-    engine.use_file(str(path), module_root=ROOT)
-    statements = engine._parse(path.read_text(encoding="utf-8"))
-    assert statements is not None
-
-    resolver = Resolver(engine.interpreter, engine.reporter)
-    resolver.resolve(statements)
-    checker = Checker(
-        engine.reporter,
-        captured_mutables=resolver.captured_mutables,
-        captured_globals=resolver.captured_global_names,
-        entry_file=str(path),
-    )
-    checker.check(statements)
-    assert not engine.reporter.had_error, f"{case}: corpus deveria passar no check"
-
-    module = _build(statements, checker, path=case)
+    statements, checker = analyze_case(case)
+    module = module_for(statements, checker, source_path=case)
     analysis = analyze_captures(statements)
 
     thir_captures = {
@@ -585,6 +580,14 @@ def test_corpus_produces_thir(case: str) -> None:
     )
     unresolved = {ref.name for ref in _refs(module) if ref.storage is Storage.UNRESOLVED}
     assert not unresolved, f"{case}: nomes não resolvidos em programa check-limpo: {unresolved}"
+
+    # O THIR é contrato serializado: round-trip e hash do snapshot (ADR-0154).
+    assert loads(dumps(module)) == module, f"{case}: round-trip mudou o THIR"
+    digest = hashlib.sha256(canonical(module).encode("utf-8")).hexdigest()
+    assert digest == _snapshot()[case], (
+        f"{case}: snapshot do THIR divergente; se a mudança é intencional, "
+        "rode `make thir-snapshot` e revise o diff"
+    )
 
 
 def _ast_functions(statements: list[Stmt]) -> list[Function | Lambda]:

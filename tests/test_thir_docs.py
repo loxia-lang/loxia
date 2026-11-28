@@ -41,5 +41,7 @@ def test_page_lists_every_thir_node() -> None:
 def test_page_mentions_no_ghost_node() -> None:
     text = PAGE.read_text(encoding="utf-8")
     known = _node_names()
-    ghosts = sorted({name for name in re.findall(r"`(T[A-Za-z]+)`", text) if name not in known})
+    ghosts = sorted(
+        {name for name in re.findall(r"`(T[A-Z][A-Za-z]*)`", text) if name not in known}
+    )
     assert not ghosts, f"docs/tech/thir.md cita nós que não existem: {', '.join(ghosts)}"

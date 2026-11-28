@@ -3,8 +3,18 @@ sources:
   - loxia_core/thir/**
   - loxia_core/semantics/thir_build.py
   - loxia_core/frontend/spans.py
+  - loxia/engine.py
+  - loxia/cli_args.py
+  - schema/thir-v1.json
+  - tools/thir_schema.py
+  - tools/thir_snapshot.py
+  - tests/thir/manifest.json
+  - tests/thir_support.py
   - tests/test_thir.py
   - tests/test_thir_docs.py
+  - tests/test_thir_serialization.py
+  - tests/test_thir_schema.py
+  - tests/test_thir_snapshot.py
 ---
 
 # THIR — a árvore tipada entre o checker e os motores
@@ -169,5 +179,42 @@ policiada enquanto as duas implementações coexistirem.
 - spans vêm dos tokens, sem caminho absoluto inventado (o arquivo é o de exibição);
 - construir duas vezes a partir da mesma árvore produz módulos **iguais**.
 
-A serialização (JSON v1, schema versionado, snapshot com hash) entra na fatia seguinte desta
-fase; o modelo é o mesmo que ela vai gravar.
+## Serialização (JSON v1)
+
+`loxia_core/thir/serialize.py` é a única implementação do formato: `to_payload`/`from_payload`,
+`dumps` (legível, para revisão) e `canonical` (compacto e ordenado, para hash).
+
+```text
+{"k":"TModule","schema_version":1,"source_path":"tests/cases/x.lx","entry":3,
+ "decls":[{"k":"Decl","id":1,"name":"x","ty":{"k":"prim","name":"Int"}, ...}],
+ "instances":[{"k":"TInstance","name":"Box","type_args":[...]}],
+ "type_aliases":[],
+ "statements":[{"k":"TFnDecl","fn":{...}}]}
+```
+
+- **Todo registro tem `k`** com o nome da classe (`TBinary`, `Decl`, `Ref`), e campos com o
+  nome do dataclass. Enums (`Storage`, `DeclKind`, `TokenType`) viram o nome
+  (`"CAPTURE"`, `"MINUS"`).
+- **`Ty` é estruturado, não `display()`**: `{"k":"list","element":{"k":"prim","name":"Int"}}`.
+  Um motor não deve precisar de um parser de tipo para ler o contrato; `display()` continua
+  sendo a forma de diagnóstico (ADR-0129), não a de máquina.
+- **`TClass`/`TField` não carregam layout** (ADR-0154); `ClassTy.token` (posição no fonte)
+  não é serializado — não é semântica.
+- **Versão**: `schema_version` viaja no topo e só muda em quebra; `from_payload` recusa
+  versão desconhecida. O schema versionado é [`schema/thir-v1.json`](../../schema/thir-v1.json),
+  gerado do modelo por `tools/thir_schema.py` (`make thir-schema`) e validado com
+  `jsonschema` nos casos de contrato.
+- **Determinismo**: `sort_keys` em todo objeto, listas na ordem canônica do modelo, nada de
+  `set`/`dict` derivado. O mesmo programa produz os mesmos bytes, inclusive entre processos
+  com `PYTHONHASHSEED` diferentes (`tests/test_thir_serialization.py`).
+- **Caminhos**: `source_path` e `span.file` são o caminho de exibição (o que o CLI recebeu).
+  O consumidor não deve passar caminho absoluto: o snapshot e o I3 vivem de caminho relativo.
+
+### Snapshot
+
+`tests/thir/manifest.json` guarda o sha256 da forma canônica do THIR de cada caso do corpus
+declarado; `tools/thir_snapshot.py --check` (e o teste de corpus) recusam divergência.
+Atualizar é revisão consciente: `make thir-snapshot` regrava e o diff de hashes diz
+exatamente quais casos o contrato mudou — "consertar para passar" é proibido. Para ler o
+contrato de um caso, `loxia build <caso> --emit=thir` imprime o JSON (o THIR é verboso por
+causa dos spans, então goldens completos versionados seriam ruído, não revisão).

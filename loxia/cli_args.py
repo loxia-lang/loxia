@@ -327,9 +327,9 @@ def _add_build_options(container: argparse._ActionsContainer, *, default_emit: b
     if default_emit:
         container.add_argument(
             "--emit",
-            choices=("ll", "obj", "exe"),
+            choices=("ll", "obj", "exe", "thir"),
             default="exe",
-            help="tipo de saída (default: exe)",
+            help="tipo de saída (default: exe; thir: THIR serializado, sem link)",
         )
     else:
         container.add_argument(
